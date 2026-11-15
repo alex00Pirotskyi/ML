@@ -73,7 +73,7 @@ def analyze(path):
     occupancy=float(np.mean(hi))
     # Before claiming two distinct states, demand both substantial
     # occupation and separation in relative WL/PSD.
-    mean_diff=float(np.mean(X[hi, [0,2]])-np.mean(X[floor, [0,2]]))
+    mean_diff=float(np.mean(X[hi][:, [0,2]])-np.mean(X[floor][:, [0,2]]))
     credible=bool(delta>10 and .1<=occupancy<=.9 and mean_diff>np.log(1.4))
     # If high fraction occupies almost all points, "rest" calibration unknown.
     hruns=runs(hi)
@@ -98,6 +98,9 @@ def main():
                 print("ERROR",group,p.name,type(e).__name__,str(e)[:150],flush=True)
         print("PROGRESS",group,len(by[group]),"fail",failed[group],flush=True)
     for g,rs in by.items():
+        if not rs:
+            print("GMM_GROUP",g,json.dumps({"n":0,"error":"insufficient usable windows"}),flush=True)
+            continue
         print("GMM_GROUP",g,json.dumps({
             "n":len(rs),"credible_bistate":sum(x["credible"] for x in rs),
             "bic_delta_med":q([x["bic_delta"] for x in rs],50),
