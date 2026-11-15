@@ -1,4 +1,4 @@
-name: Long-press unsupervised rest-state discovery
+name: Long-press participant-held-out contact robustness
 on:
   push:
     branches:
@@ -8,14 +8,14 @@ permissions:
   contents: read
 
 jobs:
-  lp-unsupervised:
+  lp-contact-heldout:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Install numeric libraries
+      - name: Install numeric ML dependencies
         run: python3 -m pip install --disable-pip-version-check -q numpy pandas scikit-learn
-      - name: Compare one- and two-state EMG mixtures across conditions
-        run: python3 scripts/lp_unsupervised_states.py
+      - name: Contrast quality models on identical held-out people
+        run: python3 scripts/lp_contact_heldout.py
