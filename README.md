@@ -46,7 +46,7 @@ For archives approaching 100 MB each, use Git LFS instead of regular Git.
 
 ### Faster compression
 
-The pre-commit hook processes CSVs in parallel (8 workers by default), uses
+The pre-commit hook processes CSVs in parallel (80 worker processes by default), uses
 fast gzip level 3 instead of level 9, and stages thousands of archives with
 batched Git operations. To adjust speed vs archive size for one commit:
 
