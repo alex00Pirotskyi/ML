@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import os
 import glob
+import shutil
 
 from concurrent.futures import ProcessPoolExecutor
 from itertools import repeat
@@ -43,6 +44,10 @@ MAX_WORKERS = min(8, os.cpu_count() - 5 or 1)
 # Printing thousands of lines also costs time.
 # Print progress once every N completed files.
 PRINT_EVERY = 25
+
+# Marker written only after PSD values have been divided and rounded.
+# Any recording with this flag set to 1 is already processed.
+PSD_MEAN_FLAG = "psd_mean_applied"
 
 
 # =============================================================================
@@ -111,6 +116,21 @@ def process_single_csv(file_path, input_dir, output_dir):
 
     # Intentionally keeping the exact same pandas read behavior.
     df = pd.read_csv(file_path)
+
+    # Do not apply PSD bin division twice.
+    if PSD_MEAN_FLAG in df.columns:
+        if not df[PSD_MEAN_FLAG].eq(1).all():
+            raise ValueError(
+                f"{file_path}: '{PSD_MEAN_FLAG}' exists but not every value is 1."
+            )
+        # If the output is another directory, still copy the already processed
+        # CSV there; do not recalculate its PSD columns.
+        if os.path.abspath(input_dir) != os.path.abspath(output_dir):
+            rel_path = os.path.relpath(file_path, input_dir)
+            destination = os.path.join(output_dir, rel_path)
+            os.makedirs(os.path.dirname(destination), exist_ok=True)
+            shutil.copy2(file_path, destination)
+        return file_path, "skipped"
 
     # Faster membership lookup than repeatedly searching df.columns.
     #
@@ -184,6 +204,9 @@ def process_single_csv(file_path, input_dir, output_dir):
         )
 
 
+    # Mark this recording as converted, after all PSD calculations.
+    df[PSD_MEAN_FLAG] = 1
+
     # -------------------------------------------------------------------------
     # OUTPUT PATH
     # -------------------------------------------------------------------------
@@ -223,7 +246,7 @@ def process_single_csv(file_path, input_dir, output_dir):
         index=False
     )
 
-    return file_path
+    return file_path, "converted"
 
 
 # =============================================================================
@@ -290,10 +313,13 @@ def process_offline_csvs(input_dir, output_dir):
 
 
         # Consume results so exceptions from workers are propagated.
-        for completed, file_path in enumerate(
+        skipped_count = 0
+        for completed, (_, status) in enumerate(
             results,
             start=1
         ):
+            if status == "skipped":
+                skipped_count += 1
 
             if (
                 completed % PRINT_EVERY == 0
@@ -306,7 +332,11 @@ def process_offline_csvs(input_dir, output_dir):
 
 
     print("=" * 100)
-    print(f"DONE: {total_files:,} CSV files processed.")
+    print(
+        f"DONE: {total_files:,} CSV files checked; "
+        f"{total_files - skipped_count:,} converted, "
+        f"{skipped_count:,} already converted (skipped)."
+    )
     print("=" * 100)
 
 
