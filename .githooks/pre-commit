@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Store staged .csv files in Git as deterministic .csv.gz files.
+"""Commit staged .csv as deterministic .csv.gz; never modify local .csv files.
 
-The working-copy .csv is never deleted or modified. Only the Git index is
-changed: the .csv.gz is staged, and the raw .csv is unstaged.
+Parallel compression plus one batched Git add/rm avoids thousands of Git index
+locks. Compression always uses the staged blob, not the working-tree contents.
 """
 
+from concurrent.futures import ProcessPoolExecutor
 import filecmp
 import gzip
 import os
@@ -14,15 +15,14 @@ import subprocess
 import sys
 import tempfile
 
-
-MAX_GZIP_BYTES = 95_000_000  # Leave room below GitHub's 100 MB file limit.
-
-
-def git(*args):
-    return subprocess.run(["git", *args], check=True)
+MAX_GZIP_BYTES = 95_000_000  # Keep each GitHub blob under 100 MB.
+WORKERS = max(1, int(os.environ.get("CSV_GZIP_WORKERS", "8")))
+LEVEL = int(os.environ.get("CSV_GZIP_LEVEL", "3"))
+PROGRESS_EVERY = 250
 
 
-def compress_staged_csv(path):
+def compress_one(item):
+    path, blob_sha = item
     destination = Path(path + ".gz")
     destination.parent.mkdir(parents=True, exist_ok=True)
     descriptor, temporary = tempfile.mkstemp(
@@ -31,61 +31,94 @@ def compress_staged_csv(path):
     try:
         with os.fdopen(descriptor, "wb") as output:
             with gzip.GzipFile(
-                filename="", fileobj=output, mode="wb", mtime=0, compresslevel=9
+                filename="", fileobj=output, mode="wb", mtime=0, compresslevel=LEVEL
             ) as compressed:
                 reader = subprocess.Popen(
-                    ["git", "cat-file", "blob", ":" + path], stdout=subprocess.PIPE
+                    ["git", "cat-file", "blob", blob_sha], stdout=subprocess.PIPE
                 )
                 assert reader.stdout is not None
                 with reader.stdout:
-                    shutil.copyfileobj(reader.stdout, compressed)
+                    shutil.copyfileobj(reader.stdout, compressed, length=1024 * 1024)
                 if reader.wait() != 0:
-                    raise RuntimeError("Could not read staged CSV: " + path)
+                    raise RuntimeError("Cannot read staged CSV blob: " + path)
 
         if os.path.getsize(temporary) > MAX_GZIP_BYTES:
             raise RuntimeError(
-                "Compressed file exceeds GitHub's practical per-file limit: "
-                + str(destination)
-                + ". Use Git LFS for this file."
+                "Compressed file exceeds the GitHub per-file limit: "
+                + str(destination) + "; use Git LFS."
             )
-
         if destination.is_file() and filecmp.cmp(temporary, destination, shallow=False):
             os.unlink(temporary)
         else:
             os.replace(temporary, destination)
-
-        git("add", "-f", "--", str(destination))
-        git("rm", "-q", "--cached", "-f", "--", path)
+        return path
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)
 
 
+def git_paths(args, paths):
+    # NUL-delimited pathspecs work for spaces, quotes, newlines, and long lists.
+    input_bytes = b"".join(os.fsencode(p) + b"\0" for p in paths)
+    subprocess.run(
+        ["git", *args, "--pathspec-from-file=-", "--pathspec-file-nul"],
+        input=input_bytes, check=True
+    )
+
+
 def main():
+    if LEVEL not in range(1, 10):
+        raise ValueError("CSV_GZIP_LEVEL must be between 1 and 9")
+
     staged = subprocess.check_output(
         ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR", "-z"]
     )
-    paths = [os.fsdecode(p) for p in staged.split(b"\0") if p]
-    csv_paths = [p for p in paths if p.lower().endswith(".csv")]
-    for number, path in enumerate(csv_paths, 1):
-        compress_staged_csv(path)
-        if number % 25 == 0 or number == len(csv_paths):
-            print(f"[csv.gz] Compressed {number}/{len(csv_paths)} staged CSVs", flush=True)
-    if csv_paths:
-        # If only unchanged CSVs were re-added, Git can otherwise create an
-        # empty commit because the index initially contained new .csv entries.
-        changed = subprocess.run(["git", "diff", "--cached", "--quiet"]).returncode
-        if changed == 0:
-            print("[csv.gz] No changes to commit; compressed archives are up to date.")
-            return 1
-        if changed != 1:
-            raise RuntimeError("Could not verify staged changes after compression")
+    csv_paths = [
+        os.fsdecode(p) for p in staged.split(b"\0")
+        if p and os.fsdecode(p).lower().endswith(".csv")
+    ]
+    if not csv_paths:
+        return 0
+
+    # Resolve all staged blob SHAs in one Git invocation.
+    index = {}
+    for entry in subprocess.check_output(["git", "ls-files", "--stage", "-z"]).split(b"\0"):
+        if not entry:
+            continue
+        metadata, path = entry.split(b"\t", 1)
+        mode, blob_sha, stage = metadata.split(b" ")
+        if stage == b"0":
+            index[os.fsdecode(path)] = os.fsdecode(blob_sha)
+    missing = [p for p in csv_paths if p not in index]
+    if missing:
+        raise RuntimeError("Cannot find staged CSV blobs: " + repr(missing[:3]))
+
+    print(
+        f"[csv.gz] Compressing {len(csv_paths):,} files with {WORKERS} workers "
+        f"at gzip level {LEVEL}...", flush=True
+    )
+    items = [(path, index[path]) for path in csv_paths]
+    with ProcessPoolExecutor(max_workers=WORKERS) as pool:
+        for completed, _ in enumerate(pool.map(compress_one, items, chunksize=8), 1):
+            if completed % PROGRESS_EVERY == 0 or completed == len(items):
+                print(f"[csv.gz] Compressed {completed:,}/{len(items):,}", flush=True)
+
+    # One index lock per operation, not one lock per CSV.
+    git_paths(["add", "-f"], [p + ".gz" for p in csv_paths])
+    git_paths(["rm", "-q", "--cached", "-f"], csv_paths)
+
+    changed = subprocess.run(["git", "diff", "--cached", "--quiet"]).returncode
+    if changed == 0:
+        print("[csv.gz] No changes to commit; archives are already current.")
+        return 1
+    if changed != 1:
+        raise RuntimeError("Could not verify staged changes after compression")
     return 0
 
 
 if __name__ == "__main__":
     try:
         sys.exit(main())
-    except (OSError, subprocess.CalledProcessError, RuntimeError) as exc:
+    except (OSError, ValueError, subprocess.CalledProcessError, RuntimeError) as exc:
         print(f"[csv.gz] ERROR: {exc}", file=sys.stderr)
         sys.exit(1)

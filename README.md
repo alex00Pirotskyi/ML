@@ -43,3 +43,19 @@ do not enable the hook, raw CSV files can be committed normally.
 The existing `valid.py`, `org.py`, and `psd_mean.py` currently expect plain
 `.csv` files, so keep or decompress local CSVs when using those scripts.
 For archives approaching 100 MB each, use Git LFS instead of regular Git.
+
+### Faster compression
+
+The pre-commit hook processes CSVs in parallel (8 workers by default), uses
+fast gzip level 3 instead of level 9, and stages thousands of archives with
+batched Git operations. To adjust speed vs archive size for one commit:
+
+```bash
+CSV_GZIP_WORKERS=12 CSV_GZIP_LEVEL=1 git commit -m "Update recordings"
+```
+
+Set `CSV_GZIP_LEVEL=9` for the smallest archives (slower), or keep level 3
+for a balance of size and speed. Git reads the exact **staged** CSV contents,
+so edits made after `git add` do not silently affect the compressed commit.
+If you update the hook while a commit is already running, that running commit
+still uses the old hook; the replacement takes effect on the next attempt.
