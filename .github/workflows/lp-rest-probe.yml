@@ -1,4 +1,4 @@
-name: Long-press temporal activity and rest stress tests
+name: Long-press electrode-quality feature ablations
 on:
   push:
     branches:
@@ -8,14 +8,14 @@ permissions:
   contents: read
 
 jobs:
-  lp-temporal-benchmark:
+  contact-feature-ablation:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
       - name: Install numeric ML libraries
         run: python3 -m pip install --disable-pip-version-check -q numpy pandas scikit-learn
-      - name: Evaluate relative EMG thresholds and baseline contamination
-        run: python3 scripts/lp_temporal_benchmark.py
+      - name: Match subjects and test contact feature ablations
+        run: python3 scripts/lp_contact_ablation.py
