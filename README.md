@@ -64,17 +64,17 @@ still uses the old hook; the replacement takes effect on the next attempt.
 
 Generate separate, non-destructive per-sample pseudo-labels for each sEMG
 channel: resting, high activity, and suspected disconnection (0-1), plus a
-strict global binary \`lp_state\` where **1 = confidently resting on all
-channels**, otherwise **0**. Unknown cases have \`lp_state_weight\` so they
+strict global binary `lp_state` where **1 = confidently resting on all
+channels**, otherwise **0**. Unknown cases have `lp_state_weight` so they
 are not treated as verified active negatives.
 
-\`\`\`bash
+```bash
 python -m pip install numpy pandas
 python lp_rest_labeler.py
-\`\`\`
+```
 
-Default input: \`DATA/DATA_LONG_PRESS\`. Output:
-\`DATA/DATA_LONG_PRESS_LABELED\` (ignored by Git by default).
+Default input: `DATA/DATA_LONG_PRESS`. Output:
+`DATA/DATA_LONG_PRESS_LABELED` (ignored by Git by default).
 Full documentation: [LP pseudo-label teacher](research/LP_LABELER_README.md).
 The teacher does not use PointerState or class_id as truth; scores are not
 validated physical muscle-state or electrode-impedance probabilities.
