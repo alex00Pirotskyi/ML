@@ -1,0 +1,91 @@
+#!/usr/bin/env python3
+"""Store staged .csv files in Git as deterministic .csv.gz files.
+
+The working-copy .csv is never deleted or modified. Only the Git index is
+changed: the .csv.gz is staged, and the raw .csv is unstaged.
+"""
+
+import filecmp
+import gzip
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import tempfile
+
+
+MAX_GZIP_BYTES = 95_000_000  # Leave room below GitHub's 100 MB file limit.
+
+
+def git(*args):
+    return subprocess.run(["git", *args], check=True)
+
+
+def compress_staged_csv(path):
+    destination = Path(path + ".gz")
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary = tempfile.mkstemp(
+        prefix=".csv-gzip-", suffix=".tmp", dir=destination.parent
+    )
+    try:
+        with os.fdopen(descriptor, "wb") as output:
+            with gzip.GzipFile(
+                filename="", fileobj=output, mode="wb", mtime=0, compresslevel=9
+            ) as compressed:
+                reader = subprocess.Popen(
+                    ["git", "cat-file", "blob", ":" + path], stdout=subprocess.PIPE
+                )
+                assert reader.stdout is not None
+                with reader.stdout:
+                    shutil.copyfileobj(reader.stdout, compressed)
+                if reader.wait() != 0:
+                    raise RuntimeError("Could not read staged CSV: " + path)
+
+        if os.path.getsize(temporary) > MAX_GZIP_BYTES:
+            raise RuntimeError(
+                "Compressed file exceeds GitHub's practical per-file limit: "
+                + str(destination)
+                + ". Use Git LFS for this file."
+            )
+
+        if destination.is_file() and filecmp.cmp(temporary, destination, shallow=False):
+            os.unlink(temporary)
+        else:
+            os.replace(temporary, destination)
+
+        git("add", "-f", "--", str(destination))
+        git("rm", "-q", "--cached", "-f", "--", path)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+
+
+def main():
+    staged = subprocess.check_output(
+        ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR", "-z"]
+    )
+    paths = [os.fsdecode(p) for p in staged.split(b"\0") if p]
+    csv_paths = [p for p in paths if p.lower().endswith(".csv")]
+    for number, path in enumerate(csv_paths, 1):
+        compress_staged_csv(path)
+        if number % 25 == 0 or number == len(csv_paths):
+            print(f"[csv.gz] Compressed {number}/{len(csv_paths)} staged CSVs", flush=True)
+    if csv_paths:
+        # If only unchanged CSVs were re-added, Git can otherwise create an
+        # empty commit because the index initially contained new .csv entries.
+        changed = subprocess.run(["git", "diff", "--cached", "--quiet"]).returncode
+        if changed == 0:
+            print("[csv.gz] No changes to commit; compressed archives are up to date.")
+            return 1
+        if changed != 1:
+            raise RuntimeError("Could not verify staged changes after compression")
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except (OSError, subprocess.CalledProcessError, RuntimeError) as exc:
+        print(f"[csv.gz] ERROR: {exc}", file=sys.stderr)
+        sys.exit(1)
