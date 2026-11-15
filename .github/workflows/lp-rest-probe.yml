@@ -1,4 +1,4 @@
-name: Long-press resting-state signal audit
+name: Long-press resting-state spectral audit
 on:
   push:
     branches:
@@ -8,7 +8,7 @@ permissions:
   contents: read
 
 jobs:
-  lp-rest-audit:
+  lp-rest-spectral:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -17,5 +17,5 @@ jobs:
           persist-credentials: false
       - name: Install numeric analysis dependencies
         run: python3 -m pip install --disable-pip-version-check -q numpy pandas
-      - name: Analyze resting vs active windows without pointer labels
-        run: python3 scripts/lp_rest_audit.py
+      - name: Examine per-zone spectral changes and resting signatures
+        run: python3 scripts/lp_rest_spectral.py
