@@ -1,0 +1,19 @@
+name: Long-press resting-state schema probe
+on:
+  push:
+    branches:
+      - research/lp-rest-signatures
+
+permissions:
+  contents: read
+
+jobs:
+  lp-rest-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Inspect dataset schemas without modifying data
+        run: python3 scripts/lp_rest_probe.py
