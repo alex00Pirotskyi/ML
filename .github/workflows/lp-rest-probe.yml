@@ -1,4 +1,4 @@
-name: Long-press comprehensive data and contact audit
+name: Long-press temporal activity and rest stress tests
 on:
   push:
     branches:
@@ -8,7 +8,7 @@ permissions:
   contents: read
 
 jobs:
-  lp-data-audit:
+  lp-temporal-benchmark:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -17,5 +17,5 @@ jobs:
           persist-credentials: false
       - name: Install numeric ML libraries
         run: python3 -m pip install --disable-pip-version-check -q numpy pandas scikit-learn
-      - name: Audit cohort timing contact and participant-held-out models
-        run: python3 scripts/lp_deep_audit.py
+      - name: Evaluate relative EMG thresholds and baseline contamination
+        run: python3 scripts/lp_temporal_benchmark.py
