@@ -1,0 +1,50 @@
+name: LP labeler real-data smoke test
+on:
+  push:
+    branches:
+      - research/lp-rest-signatures
+    paths:
+      - lp_rest_labeler.py
+      - research/LP_LABELER_README.md
+      - .github/workflows/lp-label-smoke.yml
+
+permissions:
+  contents: read
+
+jobs:
+  label-real-data:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install dependencies
+        run: python3 -m pip install --disable-pip-version-check -q numpy pandas
+      - name: Label representative recordings from all folders
+        run: |
+          python lp_rest_labeler.py --workers 2 --limit-per-group 3 --output-dir "$RUNNER_TEMP/lp_labels"
+          python - <<'PY'
+          import csv, json, gzip, os
+          from pathlib import Path
+          root=Path(os.environ["RUNNER_TEMP"])/"lp_labels"
+          summary=json.loads((root/"label_summary.json").read_text())
+          print("SUMMARY_COUNTS",json.dumps(summary["counts"]))
+          assert summary["counts"]["error"]==0, summary["errors"]
+          assert summary["counts"]["labeled"]>=30, summary["counts"]
+          for group, metrics in summary["groups"].items():
+              r=metrics["rest_rows"]/max(1,metrics["rows"])
+              print("GROUP_REST",group,"files",metrics["files"],"rest_fraction",round(r,3))
+          for group in ("CONNECTED","DISCONNECTED","MID_LONG_PRESS","SOFT_LONG_PRESS","STRONG_LONG_PRESS"):
+              files=list((root/group).glob("*.csv.gz"))
+              if not files:continue
+              for file in files[:2]:
+                  with gzip.open(file,"rt") as f:
+                      rd=csv.DictReader(f); rows=list(rd)
+                  assert "lp_state" in rd.fieldnames
+                  assert "lp_disconnection_ch3" in rd.fieldnames
+                  assert all(row["lp_state"] in ("0","1") for row in rows)
+                  print("EXAMPLE",group,file.name[:65],"rows",len(rows),
+                        "rest",round(sum(r["lp_state"]=="1" for r in rows)/len(rows),3),
+                        "disconn",round(sum(float(r["lp_disconnection_ch1"]) for r in rows)/len(rows),3))
+          PY
