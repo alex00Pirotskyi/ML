@@ -96,6 +96,9 @@ EMG_OPERATIONS = tuple(
     for z_idx in range(len(EMG_BIN_COUNTS))
 )
 
+# Build bin divisors once; reused for every CSV file.
+PSD_DIVISORS = dict(ACC_OPERATIONS + EMG_OPERATIONS)
+
 
 # =============================================================================
 # PROCESS ONE CSV
@@ -132,77 +135,44 @@ def process_single_csv(file_path, input_dir, output_dir):
             shutil.copy2(file_path, destination)
         return file_path, "skipped"
 
-    # Faster membership lookup than repeatedly searching df.columns.
-    #
-    # Does not affect column order or dataframe data.
-    existing_columns = set(df.columns)
-
-
-    # -------------------------------------------------------------------------
-    # ACC FEATURES
-    # -------------------------------------------------------------------------
-
-    for col_name, bin_count in ACC_OPERATIONS:
-
-        if col_name in existing_columns:
-
-            # ================================================================
-            # DO NOT CHANGE
-            #
-            # EXACT SAME MATH AS ORIGINAL SCRIPT
-            # ================================================================
-
-            df[col_name] = (
-                df[col_name] / bin_count
-            ).round()
-
-
-    # -------------------------------------------------------------------------
-    # EMG FEATURES
-    # -------------------------------------------------------------------------
-
-    for col_name, bin_count in EMG_OPERATIONS:
-
-        if col_name in existing_columns:
-
-            # ================================================================
-            # DO NOT CHANGE
-            #
-            # EXACT SAME MATH AS ORIGINAL SCRIPT
-            # ================================================================
-
-            df[col_name] = (
-                df[col_name] / bin_count
-            ).round()
-
-
-    # -------------------------------------------------------------------------
-    # FINAL POLISH
-    # -------------------------------------------------------------------------
-
-    # EXACT SAME selection rule as original:
-    #
-    #     if "psd" in c
-    #
-    all_psd_cols = [
-        c for c in df.columns
-        if "psd" in c
-    ]
+    # Convert PSD columns in batches to avoid pandas block fragmentation.
+    # Math is unchanged: divide by zone bin count, round, clip to [0, 65535],
+    # and cast to uint16. Non-PSD columns retain their values and order.
+    all_psd_cols = [col for col in df.columns if "psd" in col]
 
     if all_psd_cols:
+        scaled_cols = [col for col in all_psd_cols if col in PSD_DIVISORS]
+        unscaled_cols = [col for col in all_psd_cols if col not in PSD_DIVISORS]
+        parts = []
 
-        # ================================================================
-        # DO NOT CHANGE
-        #
-        # EXACT SAME clip + uint16 conversion
-        # ================================================================
+        if scaled_cols:
+            # DataFrame/Series aligned division applies each column's original
+            # divisor. pandas .round() uses the same rounding as before.
+            divisors = pd.Series({col: PSD_DIVISORS[col] for col in scaled_cols})
+            parts.append(df[scaled_cols].div(divisors, axis="columns").round())
 
-        df[all_psd_cols] = (
-            df[all_psd_cols]
+        if unscaled_cols:
+            # Preserve the old behavior: any column containing "psd" is
+            # clipped/cast, even if it has no bin-count divisor.
+            parts.append(df[unscaled_cols])
+
+        processed_psd = (
+            pd.concat(parts, axis=1, copy=False)
+            .reindex(columns=all_psd_cols)
             .clip(0, 65535)
             .astype(np.uint16)
         )
 
+        # Rebuild once rather than assigning ~99 columns individually.
+        original_order = df.columns
+        df = (
+            pd.concat(
+                [df.drop(columns=all_psd_cols), processed_psd],
+                axis=1,
+                copy=False,
+            )
+            .reindex(columns=original_order)
+        )
 
     # Mark this recording as converted, after all PSD calculations.
     df[PSD_MEAN_FLAG] = 1
