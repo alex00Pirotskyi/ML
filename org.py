@@ -997,7 +997,8 @@ def _choose_folds(subjects: list[str], raw_features: np.ndarray,
             assert pick is not None
             fold_of[idx] = pick
             sums[pick] += matrix[idx]
-            fold_subject_counts[pick] += 1        current = score(sums)
+            fold_subject_counts[pick] += 1
+        current = score(sums)
         # Coordinate descent with whole-subject moves and swaps. A person is
         # never split, and frozen subjects never move. Stop at a local optimum.
         movable = [i for i in range(n) if i not in fixed_indices]
