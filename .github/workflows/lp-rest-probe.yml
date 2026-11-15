@@ -1,4 +1,4 @@
-name: Long-press electrode-quality feature ablations
+name: Long-press contact-vs-activation robustness audit
 on:
   push:
     branches:
@@ -8,14 +8,14 @@ permissions:
   contents: read
 
 jobs:
-  contact-feature-ablation:
+  lp-contact-activity:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Install numeric ML libraries
+      - name: Install numeric ML dependencies
         run: python3 -m pip install --disable-pip-version-check -q numpy pandas scikit-learn
-      - name: Match subjects and test contact feature ablations
-        run: python3 scripts/lp_contact_ablation.py
+      - name: Test contact heuristics under long-press muscle activity
+        run: python3 scripts/lp_contact_activity_stress.py
