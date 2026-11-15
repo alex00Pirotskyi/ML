@@ -1,4 +1,4 @@
-name: Long-press contact-vs-activation robustness audit
+name: Long-press unsupervised rest-state discovery
 on:
   push:
     branches:
@@ -8,14 +8,14 @@ permissions:
   contents: read
 
 jobs:
-  lp-contact-activity:
+  lp-unsupervised:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Install numeric ML dependencies
+      - name: Install numeric libraries
         run: python3 -m pip install --disable-pip-version-check -q numpy pandas scikit-learn
-      - name: Test contact heuristics under long-press muscle activity
-        run: python3 scripts/lp_contact_activity_stress.py
+      - name: Compare one- and two-state EMG mixtures across conditions
+        run: python3 scripts/lp_unsupervised_states.py
