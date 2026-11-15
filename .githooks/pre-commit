@@ -16,7 +16,8 @@ import sys
 import tempfile
 
 MAX_GZIP_BYTES = 95_000_000  # Keep each GitHub blob under 100 MB.
-WORKERS = max(1, int(os.environ.get("CSV_GZIP_WORKERS", "80")))
+# Default: 80% of logical CPU cores, rounded to the nearest process.
+WORKERS = max(1, int(os.environ.get("CSV_GZIP_WORKERS", str(round((os.cpu_count() or 1) * 0.80)))))
 LEVEL = int(os.environ.get("CSV_GZIP_LEVEL", "3"))
 PROGRESS_EVERY = 250
 
