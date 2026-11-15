@@ -21,6 +21,8 @@ jobs:
           persist-credentials: false
       - name: Install dependencies
         run: python3 -m pip install --disable-pip-version-check -q numpy pandas
+      - name: Run synthetic teacher unit tests
+        run: python3 tests/test_lp_rest_labeler.py
       - name: Label representative recordings from all folders
         run: |
           python lp_rest_labeler.py --workers 2 --limit-per-group 3 --output-dir "$RUNNER_TEMP/lp_labels"
