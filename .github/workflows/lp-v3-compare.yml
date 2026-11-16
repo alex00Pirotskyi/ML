@@ -1,0 +1,32 @@
+name: LP v3 versus v2 real-data teacher audit
+on:
+  push:
+    branches:
+      - research/lp-v3-rest-contact
+    paths:
+      - scripts/lp_v3_compare.py
+      - .github/workflows/lp-v3-compare.yml
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      OMP_NUM_THREADS: "2"
+      OPENBLAS_NUM_THREADS: "2"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install dependencies
+        run: python3 -m pip install -q numpy pandas scipy scikit-learn
+      - name: Compare new and old labels without editing input data
+        run: PYTHONPATH=. python3 scripts/lp_v3_compare.py
+      - name: Upload experiment output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lp-v3-v2-activity-quality-audit
+          path: /tmp/lp_v3_v2_comparison.json
+          if-no-files-found: warn
