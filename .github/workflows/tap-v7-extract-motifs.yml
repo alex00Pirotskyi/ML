@@ -1,0 +1,65 @@
+name: TAP V7 exhaustive PSD waveform motif extraction
+on:
+  push:
+    branches:
+      - research/tap-pattern-v7-deep-20261116
+    paths:
+      - '.github/workflows/tap-v7-extract-motifs.yml'
+      - 'research/tap_real/extract_psd_motifs_v7.py'
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: read
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            DATA/DATA_TAP
+            research/tap_real
+            .github/workflows
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install offline numeric libraries
+        run: python -m pip install --disable-pip-version-check numpy pandas scipy
+      - name: Restore full source-bound V5 sidecars for provenance only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p research/tap_real/v5_motif_cache
+          gh run download 43858013153 -n tap-swipe-auto-label-v5-full \
+            --repo "${{ github.repository }}" -D research/tap_real/v5_motif_cache
+          test -f research/tap_real/v5_motif_cache/research/tap_real/results_v5_labels/manifest.jsonl
+      - name: Exhaustive waveforms and per-source strong/weak evidence audit
+        run: |
+          set -euo pipefail
+          python -u research/tap_real/extract_psd_motifs_v7.py \
+            --input-dir DATA/DATA_TAP \
+            --labels-dir research/tap_real/v5_motif_cache/research/tap_real/results_v5_labels \
+            --out-dir research/tap_real/results_v7_motifs 2>&1 | tee v7_motif_extraction.log
+      - name: Verify extraction complete
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=Path('research/tap_real/results_v7_motifs')
+          s=json.loads((d/'extraction_summary.json').read_text())
+          assert s['n_files']==2790,s
+          assert s['waveform_events']>40000,s
+          assert s['selected_v5_matched']>10000,s
+          print('V7_MOTIF_AUDIT_OK',json.dumps(s),flush=True)
+          PY
+      - name: Upload source-audited waveform tensors and metadata
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tap-v7-raw-waveform-motifs-full
+          path: |
+            research/tap_real/results_v7_motifs/**
+            v7_motif_extraction.log
+          retention-days: 30
