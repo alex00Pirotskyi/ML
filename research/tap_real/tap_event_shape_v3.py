@@ -403,8 +403,13 @@ def main():
                 label.loc[label.tap_label==1,'tap_label']=-1
                 label.loc[label.tap_label==-1,'tap_label_weight']=0
                 label.loc[label.tap_label==-1,'tap_event_id']=-1
+                qc['heuristic_positive_candidates']=qc['positive_events']
+                qc['positive_events']=0
+                qc['positive_rows']=0
                 for e in events:
-                    if e.decision=='POSITIVE':e.decision='CANDIDATE'
+                    if e.decision=='POSITIVE':
+                        e.decision='CANDIDATE'
+                        e.event_id=-1
             folder=out/f.parent.name;folder.mkdir(exist_ok=True)
             stem=f.name.replace('.csv.gz','').replace('.csv','')
             target=folder/(stem+'.labels.csv.gz')
