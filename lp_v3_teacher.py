@@ -195,8 +195,13 @@ def label_recording(df:pd.DataFrame,contact_prob=None,good_reference_wl=None,
             # posterior has temporal direction but no pointer input.
             log_ratio=lw-desc["floor_logwl"]
             pdiff=ps-desc["floor_psd"]
-            physics=.72*ramp(log_ratio,math.log(1.06),math.log(1.9)) \
-                    +.28*ramp(pdiff,.005,.25)
+            # emg_psd[0] is the most recent logged spectrum; it retains
+            # transient information that a separate 15-frame temporal
+            # emg_psd_mean can smear. Give it small weight, not a vote.
+            latest_diff=PI[:,ch]-desc["floor_psd"]
+            physics=(.63*ramp(log_ratio,math.log(1.06),math.log(1.9))
+                     +.26*ramp(pdiff,.005,.25)
+                     +.11*ramp(latest_diff,.005,.25))
             agree=.72 if credible else .42
             high=agree*high+(1-agree)*physics
             high=median_filter(high,size=3,mode="nearest")
@@ -222,6 +227,13 @@ def label_recording(df:pd.DataFrame,contact_prob=None,good_reference_wl=None,
                 high=np.full(nframe,.12)
                 uncertainty=np.full(nframe,.82)
 
+        # An abrupt current-PSD/history mismatch at the same time as an
+        # abrupt WL change is an uncertain transition. It might be genuine
+        # contraction or a motion/electrode artifact; do not force truth.
+        delta_psd_instant=np.abs(PI[:,ch]-ps)
+        wl_jump=np.r_[0.,np.abs(np.diff(lw))]
+        uncertainty=np.maximum(uncertainty,
+            np.where((delta_psd_instant>.20)&(wl_jump>.25),.55,0))
         # Movement artifacts are not always motion; only suppress
         # abrupt EMG changes accompanied by high accelerometer change.
         derivative=np.r_[0.,np.abs(np.diff(lw))]
