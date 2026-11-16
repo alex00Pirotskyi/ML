@@ -11,10 +11,11 @@
 1. Removing the compile-time EMG_PSD_MEAN and ACC_PSD_MEAN blocks is consistent with firmware already recording with both macros set to 0. Those blocks were never executed under that configuration.
 2. The entire new long-press dataset was checked, **2,431 of 2,431 decompressed CSV files byte-for-byte identical** to the preceding commit. The new commit recompressed the files, but did **not** alter their physiological data.
 3. The Python teacher uses the existing encoded log-domain PSD-zone features without zone-bin division, which matches the recorded configuration. Do not apply the legacy psd_mean.py conversion.
-4. Three-fold person-held-out LightGBM on the balanced 475-file benchmark scored **85.75% balanced accuracy**, **92.65% accuracy**, **rest F1 0.710**, and **ROC AUC 0.958**, exactly matching the earlier same-code benchmark.
-5. Activity evidence separated long-press recording sessions from quiet connected sessions with **AUC 0.987** and **92.19% fixed-threshold balanced accuracy**, but this is session-level context testing, not real press detection.
-6. Contact/disconnection evidence was markedly weaker: **AUC 0.762, balanced accuracy 71.43%** using provisional file/channel contact proxies. It missed **48/84** provisional disconnected-channel cases. A model imitating those contact scores can get a high R² without physically identifying disconnection.
-7. Strong-LP rest remains a serious weakness: only **17.0% of the teacher's rest windows** recovered by the student in strong LP files, while the teacher marked only **~5.4%** of strong LP rows as confidently resting.
+4. The primary full five-fold held-out-person LightGBM benchmark reached **85.78% balanced accuracy**, **rest F1 0.608**, and **ROC AUC 0.974** on 194,480 sampled rows from all 2,431 recordings. A separately balanced three-fold subset reached 85.75% balanced accuracy.
+5. Three-fold person-held-out LightGBM on the balanced 475-file benchmark scored **85.75% balanced accuracy**, **92.65% accuracy**, **rest F1 0.710**, and **ROC AUC 0.958**, exactly matching the earlier same-code benchmark.
+6. Activity evidence separated long-press recording sessions from quiet connected sessions with **AUC 0.987** and **92.19% fixed-threshold balanced accuracy**, but this is session-level context testing, not real press detection.
+7. Contact/disconnection evidence was markedly weaker: **AUC 0.762, balanced accuracy 71.43%** using provisional file/channel contact proxies. It missed **48/84** provisional disconnected-channel cases. A model imitating those contact scores can get a high R² without physically identifying disconnection.
+8. Strong-LP rest remains a serious weakness: only **17.0% of the teacher's rest windows** recovered by the student in strong LP files, while the teacher marked only **~5.4%** of strong LP rows as confidently resting.
 
 ## 2. Full data provenance verification
 
@@ -122,7 +123,80 @@ R² and MAE evaluate **student ability to reconstruct teacher soft scores**. Hig
 
 Evidence: https://github.com/alex00Pirotskyi/ML/actions/runs/43821234257 (job quick, uploaded JSON).
 
-## 5. Teacher sanity testing against weak recording contexts
+## 5. Final full-dataset five-fold evaluation — all 2,431 recordings
+
+**The full benchmark is complete**, and this is the primary classifier score. It processed every recording from all 12 folders, with 80 evenly spaced samples per recording: **194,480 rows**, **64 normalized participant identifiers**, five GroupKFold held-out-person splits, no failed files. The teacher-positive resting class is only **4.33%** of the scored samples. TAP/SWIPE contribute 172,480 of the total rows and materially influence aggregate metrics.
+
+All scores evaluate STUDENT imitation of the causal V2 teacher's binary lp_state pseudo-labels, not independently confirmed muscle rest or release:
+
+| Model | Accuracy | Balanced accuracy | Rest F1 | Rest recall | ROC AUC | PR AUC rest |
+|---|---:|---:|---:|---:|---:|---:|
+| Always predict 0 | 95.67% | 50.00% | 0.000 | 0.00% | 0.441 | 0.039 |
+| LightGBM raw features | 89.43% | 69.23% | 0.279 | 47.10% | 0.869 | 0.187 |
+| Logistic regression with causal history | 91.99% | 77.15% | 0.397 | 60.91% | 0.906 | 0.293 |
+| **LightGBM with causal history** | **95.83%** | **85.78%** | **0.608** | **74.78%** | **0.974** | **0.676** |
+| LightGBM with whole-recording oracle, NOT deployable | 96.26% | 87.45% | 0.643 | 77.81% | 0.979 | 0.732 |
+
+The primary model's **rest precision = 51.24%**, teacher-nonrest **specificity = 96.78%**, teacher-confidence-weighted balanced accuracy **85.97%**. Confusion matrix with teacher truth rows 0,1 and student predictions columns 0,1:
+
+| | Predicted 0 | Predicted 1 |
+|---|---:|---:|
+| Teacher nonrest 0 | 180,066 | 5,992 |
+| Teacher rest 1 | 2,124 | 6,298 |
+
+**Important class imbalance:** Always predicting nonrest achieves 95.67% raw accuracy. Reporting 95.83% accuracy as the headline without balanced accuracy, PR AUC, F1 and rest recall would be misleading. The result does show the causal student learns nontrivial discrimination against the heuristic teacher.
+
+**Quick vs full:** The controlled 475-file quick run had 11.73% resting prevalence, balanced accuracy 85.75%, F1 0.710. The full run has only 4.33% resting prevalence, balanced accuracy 85.78%, F1 0.608. The different F1 is mainly a task-composition/class-prevalence effect, not evidence of changing firmware preprocessing. All decompressed source CSVs are identical before and after the user's commit.
+
+### 5.1 Hard-case breakdown in the complete run
+
+| Context | Scored rows | Teacher resting fraction | Balanced accuracy | Recall of teacher rest |
+|---|---:|---:|---:|---:|
+| CONNECTED | 3,120 | 60.22% | 85.60% | 95.85% |
+| DISCONNECTED | 3,360 | 3.45% | 65.41% | 31.03% |
+| MID_LONG_PRESS | 3,280 | 9.21% | 77.37% | 61.59% |
+| SOFT_LONG_PRESS | 2,880 | 24.76% | 83.24% | 77.28% |
+| **STRONG_LONG_PRESS** | **1,600** | **5.88%** | **58.54%** | **18.09%** |
+| TAP | 98,480 | 3.54% | 82.37% | 68.46% |
+| SWIPE | 74,000 | 1.30% | 80.00% | 61.85% |
+
+Strong LP remains a serious weakness. The student misses most of the V2 teacher's already-sparse confident-rest windows. It is **NOT** evidence that 81.91% of actual release events fail, because no independent release labels exist; the metric is strictly pseudo-rest recall.
+
+### 5.2 Per-channel continuous regression: first held-out-person fold only
+
+Nine independent LightGBM regressors used the 44 causal features. This is **one GroupKFold held-out fold**, **38,880 samples from 12 held-out subject IDs**, not all five folds.
+
+| Teacher target | CH1 MAE / R² | CH2 MAE / R² | CH3 MAE / R² |
+|---|---:|---:|---:|
+| Resting | 0.140 / 0.552 | 0.128 / 0.511 | 0.145 / 0.724 |
+| High muscle activity | 0.161 / 0.280 | 0.180 / 0.269 | 0.132 / 0.315 |
+| Disconnection | 0.00171 / 0.916 | 0.00895 / 0.495 | 0.00494 / 0.837 |
+
+All quantities are on the teacher's 0..1 pseudo-score scale. Activity regression R² is weak across all channels; CH2 disconnection R² falls to only 0.495 on this held-out fold. Disconnection-positive fractions are around 1% of rows in this fold, so low MAE is dominated by near-zero targets.
+
+The additional four-class per-channel pseudo-state classifier (rest, active, disconnected, UNKNOWN), also only on the first held-out fold, achieved:
+
+| Channel | Four-class accuracy | Macro F1 |
+|---|---:|---:|
+| CH1 | 80.58% | 0.785 |
+| CH2 | 78.54% | 0.745 |
+| CH3 | 83.08% | 0.794 |
+
+These are internal teacher-label classification metrics and do not validate actual contact/physiology.
+
+### 5.3 Exact evidence and reproducibility
+
+- Full five-fold job: https://github.com/alex00Pirotskyi/ML/actions/runs/43821234257
+- Successful job name: full; run artifacts include lp-no-mean-full-results and the full JSON output.
+- Reproduction command:
+
+      python scripts/lp_classifier_benchmark_v2.py --input-dir DATA/DATA_LONG_PRESS --per-file 80 --tap-cap 0 --swipe-cap 0 --folds 5 --out /tmp/lp_no_mean_full.json
+
+- Dataset revision: 36f02ac757166ba6dee848385ce70aa2f276a7d4, verified decompressed identical to preceding revision across all 2,431 files.
+
+**Interpretation:** The full 85.78% balanced accuracy is the proper STUDENT-IMITATION benchmark, while the 92.2% LP-session activity-context score and 71.4% contact-context score describe different WEAK-LABEL teacher sanity checks. None measures independently verified LP physical release.
+
+## 6. Teacher sanity testing against weak recording contexts
 
 These tests are independent of the student but still rely on imperfect session labels. CH3 in DISCONNECTED recordings is deliberately excluded from a disconnected-positive label.
 
@@ -149,7 +223,7 @@ Mean teacher-positive lp_state resting fractions: CONNECTED 60.1%; NOTHING 69.0%
 
 Evidence: https://github.com/alex00Pirotskyi/ML/actions/runs/43821738519
 
-## 6. Scientific interpretation
+## 7. Scientific interpretation
 
 **Adaptive resting baselines:** EMG onset literature has used single, double and adaptive threshold algorithms; thresholds are sensitive to signal-to-noise ratio, preprocessing and dwell. No single universally valid threshold exists. A causal per-channel baseline is justified, but its calibration must be verified rather than inferred solely from a low percentile or quiet time. Reference: Carvalho et al. (2023), Journal of NeuroEngineering and Rehabilitation: https://link.springer.com/article/10.1186/s12984-023-01268-8
 
@@ -157,7 +231,7 @@ Evidence: https://github.com/alex00Pirotskyi/ML/actions/runs/43821738519
 
 **Subject and placement variation:** Surface EMG changes with electrode position, muscle anatomy and the skin-electrode interface. Train and evaluate by participant/device/session, not random rows from the same recording. Reference: Analysis and Biophysics of Surface EMG (2020): https://pmc.ncbi.nlm.nih.gov/articles/PMC7594523
 
-## 7. Engineering recommendation
+## 8. Engineering recommendation
 
 1. **Keep current FW FFT-zone bin averaging disabled.** There is no expected feature change from commenting out code that was under macros set to 0.
 2. **Stop running psd_mean.py** on future raw recordings. It is legacy post-log scaling, not a physically correct frontend change.
@@ -167,7 +241,7 @@ Evidence: https://github.com/alex00Pirotskyi/ML/actions/runs/43821738519
 6. **Focus next experiment on soft vs strong held contractions with independently measured release timing**, plus controlled per-channel electrode lift-off, a verified quiet baseline, and startup-active trials.
 7. Revalidate under held-out people, hands, devices and acquisition days. Report false-REST-during-hold, false-ACTIVE-at-rest, false disconnected while connected, time-to-rest after release, and abstention rate.
 
-## 8. Reproducible research scripts
+## 9. Reproducible research scripts
 
 - Complete decompressed data-identity audit: https://github.com/alex00Pirotskyi/ML/actions/runs/43821967044
 - Full CSV schema/provenance audit: https://github.com/alex00Pirotskyi/ML/actions/runs/43821003142
