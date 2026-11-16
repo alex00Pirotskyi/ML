@@ -83,7 +83,7 @@ Thus the old Python script is a reversible-ish *numeric rescaling* of the existi
 
 ### 2.6 Data provenance check
 
-A 72-file profile sampled from all 12 recording folders found no psd_mean_applied markers and spectral values consistent with the provided raw-log recording configuration, but this is not an exhaustive proof of every byte of all 2,431 files. Examples of median zone log-codes:
+A 69-file profile sampled from all 12 recording folders found no psd_mean_applied markers and spectral values consistent with the provided raw-log recording configuration, but this is not an exhaustive proof of every byte of all 2,431 files. Examples of median zone log-codes:
 
 | Recording example | Zone 0 | Zone 1 | Zone 2 | Zone 3 | Zone 4 |
 |---|---:|---:|---:|---:|---:|
@@ -245,6 +245,50 @@ The old teacher is preserved in research/legacy/lp_rest_labeler_v1.py; the updat
 **Data-provenance audit:** sampled all categories; no raw/legacy markers present in tested files. An optional --psd-mode switch supports raw, legacy-divided or auto(marker) selection. If the file is missing its provenance marker but was already processed, auto cannot detect that condition.
 
 **Important limitation:** These tests establish internal consistency and code correctness, NOT true muscle-rest accuracy or verified electrode disconnection. Additional recording-level comparisons, per-subject validation, and controlled contact trials remain necessary.
+
+
+
+## 6.1 Real-data comparison: V1 versus V2 (important negative results)
+
+The read-only comparative experiment processed **all 101 long-press recordings**,
+all 39 CONNECTED, 42 DISCONNECTED, 42 LOOSE, 5 NOTHING, 9 TABLE,
+37 DRAG_AND_DROP, and 110 sampled TAP + 110 sampled SWIPE recordings.
+All source files remained unchanged. These are descriptive fractions of
+pseudo-labels, NOT true rest annotations.
+
+| Context | Files | V1 fraction lp_state=1 | V2 fraction lp_state=1 | V2 fraction of rows with low confidence (<0.05) |
+|---|---:|---:|---:|---:|
+| CONNECTED | 39 | 65.61% | 60.10% | 25.30% |
+| DISCONNECTED | 42 | 2.37% | 3.43% | 92.61% |
+| LOOSE | 42 | 8.08% | 9.63% | 82.88% |
+| NOTHING | 5 | 56.18% | 69.04% | 5.79% |
+| TABLE | 9 | 0.00% | 0.00% | 100.00% |
+| MID_LONG_PRESS | 41 | 14.90% | 9.19% | 21.63% |
+| SOFT_LONG_PRESS | 36 | 23.30% | 24.63% | 25.27% |
+| STRONG_LONG_PRESS | 20 | 12.30% | 5.43% | 31.05% |
+| LONG_PRESS / contraction | 4 | 12.07% | 5.36% | 47.29% |
+| DRAG_AND_DROP | 37 | 18.11% | 8.27% | 42.00% |
+| TAP (sample) | 110 | 11.41% | 2.78% | 81.94% |
+| SWIPE (sample) | 110 | 6.96% | 1.56% | 85.95% |
+
+**This does NOT prove improvement in real-world strong LP recognition.**
+V2 is explicitly more conservative and typically produces fewer confident-rest
+rows in strong LP sessions. Some recordings have no identifiable all-channel
+rest interval under V2 because one channel never obtains sufficient baseline
+or contact evidence. Without independently recorded ground truth, we cannot
+call that a true-negative improvement or a false-rest regression.
+
+In 39 connected references, V2 marks **94.9% of files with at least one**
+confident resting interval (compared with 84.6% for V1), albeit with smaller
+total resting coverage; this suggests V2 often calibrates but is stricter about
+transitions. In DISCONNECTED sessions, CH1/CH2 are largely UNKNOWN or
+static-noise candidates; CH3 is not assumed disconnected.
+
+**Next validation priority:** label a small collection of precisely
+synchronized strong-press and release intervals independently, and measure
+time-to-rest and false-REST-while-held against those timestamps. It would be
+unsound to optimize V2 merely to reproduce a larger portion of V1's
+noncausal labels.
 
 ## 7. How to run
 
