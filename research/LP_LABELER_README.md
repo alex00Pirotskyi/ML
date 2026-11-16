@@ -1,77 +1,123 @@
-# LP sEMG pseudo-label teacher
+# Firmware-aware causal LP pseudo-label teacher — v2
 
-The script `lp_rest_labeler.py` generates per-row, per-channel exploratory
-**regression pseudo-labels** for physiological resting, high muscle activity,
-and contact-fault/disconnection evidence. It intentionally does NOT use
-PointerState, TriggerPressure, class_id or folder labels as ground truth.
+The entrypoint lp_rest_labeler.py now calls lp_causal_fw_teacher.py. V2 was
+derived from a direct audit of the provided feature-extraction firmware,
+external sEMG research, all 101 long-press recordings, contact controls, and
+synthetic causal/encoding tests.
 
-## Run
+**It creates pseudo-labels, NOT verified physical ground truth.**
 
-From the repository root on Ubuntu, with numpy/pandas installed:
+## Running from the repository root
 
-```bash
-python lp_rest_labeler.py
-```
+    python -m pip install numpy pandas
+    python lp_rest_labeler.py
 
-Default source: `DATA/DATA_LONG_PRESS`  
-Default destination: `DATA/DATA_LONG_PRESS_LABELED`
+Defaults:
+- Input: DATA/DATA_LONG_PRESS (raw CSV or CSV.gz)
+- Output: DATA/DATA_LONG_PRESS_LABELED_V2, preserving subfolders and original columns
+- Workers: 80% of logical CPU cores capped at 12, to avoid RAM exhaustion
+- PSD encoding: auto, meaning use explicit psd_mean_applied flag when present;
+  otherwise assume the raw acquisition encoding specified by user
 
-Outputs preserve all original CSV cell text and source folder structure.
-The input files are **never modified**. Original .csv.gz files stay compressed.
-Existing outputs are skipped unless you pass `--overwrite`.
+Output path is ignored by Git; input files are never modified. The old v1
+output DATA/DATA_LONG_PRESS_LABELED is not touched or mixed with v2.
 
-Quick run across every folder, 2 files from each folder:
+Run a small test:
 
-```bash
-python lp_rest_labeler.py --limit-per-group 2 --workers 2
-```
+    python lp_rest_labeler.py --limit-per-group 2 --workers 2
 
-Process the entire dataset with at most 12 workers by default (roughly 80%
-of logical cores but capped to limit RAM use), or override with `--workers 16`.
-Outputs are ignored by Git unless explicitly force-added, preventing a huge
-automatic push from `git add .`.
+Explicit original raw acquisition mode:
 
-## Columns (one row per input sample)
+    python lp_rest_labeler.py --psd-mode raw
 
-For CH1/CH2/CH3, 0..1 continuous scores:
+If the CSV has been processed by the old post-log psd_mean.py WITHOUT a
+conversion marker, select the legacy mode and a dedicated output directory:
 
-- `lp_resting_ch1` ... `lp_resting_ch3`: resting evidence.
-- `lp_high_activity_ch1` ... `lp_high_activity_ch3`: elevated muscle activity evidence.
-- `lp_disconnection_ch1` ... `lp_disconnection_ch3`: severe contact-fault / disconnection evidence.
-- `lp_unknown_ch1` ... `lp_unknown_ch3`: **abstention** where the other three are insufficient.
+    python lp_rest_labeler.py --psd-mode legacy-divided --output-dir DATA/DATA_LP_LEGACY_LABELED_V2
 
-Within each channel, the four outputs add up to 1 (up to CSV rounding).
-These are **heuristic scores, not calibrated physiological probabilities**.
+Use only when provenance is independently confirmed. An unmarked file cannot
+be reliably classified as raw or post-converted by numerical values alone.
 
-Global:
-- `lp_state` (binary): **1** only after all three channels appear connected and
-  confidently resting continuously for ~180 ms; **0** for activity, suspected
-  disconnection, uncertain contact, or startup / insufficient evidence.
-- `lp_state_weight` (0..1): pseudo-label confidence for downstream learning.
-  **Do not train on lp_state=0 as a verified active class when this weight is
-  low.** Handle uncertainty and class imbalance appropriately.
-- `lp_teacher_version`: reproducibility marker.
-- `label_summary.json` summarizes per-group scores, counts and errors.
+## Feature math — essential differences from v1
 
-## Method / limitations
+- The firmware uses SNC_QUEUE_SIZE=256 filtered EMG samples, Blackman window,
+  real FFT, squared magnitudes, sum over five frequency zones, then
+  E = uint16(round(10000 * log10(1 + zone_sum))). It clips at 65535.
+- EMG_PSD_MEAN=0 during recording means DO NOT average FFT bins within
+  each zone. The field named emg_psd_mean is STILL the arithmetic temporal
+  mean of 15 previously encoded log-zone frames.
+- V1 incorrectly called a sum of logged-zone encodings "PSD power".
+- V2 uses a robust median of encoded log zones and *differences* of that
+  index relative to an established per-channel resting floor, scaled
+  by 1/10000. This is only a normalized LOG-DOMAIN evidence index.
+- WL still represents scaled absolute sample differences over 256
+  filtered EMG samples, not RMS, muscle force, or linear power.
 
-- Activity is estimated from 180 ms trailing medians of WL and total PSD per
-  channel, normalized by that file's 15th percentile. Uses a smooth continuous
-  response between ~1.08x and ~2x the low-energy floor.
-- Disconnection is intentionally conservative: abnormally **high AND flat**
-  WL on multi-second windows with a generally flat recording, plus obvious
-  dead-sensor flatlines. Other bad-contact mechanisms remain UNKNOWN.
-- PSD bands are summed without re-dividing by bin counts: older source files
-  may have been mean-converted without an explicit conversion flag.
-- The 15th percentile is calculated from the ENTIRE recording, so this is an
-  **offline, non-causal teacher**. Firmware and streaming inference must learn
-  or estimate resting floors causally.
-- Contact scores may still confuse muscle activity, and quiet disconnections
-  cannot be conclusively detected without independent electrode tests.
-  Validate against real per-channel contact truth and real press/release times.
-- Any channel suspected disconnected makes the global binary label 0, even
-  when the other channels appear at rest, as specifically requested.
-- Do not silently treat `lp_state` as pointer/gesture ground truth.
+## Outputs
 
-Research evidence and known failure modes:
-`research/LONG_PRESS_DEEP_RESEARCH_2026-11-15.md` on research branch.
+Per original CSV row, on a 0–1 *heuristic score* scale:
+
+- lp_resting_ch1, lp_resting_ch2, lp_resting_ch3
+- lp_high_activity_ch1, lp_high_activity_ch2, lp_high_activity_ch3
+- lp_disconnection_ch1, lp_disconnection_ch2, lp_disconnection_ch3
+- lp_unknown_ch1, lp_unknown_ch2, lp_unknown_ch3
+
+The four per-channel scores add to 1, up to CSV rounding. The
+disconnection signal is **artifact evidence**, not electrode-impedance
+truth. A silent or initially strong channel may remain UNKNOWN.
+
+- lp_state: binary, 1 ONLY when all three channels are calibrated,
+  appear connected and resting for >=180ms. Zero means active OR
+  disconnected OR unknown.
+- lp_state_weight: 0–1 label reliability. Uncalibrated/strongly UNKNOWN
+  rows receive about 0.02 rather than being treated as confirmed active.
+- lp_teacher_version: lp_causal_fw_v2.
+- label_summary.json: per-directory file counts and label/uncertainty ratios.
+
+Train regression heads on continuous targets. When training binary
+lp_state, use sample_weight and consider dropping highly uncertain
+samples; do not use zero labels with tiny weights as verified pressing.
+
+## Causal initialization/release
+
+- Start in UNKNOWN with short timestamp bootstrap.
+- Require quiet contact-plausible observations before establishing
+  per-channel resting WL and log-PSD floors.
+- Freeze floors during elevated signal; lower cautiously during
+  confident rest; increase VERY slowly (~60s time constant).
+- Track previously seen WL peaks; a sufficiently large energy drop
+  permits accelerated recalibration even when a long quality window
+  still contains prior muscle activation.
+- Do not call a high stationary startup contraction "disconnected"
+  immediately. Use UNKNOWN until enough evidence is available.
+- A true release cannot be proven without an independent pressure or
+  event-synchronization reference.
+
+## PSD conversion caveat
+
+The old psd_mean.py divides ALREADY-ENCODED uint16 LOG spectral values by
+[8,10,12,46,51] per zone. That is not equal to applying the bin average
+inside the firmware before taking the logarithm. V2 reverses that
+numerical division approximately when psd_mean_applied=1 is present,
+but rounding and clipping make exact recovery impossible.
+
+Do not apply psd_mean.py as a required preprocessing step for V2.
+
+## Validation and reproducibility
+
+- tests/test_lp_causal_fw_teacher.py: causal prefix invariance,
+  startup-active, release, steady rest, noise, ambiguous quiet
+  channels, raw/legacy PSD numerical agreement and pointer immunity.
+- tests/test_lp_rest_labeler.py: six existing tests including
+  non-destructive CSV handling.
+- scripts/lp_psd_provenance.py: actual recording PSD encoding audit.
+- scripts/lp_teacher_compare.py: read-only v1-v2 comparison across all
+  LP/contact folders.
+- scripts/lp_classifier_benchmark_v2.py: held-out-person
+  student-imitation benchmark using firmware-compatible log PSD features.
+- Detailed report:
+  research/LP_CAUSAL_FIRMWARE_PSD_RESEARCH_2026-11-16.md
+
+No code here changes the actual nRF firmware. All thresholds are
+research hypotheses. Person-held-out imitation of a pseudo-label teacher
+does NOT prove real muscle activity/disconnection/press-release accuracy.
