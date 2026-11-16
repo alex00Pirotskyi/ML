@@ -1,0 +1,22 @@
+name: PSD provenance profile
+on:
+  push:
+    branches:
+      - research/lp-causal-fw-psd
+    paths:
+      - scripts/lp_psd_provenance.py
+      - .github/workflows/lp-psd-provenance.yml
+permissions:
+  contents: read
+jobs:
+  profile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install pandas
+        run: python3 -m pip install -q numpy pandas
+      - name: Inspect raw log PSD schemas and transformation markers
+        run: python3 scripts/lp_psd_provenance.py
