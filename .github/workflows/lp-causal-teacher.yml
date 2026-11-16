@@ -1,0 +1,56 @@
+name: Causal LP teacher firmware-correction tests
+on:
+  push:
+    branches:
+      - research/lp-causal-fw-psd
+    paths:
+      - lp_causal_fw_teacher.py
+      - lp_rest_labeler.py
+      - tests/test_lp_causal_fw_teacher.py
+      - .github/workflows/lp-causal-teacher.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  teacher:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install Python dependencies
+        run: python3 -m pip install -q numpy pandas
+      - name: Syntax and new synthetic tests
+        run: |
+          python3 -m py_compile lp_causal_fw_teacher.py lp_rest_labeler.py
+          python3 tests/test_lp_causal_fw_teacher.py
+          python3 tests/test_lp_rest_labeler.py
+      - name: Label 3 real recordings per recording group
+        run: |
+          python3 lp_rest_labeler.py --workers 2 --limit-per-group 3 --output-dir /tmp/lp_v2_test
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          from collections import Counter
+          import numpy as np
+          import pandas as pd
+          root=Path("/tmp/lp_v2_test")
+          s=json.loads((root/"label_summary.json").read_text())
+          assert s["counts"]["error"]==0,s["errors"]
+          assert s["counts"]["labeled"]>=36,s["counts"]
+          print("SUCCESS",s["counts"])
+          for group in sorted(root.iterdir()):
+              if not group.is_dir():continue
+              frac=[];dis=[];unknown=[];calibrated=[]
+              for f in group.glob("*.csv.gz"):
+                  d=pd.read_csv(f,compression="gzip",
+                      usecols=lambda c:c.startswith("lp_") and c!="lp_teacher_version")
+                  frac.append(d["lp_state"].mean())
+                  dis.append(d["lp_disconnection_ch1"].mean())
+                  unknown.append(d["lp_unknown_ch1"].mean())
+              print("GROUP",group.name,"files",len(frac),
+                    "rest",round(float(np.mean(frac)),3),
+                    "disc_CH1",round(float(np.mean(dis)),3),
+                    "unknown_CH1",round(float(np.mean(unknown)),3))
+          PY
