@@ -5,7 +5,7 @@ on:
       - research/tap-real-benchmark-20261116
     paths:
       - '.github/workflows/tap-real-benchmark.yml'
-      - 'research/tap_real/**'
+      - 'research/tap_real/benchmark.py'
   workflow_dispatch:
     inputs:
       limit:
