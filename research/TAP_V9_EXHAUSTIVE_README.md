@@ -70,10 +70,10 @@ The most important files are:
 
 Detailed `source_manifest.json`, cached event waveforms, per-file predictions, participant names, CSVs and source archives stay local. **Do not publish them in a public repository without explicit review.** The summary score and selected window can be optimistic due to comparison of thousands of configurations on the same OOF folds; a truly independent test set must decide production readiness.
 
-To let ChatGPT inspect an aggregate run without uploading large files, copy `publish_v9_aggregate.sh` into your repository and run it **with GitHub push credentials**:
+To let ChatGPT inspect an aggregate run without uploading large files, run the included `research/tap_real/publish_v9_aggregate.sh` helper **with GitHub push credentials**:
 
 ```bash
-bash publish_v9_aggregate.sh research/tap_real/results_v9_standard my-run-01
+bash research/tap_real/publish_v9_aggregate.sh research/tap_real/results_v9_standard my-run-01
 ```
 
 The helper builds an isolated, orphan Git worktree (no second checkout of the large dataset), then pushes a dedicated `research/tap-v9-aggregate-my-run-01` branch containing ONLY the aggregate reports. It does not change the current working branch. It prints a GitHub URL you can paste into the next chat. Or upload `SUMMARY_FOR_CHATGPT.json`, `leaderboard.csv`, and `REPORT_FOR_CHATGPT.md` directly here.
