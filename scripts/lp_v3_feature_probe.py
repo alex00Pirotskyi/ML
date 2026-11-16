@@ -17,6 +17,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
 
+from lp_causal_fw_teacher import BIN_COUNTS
+
 ROOT=Path("DATA/DATA_LONG_PRESS")
 GROUPS=("CONNECTED","DISCONNECTED","LOOSE","TABLE","NOTHING","MID_LONG_PRESS",
         "SOFT_LONG_PRESS","STRONG_LONG_PRESS","LONG_PRESS","DRAG_AND_DROP","TAP","SWIPE")
@@ -27,7 +29,7 @@ WT=[f"p_core->wl_tail[CH{i}]" for i in range(1,4)]
 P=[[f"p_core->emg_psd_mean[CH{i}][{z}]" for z in range(5)] for i in range(1,4)]
 PI=[[f"p_core->emg_psd[0][CH{i}][{z}]" for z in range(5)] for i in range(1,4)]
 ACC=[f"p_core->acc_rate[{ax}][{z}]" for ax in "XYZ" for z in range(6)]
-COL=set(W+WH+WT+sum(P,[])+sum(PI,[])+ACC+["Timestamp","MonotonicTimeUs","User"])
+COL=set(W+WH+WT+sum(P,[])+sum(PI,[])+ACC+["Timestamp","MonotonicTimeUs","User","psd_mean_applied"])
 def pct(a,p):
     a=np.asarray(a,float);a=a[np.isfinite(a)]
     return float(np.percentile(a,p)) if len(a) else 0.
@@ -56,6 +58,16 @@ def record(path,group):
     p=np.maximum(p,0)
     ins=np.nan_to_num(np.stack([X(d,PI[c])[:n] for c in range(3)],axis=1))
     ins=np.maximum(ins,0)
+    # Historical psd_mean.py divided ALREADY LOG-ENCODED zone values by
+    # bin counts. Restore the scale before quality/GMM feature extraction;
+    # this must agree with lp_v3_teacher and the V4/V5 state teachers.
+    if "psd_mean_applied" in d:
+        marker=pd.to_numeric(d["psd_mean_applied"],errors="coerce")
+        if marker.eq(1).all():
+            p*=np.asarray(BIN_COUNTS,dtype=float).reshape(1,1,5)
+            ins*=np.asarray(BIN_COUNTS,dtype=float).reshape(1,1,5)
+        elif not marker.eq(0).all():
+            raise ValueError("Mixed or invalid legacy PSD encoding")
     head=np.maximum(np.nan_to_num(X(d,WH)[:n]),0)
     tail=np.maximum(np.nan_to_num(X(d,WT)[:n]),0)
     acc=np.maximum(np.nan_to_num(X(d,ACC)[:n]),0)
