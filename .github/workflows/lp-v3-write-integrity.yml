@@ -1,0 +1,69 @@
+name: LP V3 actual CSV write and integrity test
+on:
+  push:
+    branches:
+      - research/lp-v3-rest-contact
+    paths:
+      - .github/workflows/lp-v3-write-integrity.yml
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      OPENBLAS_NUM_THREADS: "2"
+      OMP_NUM_THREADS: "2"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install numeric dependencies
+        run: python3 -m pip install -q numpy pandas scipy scikit-learn
+      - name: Snapshot source-file checksums
+        run: |
+          python3 - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          base=Path("DATA/DATA_LONG_PRESS")
+          out={}
+          for g in sorted(p for p in base.iterdir() if p.is_dir()):
+              paths=sorted(g.glob("*.csv.gz"))[:2]
+              for f in paths:
+                  out[str(f)]=hashlib.sha256(f.read_bytes()).hexdigest()
+          Path("/tmp/lp_v3_source_sha.json").write_text(json.dumps(out,indent=2))
+          print("SNAPSHOTTED_INPUT_FILES",len(out))
+          PY
+      - name: Export actual labeled compressed CSV files
+        run: python3 lp_v3_labeler.py --limit-per-group 2 --output-dir /tmp/lp_v3_exported
+      - name: Verify original cell text, per-channel outputs, row count, input integrity
+        run: |
+          python3 - <<'PY'
+          import csv, gzip, hashlib, json
+          from pathlib import Path
+          original=json.loads(Path("/tmp/lp_v3_source_sha.json").read_text())
+          output=Path("/tmp/lp_v3_exported")
+          names=[f"lp_{kind}_ch{i}" for i in range(1,4)
+                 for kind in ("resting","high_activity","disconnection","unknown")]
+          for src,sha in original.items():
+              path=Path(src)
+              assert hashlib.sha256(path.read_bytes()).hexdigest()==sha,src
+              dst=output / path.relative_to("DATA/DATA_LONG_PRESS")
+              assert dst.exists(),str(dst)
+              with gzip.open(path,"rt",newline="") as f:
+                  a=list(csv.reader(f))
+              with gzip.open(dst,"rt",newline="") as f:
+                  b=list(csv.reader(f))
+              assert len(a)==len(b)>1,(src,len(a),len(b))
+              assert all(c in b[0] for c in names+["lp_state","lp_state_weight","lp_teacher_version"])
+              assert b[0][:len(a[0])]==a[0]
+              for ar,br in zip(a,b):
+                  assert ar==br[:len(ar)],src
+                  if len(ar)==len(a[0]) and br!=b[0]:
+                      assert br[b[0].index("lp_state")] in ("0","1")
+          meta=json.loads((output/"label_summary.json").read_text())
+          assert meta["counts"].get("error",0)==0,meta["errors"]
+          assert meta["counts"].get("ok")==len(original),meta["counts"]
+          assert (output/"review_queue.json").exists()
+          print("LP_V3_CSV_EXPORT_PASS",len(original),"original compressed CSV unchanged")
+          PY
