@@ -8,6 +8,19 @@
 
 > **Research only. Do not use V3 pseudo-labels as physical ground truth, or deploy the offline event-shape model to nRF52832.** The 2026-11-16 study has no independently measured physical tap onset times and therefore cannot establish real tap recall, precision, false-tap rate, or firmware latency.
 
+## Scope correction — combined TAP/SWIPE training target (November 16, 2026)
+
+The dataset owner confirmed the **authoritative recording-level classes** for the intended combined task:
+
+- **Positive recording bags:** `DATA_TAP/TAP` and `DATA_TAP/SWIPE`. Every such recording contains the intended gesture type, although not every frame is positive.
+- **Negative recording bags:** `FINGER`, `WRIST`, `ARM`, `BAND`, and `NOTHING`. These recordings contain no TAP/SWIPE target events.
+
+The earlier V3 experiment defined **SWIPE as a negative** because it studied a **TAP-only** detector. Accordingly, its TAP-versus-SWIPE rejection counts, AUCs, and release conclusions **must not be interpreted as results for the combined TAP/SWIPE training task**. Source class `class_id=1` was already assigned to both TAP and SWIPE by the source organizer.
+
+A corrected recording-supervised V5 prototype now learns TAP, SWIPE and non-target classes with five-fold participant-string-grouped out-of-fold inference. Its full 2,790-recording **combined positive-versus-negative recording ROC AUC is 0.837**. This is a recording-level score, not physical event-onset accuracy. Positive timestamps remain **automatic weak temporal labels** inferred from EMG event shape, reliable recording class, and quality-controlled pointer agreement, rather than independently measured physical-contact ground truth.
+
+Code and tests: [V5 research branch](https://github.com/alex00Pirotskyi/ML/tree/research/tap-swipe-auto-label-v5). Do not substitute the older V3/V4 TAP-only labels for this combined target.
+
 ## Executive conclusion
 
 V3 substantially improves the *recording-category weak-label ranking* compared with V1/V2 event-density metrics, and a physiological re-arming state machine improves synthetic double-tap recovery without splitting tested broad single pulses. This does **not** yet solve tap recognition: FINGER gestures remain a major confounder. The strongest held-out V3 weak-label recording-category AUC is about **0.70** on all unique files, but the primary TAP-vs-FINGER AUC is only **0.52**. A more FINGER-conscious model improves that comparison to **0.62**, still far from deployment quality.
