@@ -1,0 +1,28 @@
+name: LP pseudo-label weak-context diagnostics
+on:
+  push:
+    branches:
+      - research/lp-no-psd-mean-20261116
+    paths:
+      - scripts/lp_no_mean_teacher_proxy.py
+      - .github/workflows/lp-no-mean-teacher-proxy.yml
+permissions:
+  contents: read
+jobs:
+  teacher-proxies:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install dependencies
+        run: python3 -m pip install -q numpy pandas scikit-learn
+      - name: Evaluate channel contact and activity teacher against weak recording contexts
+        run: PYTHONPATH=. python3 scripts/lp_no_mean_teacher_proxy.py
+      - name: Upload context diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lp-no-mean-teacher-context-diagnostics
+          path: /tmp/lp_no_mean_teacher_proxy.json
