@@ -11,6 +11,9 @@ on:
       - scripts/lp_state_v4_real_audit.py
       - scripts/lp_state_v4_diagnostics.py
       - scripts/lp_state_v4_contact_controls.py
+      - lp_state_v4_partial.py
+      - tests/test_lp_state_v4_partial.py
+      - scripts/lp_state_v4_partial_audit.py
   workflow_dispatch:
 
 permissions:
@@ -30,12 +33,17 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             /lp_state_v4.py
+            /lp_state_v4_partial.py
             /tests/test_lp_state_v4.py
+            /tests/test_lp_state_v4_partial.py
             /scripts/lp_state_v4_real_audit.py
             /scripts/lp_state_v4_diagnostics.py
             /scripts/lp_state_v4_contact_controls.py
+            /scripts/lp_state_v4_partial_audit.py
             /DATA/DATA_LONG_PRESS/CONNECTED/
             /DATA/DATA_LONG_PRESS/DISCONNECTED/
+            /DATA/DATA_LONG_PRESS/LOOSE/
+            /DATA/DATA_LONG_PRESS/TABLE/
             /DATA/DATA_LONG_PRESS/NOTHING/
             /DATA/DATA_LONG_PRESS/LONG_PRESS/
             /DATA/DATA_LONG_PRESS/SOFT_LONG_PRESS/
@@ -53,6 +61,9 @@ jobs:
       - name: Run synthetic contract tests
         run: python -m unittest discover -s tests -p "test_lp_state_v4.py" -v
 
+      - name: Partial-contact and pointer-invariance tests
+        run: python -m unittest discover -s tests -p "test_lp_state_v4_partial.py" -v
+
       - name: Run full real-data audit
         run: python scripts/lp_state_v4_real_audit.py --output /tmp/lp_state_v4_real_audit.json
 
@@ -61,6 +72,9 @@ jobs:
 
       - name: Test PSD gate on connected and disconnected controls
         run: python scripts/lp_state_v4_contact_controls.py
+
+      - name: Audit V4.2 partial-contact labels against real data
+        run: python scripts/lp_state_v4_partial_audit.py
 
       - name: Upload reproducible audit
         if: always()
@@ -71,5 +85,6 @@ jobs:
             /tmp/lp_state_v4_real_audit.json
             /tmp/lp_v4_diagnostics.json
             /tmp/lp_v4_control_qc.json
+            /tmp/lp_v4_partial_audit.json
           if-no-files-found: warn
           retention-days: 30
