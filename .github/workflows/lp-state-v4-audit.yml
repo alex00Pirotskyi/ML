@@ -14,6 +14,7 @@ on:
       - lp_state_v4_partial.py
       - tests/test_lp_state_v4_partial.py
       - scripts/lp_state_v4_partial_audit.py
+      - scripts/lp_v5_event_study.py
   workflow_dispatch:
 
 permissions:
@@ -40,6 +41,7 @@ jobs:
             /scripts/lp_state_v4_diagnostics.py
             /scripts/lp_state_v4_contact_controls.py
             /scripts/lp_state_v4_partial_audit.py
+            /scripts/lp_v5_event_study.py
             /DATA/DATA_LONG_PRESS/CONNECTED/
             /DATA/DATA_LONG_PRESS/DISCONNECTED/
             /DATA/DATA_LONG_PRESS/LOOSE/
@@ -76,6 +78,9 @@ jobs:
       - name: Audit V4.2 partial-contact labels against real data
         run: python scripts/lp_state_v4_partial_audit.py
 
+      - name: Study real event morphology before V5 changes
+        run: python scripts/lp_v5_event_study.py
+
       - name: Upload reproducible audit
         if: always()
         uses: actions/upload-artifact@v4
@@ -86,5 +91,6 @@ jobs:
             /tmp/lp_v4_diagnostics.json
             /tmp/lp_v4_control_qc.json
             /tmp/lp_v4_partial_audit.json
+            /tmp/lp_v5_event_study.json
           if-no-files-found: warn
           retention-days: 30
