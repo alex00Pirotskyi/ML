@@ -101,6 +101,9 @@ def compute_causal_labels(df,psd_mode="auto"):
     streak=np.zeros(3,dtype=np.int32)
     ready=np.zeros(3,dtype=bool)
     last_response=np.full(3,1e7)
+    recent_wl_peak=np.zeros(3,dtype=float)
+    peak_decay=math.exp(-dt/5000.)
+    recover_n=max(16,round(300./dt))
     rest=np.zeros((n,3),np.float32)
     active=np.zeros((n,3),np.float32)
     bad=np.zeros((n,3),np.float32)
@@ -121,6 +124,11 @@ def compute_causal_labels(df,psd_mode="auto"):
             good=bool(valid[t,ch] and present[ch] and not invalid_psd[t,ch])
             clipped=bool(w>=65530 or sat_psd[t,ch])
             last_response[ch]+=dt
+            recent_wl_peak[ch]=max(w,recent_wl_peak[ch]*peak_decay)
+            # A large fall from a previously observed contraction is causal
+            # release evidence. It allows rapid rest-floor acquisition even
+            # while the 1.8 s quality window still contains prior activation.
+            recovered_from_peak=(w<3800 and recent_wl_peak[ch]>max(3000.,2.8*w))
             static=float(ramp(slow[t,ch],3500.,8000.))
             flat=float(1-ramp(dyn[t,ch],1.16,1.70))
             # No baseline and high stationary energy might be sustained
@@ -143,7 +151,8 @@ def compute_causal_labels(df,psd_mode="auto"):
                 # A start-during-contraction may remain uncalibrated.
                 # Never label high stationary noise as reliable rest.
                 candidate=(good and history and w>=50 and w<3800
-                           and dyn[t,ch]<1.55 and dis<.35 and not clipped)
+                           and (dyn[t,ch]<1.55 or recovered_from_peak)
+                           and dis<.35 and not clipped)
                 if candidate:
                     streak[ch]+=1
                     trial_wl[ch]=min(trial_wl[ch],w)
@@ -152,7 +161,7 @@ def compute_causal_labels(df,psd_mode="auto"):
                     streak[ch]=0
                     trial_wl[ch]=np.inf
                     trial_psd[ch]=np.inf
-                if streak[ch]>=cal_n:
+                if streak[ch]>=(recover_n if recovered_from_peak else cal_n):
                     ready[ch]=True
                     flo_wl[ch]=max(trial_wl[ch],1.)
                     flo_psd[ch]=max(trial_psd[ch],0.)

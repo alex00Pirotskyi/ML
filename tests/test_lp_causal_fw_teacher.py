@@ -79,6 +79,7 @@ class TestCausalFwTeacher(unittest.TestCase):
         label,_=scores(df)
         self.assertEqual(int(label["lp_state"].iloc[:650].sum()),0)
         self.assertGreater(label["lp_unknown_ch1"].iloc[100:200].median(),.8)
+        self.assertGreater(label["lp_state"].iloc[780:930].mean(),.70)
         self.assertGreater(label["lp_state"].iloc[1400:].mean(),.75)
 
     def test_prefix_invariant_to_all_future_data(self):
