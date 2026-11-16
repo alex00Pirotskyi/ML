@@ -13,7 +13,8 @@ This cannot prove physical press/release accuracy. v20 remains untouched.
 """
 from __future__ import annotations
 
-import argparse
+from concurrent.futures import ProcessPoolExecutor
+from dataclasses import dataclass
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
 import hashlib
@@ -45,6 +46,7 @@ from export_plus import (
 from lp_v3_labeler import EXTRA_READ, normalize_person, train_contact_quality
 from lp_v5_labeler import INPUT_ROOT, LP_GROUPS, GROUPS, infer_quality
 from lp_state_v5 import BIN_COUNTS, VERSION as TEACHER_VERSION, label_recording
+from lp_v5_cpu import CPU_FRACTION, available_cpus, cpu_workers, prepare_process_worker
 
 # The precise CSV keys are the precise, UNMODIFIED t_core expressions emitted by
 # export_plus.py. Do NOT train on log1p(WL), rolling EMA, or host-only features.
@@ -67,6 +69,22 @@ LABEL_CONTRACT = {"1": "REST/RELEASE positive", "0": "ACTIVE/HOLD",
                   "-1": "UNKNOWN/exclude; never train as zero"}
 FIRMWARE_GROUP = "lp_v5"
 OUT_DEFAULT = Path("LP_V5_EMBEDDED_OPTUNA")
+
+# Edit these values HERE. Running python train_lp_v5_optuna.py takes no flags.
+@dataclass(frozen=True)
+class TrainConfig:
+    trials: int = 160
+    max_static_bytes: int = 24576
+    max_trees: int = 128
+    max_rows_per_file: int = 480
+    cv_folds: int = 3
+    seed: int = 42
+    output: Path = OUT_DEFAULT
+    limit_per_group: int = 0
+    skip_host_compile: bool = False
+    skip_replay: bool = False
+    cpu_fraction: float = CPU_FRACTION
+
 
 
 def hash_file(path: Path) -> str:
@@ -126,73 +144,132 @@ def stratified_sample(y: np.ndarray, weight: np.ndarray, cap: int,
     return np.sort(out)
 
 
+_TRAIN_WORKER_STATE = None
+
+
+def _init_training_worker(root, max_rows_per_file, seed, full, by_person, known):
+    """Set one cross-fitted contact model per subprocess; BLAS threads = 1."""
+    global _TRAIN_WORKER_STATE
+    prepare_process_worker()
+    _TRAIN_WORKER_STATE = (root, max_rows_per_file, seed, full, by_person, known)
+
+
+def _training_file_worker(item):
+    """Process one recording deterministically independent of worker scheduling."""
+    root, cap, seed, contact, by_person, known = _TRAIN_WORKER_STATE
+    group, src = item
+    if root not in src.resolve().parents:
+        raise ValueError("Input path escapes the required source root")
+    df = pd.read_csv(src, compression="gzip",
+                     usecols=lambda name: name in EXTRA_READ, low_memory=False)
+    bad, method = infer_quality(src, group, df, by_person, contact, known)
+    labels, teacher_report = label_recording(df, bad, group=group)
+    y = labels.lp_state.to_numpy(np.int8)
+    w = labels.lp_state_weight.to_numpy(np.float32)
+    if np.any(w[y < 0] > 0):
+        raise ValueError("Unknown V5 labels must have zero sample weight")
+    if not set(np.unique(y)).issubset({-1, 0, 1}):
+        raise ValueError("Unexpected teacher label value")
+    # Stable per-file seed: sequential and multiworker processing produce
+    # identical chosen samples (important for Optuna reproducibility).
+    relative = src.relative_to(root).as_posix()
+    path_seed = int.from_bytes(hashlib.sha256(relative.encode()).digest()[:8], "little")
+    rng = np.random.default_rng((seed + path_seed) % (1 << 64))
+    chosen = stratified_sample(y, w, cap, rng)
+    person = normalize_person(
+        df["User"].iloc[0] if "User" in df else None, src.name
+    )
+    audit = {
+        "path": relative, "person": person, "quality_source": method,
+        "rows": len(df), "accepted": int(np.sum(y >= 0)),
+        "sampled": len(chosen), "class0": int(np.sum(y[chosen] == 0)),
+        "class1": int(np.sum(y[chosen] == 1)),
+        "teacher_reason": teacher_report["reason"],
+    }
+    if not len(chosen):
+        return audit, None, None, None, 0
+    x = raw_features(df.iloc[chosen])
+    finite = np.all(np.isfinite(x), axis=1)
+    discarded = int(np.sum(~finite))
+    if not np.any(finite):
+        return audit, None, None, None, discarded
+    return audit, x[finite], y[chosen][finite], w[chosen][finite], discarded
+
+
 def load_training_data(root: Path, max_rows_per_file: int, seed: int,
-                       max_files_per_group: int = 0):
-    """In-memory dataset; V5 teacher computed on full recordings before sampling."""
+                       max_files_per_group: int = 0,
+                       workers: int = 1):
+    """Parallel per-recording V5 teaching; deterministic person-grouped samples."""
     root = root.resolve()
     if root != INPUT_ROOT.resolve():
         raise ValueError("Only DATA/DATA_LONG_PRESS is allowed as source")
-    rng = np.random.default_rng(seed)
+    if max_rows_per_file < 1 or workers < 1:
+        raise ValueError("Invalid parallel dataset-preparation settings")
     print("CONTACT_MODEL: cross-fitting weak per-channel quality, by person", flush=True)
     contact, by_person, known, _ref, quality_eval = train_contact_quality(root, .7)
     collected_x, collected_y, collected_w = [], [], []
     people, source_groups, paths = [], [], []
     file_audit, skipped, all_source = [], Counter(), []
-    start = time.monotonic()
+    tasks = []
     for group in GROUPS:
         sources = sorted((root / group).glob("*.csv.gz"))
         if max_files_per_group:
             sources = sources[:max_files_per_group]
         for src in sources:
-            if root not in src.resolve().parents:
-                raise ValueError("Input path escapes the required source root")
             all_source.append((src.relative_to(root).as_posix(), src.stat().st_size))
+            tasks.append((group, src))
+    start = time.monotonic()
+    if workers > 1 and len(tasks) > 1:
+        pool = ProcessPoolExecutor(
+            max_workers=min(workers, len(tasks)),
+            initializer=_init_training_worker,
+            initargs=(root, max_rows_per_file, seed, contact, by_person, known),
+        )
+        from contextlib import closing
+        # A generator is consumed inside the executor's context; no results
+        # can outlive the subprocess pool.
+        with pool:
+            results = pool.map(_training_file_worker, tasks, chunksize=1)
+            for i, item in enumerate(tasks):
+                try:
+                    audit, x, y, w, invalid_count = next(results)
+                except Exception as exc:
+                    raise RuntimeError(f"V5 training input failed: {item[1]}: {exc}") from exc
+                file_audit.append(audit)
+                skipped["non_finite_selected"] += invalid_count
+                if x is None:
+                    skipped["all_unknown_or_nonfinite"] += 1
+                else:
+                    collected_x.append(x)
+                    collected_y.append(y)
+                    collected_w.append(w)
+                    people.extend([audit["person"]] * len(y))
+                    source_groups.extend([item[0]] * len(y))
+                    paths.extend([str(item[1])] * len(y))
+                if (i + 1) % 25 == 0 or i + 1 == len(tasks):
+                    print("PREPARED", i + 1, "/", len(tasks),
+                          "elapsed_s", round(time.monotonic()-start, 1), flush=True)
+    else:
+        _init_training_worker(root, max_rows_per_file, seed, contact, by_person, known)
+        for i, item in enumerate(tasks):
             try:
-                df = pd.read_csv(
-                    src, compression="gzip", usecols=lambda name: name in EXTRA_READ,
-                    low_memory=False
-                )
-                bad, method = infer_quality(src, group, df, by_person, contact, known)
-                labels, teacher_report = label_recording(df, bad, group=group)
-                y = labels.lp_state.to_numpy(np.int8)
-                w = labels.lp_state_weight.to_numpy(np.float32)
-                if np.any(w[y < 0] > 0):
-                    raise ValueError("Unknown V5 labels must have zero sample weight")
-                if not set(np.unique(y)).issubset({-1, 0, 1}):
-                    raise ValueError("Unexpected teacher label value")
-                chosen = stratified_sample(y, w, max_rows_per_file, rng)
-                person = normalize_person(
-                    df["User"].iloc[0] if "User" in df else None, src.name
-                )
-                file_audit.append({
-                    "path": src.relative_to(root).as_posix(), "person": person,
-                    "quality_source": method,
-                    "rows": len(df), "accepted": int(np.sum(y >= 0)),
-                    "sampled": len(chosen), "class0": int(np.sum(y[chosen] == 0)),
-                    "class1": int(np.sum(y[chosen] == 1)),
-                    "teacher_reason": teacher_report["reason"],
-                })
-                if len(chosen) == 0:
-                    skipped["all_unknown"] += 1
-                    continue
-                x = raw_features(df.iloc[chosen])
-                finite = np.all(np.isfinite(x), axis=1)
-                skipped["non_finite_selected"] += int(np.sum(~finite))
-                if not np.any(finite):
-                    skipped["all_nonfinite"] += 1
-                    continue
-                x, chosen = x[finite], chosen[finite]
+                audit, x, y, w, invalid_count = _training_file_worker(item)
+            except Exception as exc:
+                raise RuntimeError(f"V5 training input failed: {item[1]}: {exc}") from exc
+            file_audit.append(audit)
+            skipped["non_finite_selected"] += invalid_count
+            if x is None:
+                skipped["all_unknown_or_nonfinite"] += 1
+            else:
                 collected_x.append(x)
-                collected_y.append(y[chosen])
-                collected_w.append(w[chosen])
-                people.extend([person] * len(chosen))
-                source_groups.extend([group] * len(chosen))
-                paths.extend([str(src)] * len(chosen))
-            except (OSError, ValueError, RuntimeError, KeyError, TypeError) as exc:
-                # Fail rather than silently claim the corpus was processed.
-                raise RuntimeError(f"V5 training input failed: {src}: {exc}") from exc
-        print("PREPARED", group, "files", len(sources), "elapsed_s",
-              round(time.monotonic() - start, 1), flush=True)
+                collected_y.append(y)
+                collected_w.append(w)
+                people.extend([audit["person"]] * len(y))
+                source_groups.extend([item[0]] * len(y))
+                paths.extend([str(item[1])] * len(y))
+            if (i + 1) % 25 == 0 or i + 1 == len(tasks):
+                print("PREPARED", i + 1, "/", len(tasks),
+                      "elapsed_s", round(time.monotonic()-start, 1), flush=True)
     if not collected_x:
         raise RuntimeError("No valid V5 training labels from the source corpus")
     x = np.concatenate(collected_x).astype(np.float32, copy=False)
@@ -205,7 +282,6 @@ def load_training_data(root: Path, max_rows_per_file: int, seed: int,
         raise RuntimeError("Insufficient subjects or classes for person-held-out CV")
     if not np.isfinite(x).all() or not np.isfinite(weight).all():
         raise RuntimeError("Training contains invalid data")
-    # Source manifest is names and sizes; individual source files remain read-only.
     digest = hashlib.sha256(json.dumps(all_source, sort_keys=True).encode()).hexdigest()
     report = {
         "source_root": str(root),
@@ -492,49 +568,54 @@ def post_export_replay(model, selected: list, threshold: float,
             "per_file": results}
 
 
-def run(args) -> dict:
-    if args.trials < 1 or args.max_static_bytes < 1024:
+def run(config: TrainConfig | None = None) -> dict:
+    opts = config if config is not None else TrainConfig()
+    workers = cpu_workers(opts.cpu_fraction)
+    print('CPU_POLICY', f'{opts.cpu_fraction:.0%}', 'available', available_cpus(),
+          'workers', workers, flush=True)
+    if opts.trials < 1 or opts.max_static_bytes < 1024:
         raise ValueError("Trials >=1 and static byte budget >=1024 required")
-    if args.max_rows_per_file < 48 or args.workers < 1 or args.max_trees < 24:
+    if opts.max_rows_per_file < 48 or workers < 1 or opts.max_trees < 24:
         raise ValueError("Require >=48 samples/file, >=1 worker, >=24 max trees")
-    out = args.output.resolve()
+    out = opts.output.resolve()
     if out == INPUT_ROOT.resolve() or INPUT_ROOT.resolve() in out.parents:
         raise ValueError("Output must not be written under source recordings")
     out.mkdir(parents=True, exist_ok=True)
     (out / ".gitignore").write_text("*\n!.gitignore\n")
     optuna.logging.set_verbosity(optuna.logging.WARNING)
-    random.seed(args.seed)
-    np.random.seed(args.seed)
+    random.seed(opts.seed)
+    np.random.seed(opts.seed)
     start = time.monotonic()
     ds, audit = load_training_data(
-        INPUT_ROOT, args.max_rows_per_file, args.seed, args.limit_per_group
+        INPUT_ROOT, opts.max_rows_per_file, opts.seed, opts.limit_per_group,
+        workers=workers
     )
     x, y, w, uid, groups, paths = ds
-    splits = grouped_cv(x, y, w, uid, args.cv_folds)
+    splits = grouped_cv(x, y, w, uid, opts.cv_folds)
     (out / "dataset_audit.json").write_text(json.dumps(audit, indent=2))
     print("TRAINING_DATA", json.dumps({
         "rows": len(y), "participants": len(np.unique(uid)),
         "hold": int(np.sum(y==0)), "rest": int(np.sum(y==1)),
         "features": len(FEATURES), "groups": audit["groups"],
     }), flush=True)
-    sampler = optuna.samplers.NSGAIISampler(seed=args.seed, population_size=16)
+    sampler = optuna.samplers.NSGAIISampler(seed=opts.seed, population_size=16)
     study = optuna.create_study(
         directions=["maximize", "minimize"], sampler=sampler,
         study_name="lp_v5_score_vs_exact_fw_static_bytes"
     )
-    objective = objective_builder(ds, splits, args.workers, args.seed,
-                                  args.max_trees)
-    print("OPTUNA_BEGIN", args.trials, "trials, 2 objectives; size limit",
-          args.max_static_bytes, "bytes", flush=True)
-    for n in range(args.trials):
+    objective = objective_builder(ds, splits, workers, opts.seed,
+                                  opts.max_trees)
+    print("OPTUNA_BEGIN", opts.trials, "trials, 2 objectives; size limit",
+          opts.max_static_bytes, "bytes", flush=True)
+    for n in range(opts.trials):
         study.optimize(objective, n_trials=1, n_jobs=1, catch=())
         trial = study.trials[-1]
-        print("TRIAL", n+1, "/", args.trials, "score",
+        print("TRIAL", n+1, "/", opts.trials, "score",
               round(trial.values[0], 5), "static_bytes",
               round(trial.values[1]), "feature_set",
               trial.params["feature_set"], "trees", trial.params["trees"], flush=True)
     study.trials_dataframe().to_csv(out / "optuna_trials.csv", index=False)
-    candidates = rank_candidates(study, args.max_static_bytes)
+    candidates = rank_candidates(study, opts.max_static_bytes)
     if not candidates:
         raise RuntimeError("No trial fits the firmware static-data budget; "
                            "increase --max-static-bytes or expand Optuna trials.")
@@ -544,10 +625,10 @@ def run(args) -> dict:
     for candidate in candidates:
         p = candidate.params
         indices = SETS[p["feature_set"]]
-        model = lgb.LGBMClassifier(**model_params(p, args.workers, args.seed))
+        model = lgb.LGBMClassifier(**model_params(p, workers, opts.seed))
         model.fit(x[:, indices], y, sample_weight=weighted_fit_weights(y, w))
         estimated = estimate_compact_tree_payload(model)["total_static_data_bytes"]
-        if estimated <= args.max_static_bytes:
+        if estimated <= opts.max_static_bytes:
             chosen_trial, fitted, chosen_size = candidate, model, estimated
             break
     if chosen_trial is None:
@@ -555,12 +636,12 @@ def run(args) -> dict:
     params = dict(chosen_trial.params)
     indices = list(SETS[params["feature_set"]])
     threshold = float(params["threshold"])
-    result = emit_export(out, fitted, params, threshold, indices, args.max_static_bytes)
-    compiler = compile_stub(out / "lp_v5_model.h") if not args.skip_host_compile else {
+    result = emit_export(out, fitted, params, threshold, indices, opts.max_static_bytes)
+    compiler = compile_stub(out / "lp_v5_model.h") if not opts.skip_host_compile else {
         "compiled": False, "reason": "Disabled by user"
     }
     replay = None
-    if not args.skip_replay and not args.limit_per_group:
+    if not opts.skip_replay and not opts.limit_per_group:
         # Compute contact quality only for cross-fitted reference membership;
         # no quality-model outputs ever enter the firmware student.
         quality_full, quality_by_person, known, _ref, _audit = train_contact_quality(INPUT_ROOT, .7)
@@ -589,7 +670,7 @@ def run(args) -> dict:
         "positive_class": 1,
         "decision_threshold": threshold,
         "decision_threshold_q20": int(round(threshold * 20)),
-        "firmware_static_byte_budget": args.max_static_bytes,
+        "firmware_static_byte_budget": opts.max_static_bytes,
         "actual_static_bytes": chosen_size,
         "export": result, "host_compiler": compiler,
         "whole_rate_pseudo_event_replay": (
@@ -618,24 +699,9 @@ def run(args) -> dict:
     return report
 
 
-def main(argv=None):
-    p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--trials", type=int, default=96, help="Full Optuna multiobjective trials")
-    p.add_argument("--max-static-bytes", type=int, default=24576,
-                   help="Generated C static array bytes, not entire firmware image")
-    p.add_argument("--max-trees", type=int, default=128, help="Tree count search upper bound")
-    p.add_argument("--max-rows-per-file", type=int, default=480)
-    p.add_argument("--cv-folds", type=int, default=3)
-    p.add_argument("--workers", type=int, default=4)
-    p.add_argument("--seed", type=int, default=42)
-    p.add_argument("--output", type=Path, default=OUT_DEFAULT)
-    p.add_argument("--limit-per-group", type=int, default=0,
-                   help="Testing only; 0 means full source corpus")
-    p.add_argument("--skip-host-compile", action="store_true")
-    p.add_argument("--skip-replay", action="store_true",
-                   help="Skip full-rate held-out pseudo-event 10-prediction replay")
-    a = p.parse_args(argv)
-    run(a)
+def main():
+    """No command-line arguments. Edit TrainConfig defaults at top of this file."""
+    run(TrainConfig())
 
 
 if __name__ == "__main__":
