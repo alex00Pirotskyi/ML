@@ -157,3 +157,8 @@ The primary **independent GitHub Actions reproduction** of the original full 2,7
 [full V7 raw waveform ablation and source audit, run #43870045765](https://github.com/alex00Pirotskyi/ML/actions/runs/43870045765), [artifact 14226917060](https://github.com/alex00Pirotskyi/ML/actions/runs/43870045765/artifacts/14226917060); reproducible code is on the [research branch](https://github.com/alex00Pirotskyi/ML/blob/research/tap-pattern-v7-deep-20261116/research/tap_real/benchmark_psd_motifs_v7.py).
 
 **Confirmed full benchmark values:** simple morphology TAP-vs-FINGER recording AUC **0.54419**, full 345-dimensional waveform plus morphology **0.62034**, paired participant-block bootstrap improvement 95% descriptive interval **−0.00290 to +0.14065** (includes no improvement). No physical event labels were introduced.
+
+
+## Held-out group imbalance — interpretation safeguard
+
+The 72,016-waveform corpus contains **56 normalized participant strings**, but their sizes are highly unequal: one alias (Ohad) contributes **15,430 waveforms, 387 recordings, 21.4% of all waveform events**. Under five-fold GroupKFold, that participant formed an entire fold alone; the other folds held out about 13–14 aliases each. This *prevents direct participant overlap*, but still makes the pooled AUC sensitive to a large single person's behavior and to unmerged aliases. The bootstrap results are descriptive, not formal prospective performance guarantees. In future work, optimize and report **macro-by-person/date metrics** and leave-date-out tests separately; use fully verified person IDs for group construction.
