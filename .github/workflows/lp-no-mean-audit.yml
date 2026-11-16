@@ -1,0 +1,30 @@
+name: LP no-PSD-mean data integrity audit
+on:
+  push:
+    branches:
+      - research/lp-no-psd-mean-20261116
+    paths:
+      - scripts/lp_no_mean_audit.py
+      - .github/workflows/lp-no-mean-audit.yml
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 4
+          persist-credentials: false
+      - name: Install pandas
+        run: python3 -m pip install -q numpy pandas
+      - name: Verify all LP schemas and compare conversion with preceding data commit
+        run: python3 scripts/lp_no_mean_audit.py
+      - name: Attach audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lp-no-mean-provenance-audit
+          path: /tmp/lp_no_mean_schema.json
+          if-no-files-found: warn
