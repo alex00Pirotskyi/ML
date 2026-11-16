@@ -1,0 +1,33 @@
+name: LP classifier quick held-out-person benchmark
+on:
+  push:
+    branches:
+      - research/lp-classifier-eval
+    paths:
+      - .github/workflows/lp-classifier-quick.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  quick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      OMP_NUM_THREADS: "2"
+      OPENBLAS_NUM_THREADS: "2"
+      MKL_NUM_THREADS: "2"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install dependencies
+        run: python3 -m pip install --disable-pip-version-check -q numpy pandas scikit-learn lightgbm
+      - name: Sampled held-out-subject evaluation
+        run: python3 scripts/lp_classifier_benchmark.py --input-dir DATA/DATA_LONG_PRESS --per-file 80 --tap-cap 100 --swipe-cap 100 --folds 3 --out /tmp/lp_classifier_quick.json
+      - name: Upload metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lp-classifier-quick-metrics
+          path: /tmp/lp_classifier_quick.json
+          if-no-files-found: warn
