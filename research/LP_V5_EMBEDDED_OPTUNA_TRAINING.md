@@ -10,15 +10,10 @@ From repository root on the V5 Optuna branch:
 git fetch origin
 git switch research/lp-v5-optuna-embedded-20261116
 python -m pip install numpy pandas scipy scikit-learn lightgbm joblib "optuna>=4,<5"
-python train_lp_v5_optuna.py \
-  --trials 120 \
-  --workers 8 \
-  --max-static-bytes 24576 \
-  --max-rows-per-file 480 \
-  --output LP_V5_EMBEDDED_OPTUNA
+python train_lp_v5_optuna.py
 ```
 
-Runs all 120 trials, no automatic early stop. Multiobjective **NSGA-II** explicitly maximizes participant-held-out V5 teacher-imitation score and minimizes **exact firmware static-array bytes** estimated by `export_plus.estimate_compact_tree_payload`. Final export is independently verified by `export_plus.export_to_c_header(validate=True)`.
+Runs all **160 trials** by default, with no automatic early stop. Multiobjective **NSGA-II** explicitly maximizes participant-held-out V5 teacher-imitation score and minimizes **exact firmware static-array bytes** estimated by `export_plus.estimate_compact_tree_payload`. Final export is independently verified by `export_plus.export_to_c_header(validate=True)`.
 
 ### What gets trained
 
@@ -94,7 +89,7 @@ The model header references `t_core` and `core_type_def.h`. The trainer compiles
 
 [Workflow: LP V5 Optuna embedded training and C export](https://github.com/alex00Pirotskyi/ML/actions/workflows/lp-v5-optuna-train.yml)
 
-The verified push research run uses 160 Optuna trials on the **full real corpus** and uploads the C header, model pickle, schema, trial history and report as a single downloadable artifact. A manual `workflow_dispatch` run can request 80–150+ trials and a different static-byte budget.
+The verified push research run uses 160 Optuna trials on the **full real corpus** and uploads the C header, model pickle, schema, trial history and report as a single downloadable artifact. A manual `workflow_dispatch` run uses the same in-file defaults. Edit the `TrainConfig` class in `train_lp_v5_optuna.py` to change the number of trials, model-size budget or other settings.
 
 ## Validation and safety caveats
 
@@ -105,13 +100,24 @@ The verified push research run uses 160 Optuna trials on the **full real corpus*
 - `lp_v5_predict_value` is intentionally a **single binary probability** to keep embedded footprint and integration simple. The nine offline quality/activity scores stay as research/training diagnostics and are not necessary for this first field test.
 - Do not merge into production or replace the v20 baseline until firmware end-to-end tests pass.
 
-## Reproduce with limited CPU
+## CPU usage and configuration (no CLI flags)
+
+Both scripts automatically budget **80% of the CPUs available to the process**,
+respecting CPU affinity and Linux cgroup CPU quotas.
+
+- `lp_v5_labeler.py`: uses that number of **independent subprocesses** to label recordings in parallel; each worker limits BLAS/OpenMP threads to one.
+- `train_lp_v5_optuna.py`: prepares training records in parallel with the same CPU budget, then gives the allocated threads to each sequential LightGBM Optuna trial (avoids trial-level oversubscription).
+- This is an **approximately 80%-of-core-count budget**, not an exact measured 80% utilization or CPU throttle. On a single-core allocation it uses one core.
+- To change the settings, edit `TrainConfig` or `LabelerConfig` **inside the Python files**. For example, set `cpu_fraction=0.60`, `trials=80`, or `max_static_bytes=16384` in `TrainConfig`. There are **no command-line switches**.
 
 ```bash
-python train_lp_v5_optuna.py --trials 60 --workers 4 --max-static-bytes 16384
+python lp_v5_labeler.py
+python train_lp_v5_optuna.py
 ```
 
-If `--max-static-bytes` is too restrictive and Optuna finds no feasible candidate, the script **fails rather than silently exporting an oversized model**. Increasing trials explores more Pareto candidates; increasing the budget permits larger models.
+The labeler saves files only under `DATA/DATA_LONG_PRESS_LABELED_V5/`. It refuses to overwrite existing labeled recordings unless `LabelerConfig.overwrite=True` is explicitly selected in the script.
+
+If the size budget is too restrictive, Optuna fails rather than silently exporting an oversized model.
 
 ## Code and CI
 
