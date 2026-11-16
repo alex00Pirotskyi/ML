@@ -25,7 +25,7 @@ jobs:
           python-version: '3.11'
       - name: Install research dependencies
         run: python -m pip install --disable-pip-version-check numpy pandas scipy scikit-learn lightgbm
-      - name: Obtain frozen complete event features (or recreate if expired)
+      - name: V5 fail-closed regression tests\n        run: python research/tap_real/test_auto_label_v5.py\n      - name: Obtain frozen complete event features (or recreate if expired)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
