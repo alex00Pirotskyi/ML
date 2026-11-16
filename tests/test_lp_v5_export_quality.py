@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from lp_v5_labeler import write_labeled,checksum
+from lp_v5_labeler import write_labeled,checksum,main
 from lp_state_v5 import label_recording
 from scripts.lp_v3_feature_probe import record, WH, WT, ACC, PI
 from test_lp_state_v5 import mock
@@ -63,6 +63,19 @@ class V5Export(unittest.TestCase):
             r1=record(legacy,'MID_LONG_PRESS')
             for ch in range(3):
                 np.testing.assert_allclose(r0['ch'][ch]['feat'],r1['ch'][ch]['feat'],atol=1e-7,rtol=1e-6)
+
+    def test_cli_refuses_noncanonical_source(self):
+        with tempfile.TemporaryDirectory() as td:
+            with self.assertRaises(SystemExit) as ctx:
+                main(['--input-dir',str(Path(td)),'--dry-run'])
+            self.assertNotEqual(ctx.exception.code,0)
+
+    def test_cli_refuses_old_v3_output(self):
+        if not Path('DATA/DATA_LONG_PRESS').is_dir():
+            self.skipTest('Repository data not checked out')
+        with self.assertRaises(SystemExit) as ctx:
+            main(['--dry-run','--output-dir','DATA/DATA_LONG_PRESS_LABELED_V3'])
+        self.assertNotEqual(ctx.exception.code,0)
 
 
 if __name__=='__main__':unittest.main(verbosity=2)
