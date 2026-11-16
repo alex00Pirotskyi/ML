@@ -1,0 +1,96 @@
+name: TAP V4 full 2921-file candidate export and integrity
+on:
+  push:
+    branches:
+      - research/tap-production-labeler-v4
+    paths:
+      - '.github/workflows/tap-v4-full-integrity.yml'
+  workflow_dispatch:
+jobs:
+  full:
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            DATA/DATA_TAP
+            research/tap_real
+            .github/workflows
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: python -m pip install numpy pandas scipy
+      - name: Export immutable, unverified candidate sidecars
+        run: |
+          set -o pipefail
+          python -u research/tap_real/production_labeler_v4.py --input-dir DATA/DATA_TAP --out-dir tap_v4_full --policy candidate 2>&1 | tee tap_v4_full.log
+      - name: Independent full-output integrity verification
+        run: |
+          python - <<'PY'
+          import json, csv
+          from collections import Counter
+          from pathlib import Path
+          import numpy as np
+          import pandas as pd
+          root=Path('tap_v4_full')
+          q=json.loads((root/'summary.json').read_text())
+          manifest=[json.loads(x) for x in (root/'manifest.jsonl').read_text().splitlines()]
+          ok=[x for x in manifest if x['status']=='OK']
+          dup=[x for x in manifest if x['status']=='DUPLICATE']
+          assert len(manifest)==2921,len(manifest)
+          assert len(ok)==2790,len(ok)
+          assert len(dup)==131,len(dup)
+          assert q['failed']==0
+          assert q['gold_events']==0 and q['total_positive_rows']==0
+          verified=0
+          for x in ok:
+              file=Path(x['source'])
+              stem=file.name.removesuffix('.csv.gz').removesuffix('.csv')
+              sidecar=root/x['category']/(stem+'.labels.csv.gz')
+              assert sidecar.is_file(),str(sidecar)
+              d=pd.read_csv(sidecar)
+              required={'Timestamp','tap_label','tap_label_weight','tap_event_id',
+                        'tap_pair_id','tap_provenance','tap_candidate_id',
+                        'tap_candidate_pair_id','tap_candidate_score','tap_silver_proposal'}
+              assert required.issubset(d.columns)
+              assert len(d)==x['rows'],(sidecar,len(d),x['rows'])
+              assert set(d.tap_label.unique()).issubset({0,-1})
+              assert (d.tap_event_id==-1).all()
+              assert (d.tap_pair_id==0).all()
+              assert (d.loc[d.tap_label==-1,'tap_label_weight']==0).all()
+              if x['category']=='TAP':
+                  assert (d.tap_label==-1).all(),sidecar
+              else:
+                  assert not (d.tap_provenance=='VERIFIED_GOLD').any()
+              verified+=1
+          assert verified==2790
+          summary={'input_archives':2921,'unique_recordings':len(ok),
+                   'duplicates':len(dup),'failures':0,
+                   'gold_positive_rows':q['total_positive_rows'],
+                   'candidate_events':q['candidate_events'],
+                   'silver_supported_files':q['silver_supported_files'],
+                   'silver_proposals':q['silver_proposals'],
+                   'review_queue_rows':q['review_queue_rows'],
+                   'double_tap_candidate_pairs':sum(x.get('double_pair_candidates',0) for x in ok if x['category']=='TAP' and 'doubletap' in x['source'].lower()),
+                   'category_counts':dict(Counter(x['category'] for x in ok)),
+                   'status':'PASS: all 2790 emitted CSVs independently inspected',
+                   'limitation':'No independently verified physical tap ground truth in current corpus'}
+          (root/'integrity_summary.json').write_text(json.dumps(summary,indent=2))
+          print('V4_FULL_INTEGRITY',json.dumps(summary),flush=True)
+          PY
+      - name: Check original source repository is untouched
+        run: |
+          if [ -n "$(git status --porcelain -- DATA/DATA_TAP)" ]; then
+            echo 'SOURCE MUTATED'; git status --short -- DATA/DATA_TAP; exit 1
+          fi
+      - name: Upload candidate labels and complete audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tap-v4-full-candidates-and-qa
+          path: |
+            tap_v4_full/**
+            tap_v4_full.log
+          retention-days: 14
