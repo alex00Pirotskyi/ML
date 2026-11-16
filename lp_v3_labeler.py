@@ -131,6 +131,34 @@ def train_contact_quality(root,weak_weight=.7):
         for ch in range(3)]
     return full,model_by_user,dict(oof_lookup),healthy,contact_report
 
+def review_intervals(labels, df, minimum_ms=500., max_regions=4):
+    """Prioritize uncertain time spans for independent human/force review."""
+    from lp_causal_fw_teacher import step_ms
+    dt=step_ms(df)
+    names=[f"lp_unknown_ch{ch}" for ch in (1,2,3)]
+    U=labels[names].to_numpy(dtype=float)
+    mask=np.max(U,axis=1)>.55
+    spans=[];start=None
+    for i,flag in enumerate(np.append(mask,False)):
+        if flag and start is None:
+            start=i
+        elif not flag and start is not None:
+            duration=(i-start)*dt
+            if duration>=minimum_ms:
+                sub=U[start:i]
+                ch=int(np.argmax(sub.mean(axis=0)))+1
+                spans.append({
+                    "start_s":round(start*dt/1000,3),
+                    "end_s":round(i*dt/1000,3),
+                    "duration_s":round(duration/1000,3),
+                    "dominant_unknown_channel":ch,
+                    "mean_unknown":round(float(np.mean(sub[:,ch-1])),3)
+                })
+            start=None
+    spans.sort(key=lambda r:r["duration_s"],reverse=True)
+    return spans[:max_regions]
+
+
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument("--input-dir",type=Path,default=DEFAULT_INPUT)
@@ -222,7 +250,8 @@ def main():
                 "quality_contact_prob":list(map(float,probs)),
                 "mean_disconnection":[r["mean_disconnection"] for r in details],
                 "mean_activity":[r["mean_active"] for r in details],
-                "mean_unknown":[r["mean_unknown"] for r in details]
+                "mean_unknown":[r["mean_unknown"] for r in details],
+                "uncertain_intervals":review_intervals(labels,df)
             }
             result_by_group[group].append(record_stat)
             if (stat["uncertain_fraction"]>.6 or
