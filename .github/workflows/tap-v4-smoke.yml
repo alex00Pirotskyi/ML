@@ -8,6 +8,7 @@ on:
       - 'research/tap_real/production_labeler_v4.py'
       - 'research/tap_real/silver_anchor.py'
       - 'research/tap_real/test_production_labeler_v4.py'
+      - 'research/tap_real/test_v4_edge_cases.py'
   workflow_dispatch:
 jobs:
   smoke:
@@ -29,6 +30,7 @@ jobs:
         run: |
           set -o pipefail
           python -u research/tap_real/test_production_labeler_v4.py | tee tap_v4_safety_tests.log
+          python -u research/tap_real/test_v4_edge_cases.py | tee tap_v4_edge_cases.log
       - name: Smoke export on real repository source
         run: |
           set -o pipefail
@@ -62,5 +64,6 @@ jobs:
             tap_v4_smoke/summary.json
             tap_v4_smoke/manifest.jsonl
             tap_v4_safety_tests.log
+            tap_v4_edge_cases.log
             tap_v4_smoke_summary.log
           retention-days: 14
