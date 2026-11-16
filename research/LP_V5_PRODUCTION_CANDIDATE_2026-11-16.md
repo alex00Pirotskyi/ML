@@ -10,8 +10,8 @@
 - PSD/contact preprocessing: `scripts/lp_v3_feature_probe.py` (correct historical `psd_mean_applied` in the *log-encoded* PSD).
 - Causal LightGBM student and nine-head benchmark: `scripts/lp_v5_student_benchmark.py`.
 - Tests: `tests/test_lp_state_v5.py`, `tests/test_lp_v5_export_quality.py`.
-- [Successful full GitHub Actions real-data run](https://github.com/alex00Pirotskyi/ML/actions/runs/43896735761), including reproducible, downloadable per-file audit and student JSON.
-- All 14 synthetic/state/export/PSD tests passed; **238/238** real source recordings processed, zero errors.
+- [Successful full GitHub Actions real-data run](https://github.com/alex00Pirotskyi/ML/actions/runs/43898684513), including reproducible, downloadable per-file audit and student JSON.
+- All 16 synthetic/state/export/PSD/source-isolation tests passed; **238/238** real source recordings processed, zero errors.
 - Evaluated **101 LP** + **44 quiet-reference** + **93 contact-stress** recordings; 9 source groups in `DATA/DATA_LONG_PRESS`.
 - `--dry-run` emitted no labeled files and originals were unchanged. The optional full exporter writes to `DATA/DATA_LONG_PRESS_LABELED_V5` only, atomic per-file, and rejects stale existing outputs unless explicitly `--overwrite`.
 
@@ -61,7 +61,7 @@ Quality proxy held-out-person calibration (201 weak contact labels, 14 people; n
 
 ## Causal student imitation benchmark — participant-held-out
 
-GitHub Actions run: [full reproducible benchmark](https://github.com/alex00Pirotskyi/ML/actions/runs/43896735761).
+GitHub Actions run: [full reproducible benchmark](https://github.com/alex00Pirotskyi/ML/actions/runs/43898684513).
 
 - **238** recordings, 38,080 sampled windows, three `GroupKFold` folds by normalized participant identifier, **13,203 accepted global labels** evaluated.
 - Only current and past WL, firmware log-PSD, log-PSD slot0, WL head/tail and 0.25/1/3-second past-only EMA features were provided to the student. No PointerState/folder/user/teacher-confidence inputs.
@@ -104,4 +104,4 @@ python scripts/lp_v5_student_benchmark.py
 python lp_v5_labeler.py
 ```
 
-Never overwrite `DATA/DATA_LONG_PRESS`, `DATA/DATA_LONG_PRESS_LABELED_V3` or the previous successful v20 trainer/model. All work is kept on [standalone V5 draft PR](https://github.com/alex00Pirotskyi/ML/pulls) and is not merged.
+Never overwrite `DATA/DATA_LONG_PRESS`, `DATA/DATA_LONG_PRESS_LABELED_V3` or the previous successful v20 trainer/model. All work is kept on [standalone draft V5 PR #5](https://github.com/alex00Pirotskyi/ML/pull/5) and is not merged.
