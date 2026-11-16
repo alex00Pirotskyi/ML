@@ -148,3 +148,29 @@ A specialist, separately trained binary SoftTap-vs-FINGER model was therefore ev
 **Interpretation:** Focusing the objective on the hard FINGER class improves ranking of *recordings* (0.407 → 0.754), but still passes hundreds of FINGER episodes/hour as high-scoring candidates. Raising its candidate threshold from 0.70 to 0.90 reduces FINGER candidates from **435/hour to 25/hour**, while SoftTap candidates fall from **958/hour to 101/hour**; this is not a deployable soft-tap operating point. That is not a production false-positive rate, yet it shows that weak folder labels and these feature summaries alone cannot establish a safe operating point. The specialist result is exploratory and must be verified against manually annotated physical tap times, especially soft taps with poor electrode placement.
 
 Reproducible specialist script: [`soft_vs_finger_v3.py`](https://github.com/alex00Pirotskyi/ML/blob/research/tap-real-benchmark-20261116/research/tap_real/soft_vs_finger_v3.py). It requires the extracted `v3_features.csv.gz` from the full V3 workflow artifact.
+
+
+## Full V3 candidate-only labeling export — independent integrity pass
+
+**Verified GitHub Actions run:** [V3 export/integrity audit](https://github.com/alex00Pirotskyi/ML/actions/runs/43841132120)  
+**Download full candidate-only sidecars:** [GitHub Actions artifact `tap-v3-full-candidate-sidecars`](https://github.com/alex00Pirotskyi/ML/actions/runs/43841132120/artifacts/14214160145) (GitHub artifact retention: 14 days)  
+**Export branch:** `research/tap-real-benchmark-20261116`
+
+The source-only `DATA/DATA_TAP` export finished successfully on 2026-11-16. The workflow independently re-opened each written `.labels.csv.gz` and verified the output schema and label states:
+
+| Audit check | Verified result |
+|---|---:|
+| Input source archives | 2,921 |
+| Unique recordings with written labels | **2,790** |
+| Duplicates excluded | **131** |
+| Export / verification failures | **0** |
+| Unique DoubleTaps files | **118** |
+| DoubleTap morphology-only candidate pairs | **349** |
+| Candidate pairs across all recording classes | 6,178 |
+| Confirmed physical tap positives written | **0** |
+
+All 2,790 labels files contained `tap_label`, `tap_event_id`, `tap_candidate_id`, `tap_pair_id` and `tap_candidate_shape_score`. Every `tap_label` was 0 or -1 and every `tap_event_id` was -1 in the conservative default run. The pair counts are **unverified physiological candidate associations**, not independent confirmed double taps; the 6,178 all-class pair candidates further demonstrate that local temporal pairing alone is highly nonspecific.
+
+The export also writes one `.events.csv` per recording and a `manifest.jsonl` with provenance, SHA-256 of each source CSV, and quality counters. It does not overwrite any original recording.
+
+**Release decision unchanged:** pass the generated candidates through independent human-verified event annotation before promoting anything to a positive training label. The already-measured FINGER confusion is the major unresolved false-tap risk.
