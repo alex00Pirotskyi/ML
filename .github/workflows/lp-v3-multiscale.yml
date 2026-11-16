@@ -1,0 +1,33 @@
+name: LP v3 multiscale causal student and confidence ablations
+on:
+  push:
+    branches:
+      - research/lp-v3-rest-contact
+    paths:
+      - scripts/lp_v3_multiscale.py
+      - .github/workflows/lp-v3-multiscale.yml
+permissions:
+  contents: read
+jobs:
+  multiscale:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      OPENBLAS_NUM_THREADS: "2"
+      OMP_NUM_THREADS: "2"
+      MKL_NUM_THREADS: "2"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install numerical libraries
+        run: python3 -m pip install -q numpy pandas scipy scikit-learn lightgbm
+      - name: Test long causal feature history and high-confidence label selection
+        run: PYTHONPATH=. python3 scripts/lp_v3_multiscale.py
+      - name: Upload benchmark
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lp-v3-causal-multiscale-research
+          path: /tmp/lp_v3_multiscale.json
+          if-no-files-found: warn
