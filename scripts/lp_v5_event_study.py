@@ -82,7 +82,7 @@ def main():
     report={"groups":{g:summarize([x for x in all_items if x["group"]==g]) for g in GROUPS},
             "files":all_items,
             "warning":"Controls weak; not a physical false-positive rate."}
-    Path("/tmp/lp_v5_event_study.json").write_text(json.dumps(report,indent=2))
+    Path("/tmp/lp_v5_event_study.json").write_text(json.dumps(report,indent=2,default=lambda x: int(x) if isinstance(x, np.integer) else float(x)))
     print("EVENT_SHAPE_DONE",len(all_items),flush=True)
 
 
