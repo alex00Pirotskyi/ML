@@ -114,6 +114,38 @@ class TestV3(unittest.TestCase):
         self.assertGreater(y["lp_unknown_ch1"].median(),.70)
         self.assertLess(y["lp_state"].mean(),.03)
 
+
+    def test_constant_weak_effort_without_reference_abstains(self):
+        df=synthetic()
+        for ch in (1,2,3):
+            df[f"p_core->wl[CH{ch}]"]*=1.28
+            for z in range(5):
+                df[f"p_core->emg_psd_mean[CH{ch}][{z}]"]+=650
+        y,stats=run(df,context="SOFT_LONG_PRESS")
+        self.assertFalse(stats["has_independent_activity_anchor"])
+        self.assertLess(y["lp_state"].mean(),.03)
+        self.assertGreater(y["lp_unknown_ch1"].median(),.6)
+
+    def test_input_dataframe_not_modified(self):
+        df=synthetic()
+        before=df.copy(deep=True)
+        run(df)
+        pd.testing.assert_frame_equal(before,df)
+
+    def test_short_gesture_recording_is_unknown(self):
+        df=synthetic(n=50)
+        y,_=run(df,context="TAP")
+        self.assertEqual(len(y),50)
+        self.assertEqual(int(y["lp_state"].sum()),0)
+        self.assertGreater(y["lp_unknown_ch1"].mean(),.7)
+
+    def test_missing_psd_does_not_force_rest(self):
+        df=synthetic()
+        df=df.drop(columns=[k for k in df.columns if "emg_psd" in k])
+        y,_=run(df,context="SOFT_LONG_PRESS")
+        self.assertEqual(int(y["lp_state"].sum()),0)
+        self.assertGreater(y["lp_unknown_ch1"].mean(),.90)
+
     def test_pointer_irrelevant(self):
         d=synthetic(n=800)
         activate(d,2,270,470)
