@@ -1,5 +1,8 @@
 name: Publish V6 Optuna top-10 firmware candidates to Git branch
 on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/tap-swipe-student-v6-publish.yml']
   workflow_run:
     workflows:
       - 'TAP+SWIPE student V6 — Optuna F1 vs firmware flash (10 models)'
@@ -9,7 +12,7 @@ permissions:
   contents: write
 jobs:
   publish:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name == 'push' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -23,7 +26,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/v6_release
-          gh run download ${{ github.event.workflow_run.id }} -n tap-swipe-v6-optuna-top10-firmware \
+          gh run download ${{ github.event.workflow_run.id || '43861744110' }} -n tap-swipe-v6-optuna-top10-firmware \
             --repo "${{ github.repository }}" -D /tmp/v6_release
           test -f /tmp/v6_release/research/tap_real/results_v6/summary.json
       - name: Independently check ten complete, compiled exports
@@ -48,7 +51,7 @@ jobs:
           PY
       - name: Publish versioned model headers and JSON audit files
         env:
-          WORKFLOW_ID: ${{ github.event.workflow_run.id }}
+          WORKFLOW_ID: ${{ github.event.workflow_run.id || '43861744110' }}
         run: |
           set -euo pipefail
           BRANCH="research/tap-swipe-optuna-v6-run-${WORKFLOW_ID}"
