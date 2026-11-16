@@ -7,6 +7,8 @@
 From repository root on the V5 Optuna branch:
 
 ```bash
+git fetch origin
+git switch research/lp-v5-optuna-embedded-20261116
 python -m pip install numpy pandas scipy scikit-learn lightgbm joblib "optuna>=4,<5"
 python train_lp_v5_optuna.py \
   --trials 120 \
@@ -49,6 +51,25 @@ Runs all 120 trials, no automatic early stop. Multiobjective **NSGA-II** explici
 
 The size budget is **generated static data only**, excluding executable code, linker padding, stack, and BLE/IMU work. Python Optuna score and replay metrics are **not real-world physical accuracy**.
 
+## Verified field-test candidate — 160 Optuna trials
+
+[Successful full 160-trial GitHub Actions job](https://github.com/alex00Pirotskyi/ML/actions/runs/43907170437) generated and validated:
+
+| Item | Result |
+|---|---|
+| Estimator | Binary LightGBM, release/rest = positive 1 |
+| Trees | **32** (max depth 3) |
+| Firmware inputs | **39** directly readable t_core fields |
+| Exported static arrays | **3,172 bytes** (not including executable/stack/linker overhead) |
+| Default release threshold | **0.55** (Q20=11) |
+| Optuna CV utility | **0.83143** (weighted hold/BA/rest-F1 objective, **NOT accuracy**) |
+| Export validation | **0** decision mismatches on 559 test inputs |
+| C compilation | Passes host C11 compilation with a simulated t_core struct |
+
+**Whole-rate held-out pseudo-label replay with the existing 10-probability average:** about **13.89% of V5 active/hold-labeled rows** still cross the resting threshold, while **68.91% of V5 resting-labeled rows** are detected. These are pseudo-label comparisons on held-out recordings, **not** measured real device rates; the replay does not include the actual tap-gated firmware state machine. Do not confuse the 0.831 score with 83.1% physical accuracy. In particular, watch for premature releases during sustained holds when you A/B test with v20.
+
+The model is intentionally small enough to be practical for a controlled device trial, but **the true hold/release performance and real nRF52832 CPU/RAM cost remain unmeasured**.
+
 ## Embedded integration: only inside the existing tap-gated LP state
 
 ```c
@@ -73,7 +94,7 @@ The model header references `t_core` and `core_type_def.h`. The trainer compiles
 
 [Workflow: LP V5 Optuna embedded training and C export](https://github.com/alex00Pirotskyi/ML/actions/workflows/lp-v5-optuna-train.yml)
 
-The push smoke benchmark uses 16 Optuna trials on the **full real corpus** and uploads the C header, model pickle, schema, trial history and report as a single downloadable artifact. A manual `workflow_dispatch` run can request 80–150+ trials and a different static-byte budget.
+The verified push research run uses 160 Optuna trials on the **full real corpus** and uploads the C header, model pickle, schema, trial history and report as a single downloadable artifact. A manual `workflow_dispatch` run can request 80–150+ trials and a different static-byte budget.
 
 ## Validation and safety caveats
 
