@@ -85,3 +85,35 @@ Firmware-corrected teacher v2:
 - The emg_psd_mean field is still a 15-frame temporal average of logged spectra.
 - Per-channel resting floors and activity are causal; uncalibrated/poor-contact rows are UNKNOWN and low-weight.
 - Legacy teacher v1 is preserved under research/legacy/; corrected research report: research/LP_CAUSAL_FIRMWARE_PSD_RESEARCH_2026-11-16.md.
+
+
+## Experimental LP sensor labeling V3 (offline, opt-in)
+
+The existing V2 labeler remains unchanged. V3 is an experimental offline
+weak-supervision teacher with a separate output folder, never a direct
+real-time firmware inference algorithm. It uses WL, logged five-zone
+PSD (current and temporal mean), motion, and head/tail WL to propose
+rest, high-activity, disconnection-artifact and UNKNOWN scores per channel.
+
+Run from repository root:
+
+```bash
+python -m pip install numpy pandas scipy scikit-learn
+python lp_v3_labeler.py --dry-run --limit-per-group 2
+python lp_v3_labeler.py
+```
+
+The output is `DATA/DATA_LONG_PRESS_LABELED_V3` (Git-ignored).
+Original recordings and V2 outputs stay unchanged. V3 emits
+`label_summary.json` and `review_queue.json` to prioritize
+uncertain samples and time spans for checking against physical truth.
+
+**Warning:** These are pseudo-labels, not measured muscle states or
+electrode impedance. V3 intentionally examines the entire recording to
+identify low/high regimes, and the final firmware student must be
+trained/validated using causal features. It uses folder context only
+as weak reference supervision for CONNECTED/NOTHING samples.
+Low-confidence `lp_state=0` means UNKNOWN, not confirmed pressing.
+Do not train on every zero as a verified negative.
+
+[Full research, measurements and limitations](research/LP_V3_SENSOR_LABELING_RESEARCH_2026-11-16.md).
