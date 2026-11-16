@@ -262,7 +262,7 @@ def main(config: LabelerConfig | None = None):
             'warning':'Neither pointer nor folder context is physically synchronized hold truth; quality proxy is not measured electrode contact. Student must use causal firmware-only features.',
             'review_queue':review,'files':records,
             'source_code_hashes':{str(n):checksum(n) for n in (Path(__file__),Path(__file__).with_name('lp_state_v5.py'),Path(__file__).with_name('lp_v3_labeler.py'),Path(__file__).parent/'scripts'/'lp_v3_feature_probe.py',Path(__file__).with_name('lp_causal_fw_teacher.py'))},
-            'elapsed_s':round(time.monotonic()-start,2)}
+            'elapsed_s':round(time.monotonic()-started,2)}
     rp=opts.report or (Path('/tmp/lp_v5_dry_run_audit.json') if opts.dry_run else out/'label_summary.json')
     rp.parent.mkdir(parents=True,exist_ok=True)
     rp.write_text(json.dumps(report,indent=2))
