@@ -1,0 +1,27 @@
+name: LP new data decompressed-content fingerprint
+on:
+  push:
+    branches:
+      - research/lp-no-psd-mean-20261116
+    paths:
+      - scripts/lp_no_mean_fingerprint_fixed.py
+      - .github/workflows/lp-no-mean-fingerprint-fixed.yml
+permissions:
+  contents: read
+jobs:
+  fingerprint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 4
+          persist-credentials: false
+      - name: Compare decompressed CSV bytes from previous and new commits
+        run: python3 scripts/lp_no_mean_fingerprint_fixed.py
+      - name: Upload provenance checks
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lp-no-mean-gzip-content-fingerprints
+          path: /tmp/lp_gzip_fingerprint.json
