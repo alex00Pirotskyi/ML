@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - research/lp-v5-production-candidate-20261116
+      - research/lp-v5-optuna-embedded-20261116
     paths:
       - lp_state_v5.py
       - lp_v5_labeler.py
+      - lp_v5_cpu.py
       - scripts/lp_v3_feature_probe.py
       - scripts/lp_v5_student_benchmark.py
       - tests/test_lp_state_v5.py
@@ -32,6 +34,7 @@ jobs:
           sparse-checkout: |
             /lp_state_v5.py
             /lp_v5_labeler.py
+            /lp_v5_cpu.py
             /lp_v3_labeler.py
             /lp_v3_teacher.py
             /lp_rest_labeler.py
@@ -65,7 +68,13 @@ jobs:
         run: python -m unittest discover -s tests -p "test_lp_v5_export_quality.py" -v
 
       - name: Verify all eligible real-data recordings
-        run: python lp_v5_labeler.py --dry-run --report /tmp/lp_v5_dry_run_audit.json
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from lp_v5_labeler import main, LabelerConfig
+          raise SystemExit(main(LabelerConfig(
+              dry_run=True, report=Path('/tmp/lp_v5_dry_run_audit.json'))))
+          PY
 
       - name: Participant-held-out causal student and nine-score benchmark
         run: python scripts/lp_v5_student_benchmark.py
