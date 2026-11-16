@@ -46,6 +46,7 @@ class ShapeEvent:
     decision:str='UNKNOWN'
     event_id:int=-1
     pair_id:int=0
+    pair_gap_ms:float|None=None
     sample_count:int=0
 
 # All config defaults are exploratory. No physical reference data was used to
@@ -213,6 +214,34 @@ def _event_from_state(S,on,peak,end,min_peak,config):
     return ShapeEvent(**evt)
 
 
+def annotate_pairs(events):
+    """Tag separately observed physiological episodes; never invent a tap.
+
+    Pairing has no folder, Oculus, metronome or BPM dependency. Pair IDs
+    indicate candidate morphology, not verified double-tap ground truth.
+    """
+    next_pair=1
+    occupied=set()
+    options=[]
+    for i in range(len(events)-1):
+        a,b=events[i:i+2]
+        gap=b.peak_ms-a.peak_ms
+        if not 80<=gap<=500:continue
+        if a.provisional not in ("TAP_SHAPE","AMBIGUOUS_SHAPE","LOW_SNR"):continue
+        if b.provisional not in ("TAP_SHAPE","AMBIGUOUS_SHAPE","LOW_SNR"):continue
+        if a.shape_score<.50 or b.shape_score<.50:continue
+        if a.fall_fraction<.28 or b.fall_fraction<.28:continue
+        if b.onset_ms<a.end_ms-2.:continue
+        options.append((min(a.shape_score,b.shape_score),i,gap))
+    for score,i,gap in sorted(options,reverse=True):
+        if i in occupied or i+1 in occupied:continue
+        for e in events[i:i+2]:
+            e.pair_id=next_pair
+            e.pair_gap_ms=float(gap)
+        occupied.add(i);occupied.add(i+1);next_pair+=1
+    return next_pair-1
+
+
 def extract_events(S,cfg:Config=Config()):
     """Episode state machine with decay/reversal rearming, not peak NMS.
 
@@ -275,6 +304,7 @@ def extract_events(S,cfg:Config=Config()):
                     finalize(i);last_event_on=ts[start];state='IDLE';low_since=None;armed_since=None
             else:low_since=None
     if state!='IDLE' and n-1>peak:finalize(n-1)
+    annotate_pairs(events)
     return events
 
 
@@ -283,6 +313,14 @@ def label_recording(df,category,recording_name='',cfg:Config=Config()):
     S=extract_signals(df,cfg)
     events=extract_events(S,cfg)
     ts=S['ts'];n=len(ts)
+    candidate_ids=np.full(n,-1,dtype=np.int32)
+    candidate_pair_ids=np.zeros(n,dtype=np.int32)
+    candidate_shape_scores=np.zeros(n,dtype=np.float32)
+    for event_number,e in enumerate(events,1):
+        in_event=(ts>=e.onset_ms)&(ts<=e.end_ms)
+        candidate_ids[in_event]=event_number
+        candidate_pair_ids[in_event]=e.pair_id
+        candidate_shape_scores[in_event]=e.shape_score
     labels=np.full(n,-1,dtype=np.int8);weight=np.zeros(n,dtype=np.float32);ids=np.full(n,-1,dtype=np.int32)
     if category!='TAP':
         labels[:]=0;weight[:]=.80 if category!='NOTHING' else 1.
@@ -314,9 +352,12 @@ def label_recording(df,category,recording_name='',cfg:Config=Config()):
     for k in gaps:
         mask=(ts>=ts[k]-20)&(ts<=ts[k+1]+100)
         labels[mask]=-1;weight[mask]=0;ids[mask]=-1
-    out=pd.DataFrame({'Timestamp':df.Timestamp,'tap_label':labels,'tap_label_weight':weight,'tap_event_id':ids})
+    out=pd.DataFrame({'Timestamp':df.Timestamp,'tap_label':labels,'tap_label_weight':weight,
+                      'tap_event_id':ids,'tap_candidate_id':candidate_ids,
+                      'tap_pair_id':candidate_pair_ids,'tap_candidate_shape_score':candidate_shape_scores})
     qc={'rows':n,'events':len(events),'shape_pass_events':int(sum(e.provisional=='TAP_SHAPE' for e in events)),
         'positive_events':int(sum(e.decision=='POSITIVE' for e in events)),'event_rate_hr':round(len(events)*3600000/max(1,ts[-1]-ts[0]),2),
+        'double_pair_candidates':int(len(set(e.pair_id for e in events if e.pair_id>0))),
         'positive_rows':int(np.sum(labels==1)),'unknown_rows':int(np.sum(labels==-1)),
         'median_dt_ms':S['dt_med'],'timestamp_gaps_gt_140ms':int(len(gaps)),
         'note':'research pseudo-labels: physical-event precision/recall NOT established'}
