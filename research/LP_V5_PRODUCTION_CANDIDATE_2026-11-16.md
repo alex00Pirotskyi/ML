@@ -95,13 +95,11 @@ GitHub Actions run: [full reproducible benchmark](https://github.com/alex00Pirot
 From the repository root on the research branch:
 
 ```bash
-python -m pip install numpy pandas scipy scikit-learn lightgbm
-python -m unittest discover -s tests -p "test_lp_state_v5.py" -v
-python -m unittest discover -s tests -p "test_lp_v5_export_quality.py" -v
-python lp_v5_labeler.py --dry-run --report /tmp/lp_v5_dry_run_audit.json
-python scripts/lp_v5_student_benchmark.py
-# Candidate export to an isolated V5 directory:
 python lp_v5_labeler.py
 ```
 
 Never overwrite `DATA/DATA_LONG_PRESS`, `DATA/DATA_LONG_PRESS_LABELED_V3` or the previous successful v20 trainer/model. All work is kept on [standalone draft V5 PR #5](https://github.com/alex00Pirotskyi/ML/pull/5) and is not merged.
+
+## Configuration update: 80%-CPU, zero CLI
+
+`python lp_v5_labeler.py` now runs directly using the `LabelerConfig` defaults defined at the top of the file; no command-line arguments are supported. It selects about 80% of affinity/cgroup-available CPU cores as parallel recording workers, with a single thread per worker. Change `LabelerConfig` to customize paths, dry-run, overwrite and the CPU fraction. Outputs remain separate from the original source files.

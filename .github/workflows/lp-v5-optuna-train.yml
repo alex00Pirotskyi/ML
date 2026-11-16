@@ -1,0 +1,92 @@
+name: LP V5 Optuna embedded training and C export
+
+on:
+  push:
+    branches:
+      - research/lp-v5-optuna-embedded-20261116
+    paths:
+      - train_lp_v5_optuna.py
+      - lp_v5_labeler.py
+      - lp_v5_cpu.py
+      - tests/test_lp_v5_export_quality.py
+      - tests/test_lp_v5_optuna_embedded.py
+      - .github/workflows/lp-v5-optuna-train.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  train-export:
+    name: Train, verify C export and package for Mudra device
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - name: Sparse checkout V5 trainer and raw LP recordings
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /export_plus.py
+            /train_lp_v5_optuna.py
+            /lp_v5_cpu.py
+            /lp_state_v5.py
+            /lp_v5_labeler.py
+            /lp_v3_labeler.py
+            /lp_v3_teacher.py
+            /lp_causal_fw_teacher.py
+            /lp_rest_labeler.py
+            /scripts/lp_v3_feature_probe.py
+            /tests/test_lp_v5_optuna_embedded.py
+            /DATA/DATA_LONG_PRESS/SOFT_LONG_PRESS/
+            /DATA/DATA_LONG_PRESS/MID_LONG_PRESS/
+            /DATA/DATA_LONG_PRESS/STRONG_LONG_PRESS/
+            /DATA/DATA_LONG_PRESS/LONG_PRESS/
+            /DATA/DATA_LONG_PRESS/CONNECTED/
+            /DATA/DATA_LONG_PRESS/NOTHING/
+            /DATA/DATA_LONG_PRESS/DISCONNECTED/
+            /DATA/DATA_LONG_PRESS/LOOSE/
+            /DATA/DATA_LONG_PRESS/TABLE/
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install training and exporting dependencies
+        run: python -m pip install --disable-pip-version-check numpy pandas scipy scikit-learn lightgbm joblib 'optuna>=4,<5'
+
+      - name: Unit test Optuna, direct firmware inputs and export_plus
+        run: python -m unittest discover -s tests -p 'test_lp_v5_optuna_embedded.py' -v
+
+      - name: Run full dataset Optuna size/score search and validated C export
+        run: python -u train_lp_v5_optuna.py
+
+      - name: Show final results and artifact integrity
+        run: |
+          python - <<'PY'
+          import json, pathlib
+          p=pathlib.Path('LP_V5_EMBEDDED_OPTUNA/training_report.json')
+          d=json.loads(p.read_text())
+          assert d['export']['validation']['decision_disagreements']==0
+          assert d['actual_static_bytes']<=d['firmware_static_byte_budget']
+          assert d['host_compiler']['compiled']
+          print(json.dumps({
+            'score':d['selected_cv_score'],
+            'c_model_static_bytes':d['actual_static_bytes'],
+            'selected':d['selected_params'],
+            'c_equivalence':d['export']['validation'],
+            'replay':d['whole_rate_pseudo_event_replay'],
+          },indent=2))
+          PY
+
+      - name: Upload firmware-ready candidate, model metadata and research audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lp-v5-optuna-embedded-candidate
+          path: LP_V5_EMBEDDED_OPTUNA/
+          if-no-files-found: warn
+          retention-days: 30
