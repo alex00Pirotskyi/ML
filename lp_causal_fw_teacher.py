@@ -123,7 +123,11 @@ def compute_causal_labels(df,psd_mode="auto"):
             last_response[ch]+=dt
             static=float(ramp(slow[t,ch],3500.,8000.))
             flat=float(1-ramp(dyn[t,ch],1.16,1.70))
-            dis=float(.98*static*flat) if history else 0.
+            # No baseline and high stationary energy might be sustained
+            # true muscle activity. Delay any strong contact-fault claim
+            # until 5 s without usable modulation; until then UNKNOWN.
+            enough_artifact_history=ready[ch] or (t*dt>=5000.)
+            dis=float(.98*static*flat) if history and enough_artifact_history else 0.
             if ready[ch] and last_response[ch]<4000:
                 dis*=.22
             if w<3 and pv<3 and history:

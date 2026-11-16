@@ -60,7 +60,7 @@ class TestCausalFwTeacher(unittest.TestCase):
         for z in range(5):
             df[f"p_core->emg_psd_mean[CH2][{z}]"]=22000.
         label,_=scores(df)
-        self.assertGreater(label["lp_disconnection_ch2"].iloc[600:].median(),.85)
+        self.assertGreater(label["lp_disconnection_ch2"].iloc[1000:].median(),.85)
         self.assertGreater(label["lp_resting_ch1"].iloc[600:].median(),.75)
         self.assertLess(label["lp_state"].iloc[600:].mean(),.02)
 
