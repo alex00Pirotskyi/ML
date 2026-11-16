@@ -1,0 +1,82 @@
+name: LP V5 real-data production-gate research
+
+on:
+  push:
+    branches:
+      - research/lp-state-strict-v4
+    paths:
+      - lp_state_v5.py
+      - lp_v5_labeler.py
+      - scripts/lp_v3_feature_probe.py
+      - scripts/lp_v5_student_benchmark.py
+      - tests/test_lp_state_v5.py
+      - tests/test_lp_v5_export_quality.py
+      - .github/workflows/lp-v5-validation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit-and-benchmark:
+    name: Verify V5 teacher, dataset and compact causal student
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Sparse checkout actual LP and contact recordings
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /lp_state_v5.py
+            /lp_v5_labeler.py
+            /lp_v3_labeler.py
+            /lp_v3_teacher.py
+            /lp_rest_labeler.py
+            /lp_causal_fw_teacher.py
+            /scripts/lp_v3_feature_probe.py
+            /scripts/lp_v5_student_benchmark.py
+            /tests/test_lp_state_v5.py
+            /tests/test_lp_v5_export_quality.py
+            /DATA/DATA_LONG_PRESS/SOFT_LONG_PRESS/
+            /DATA/DATA_LONG_PRESS/MID_LONG_PRESS/
+            /DATA/DATA_LONG_PRESS/STRONG_LONG_PRESS/
+            /DATA/DATA_LONG_PRESS/LONG_PRESS/
+            /DATA/DATA_LONG_PRESS/CONNECTED/
+            /DATA/DATA_LONG_PRESS/NOTHING/
+            /DATA/DATA_LONG_PRESS/DISCONNECTED/
+            /DATA/DATA_LONG_PRESS/LOOSE/
+            /DATA/DATA_LONG_PRESS/TABLE/
+
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install scientific dependencies
+        run: python -m pip install --disable-pip-version-check numpy pandas scipy scikit-learn lightgbm
+
+      - name: V5 synthetic state and safety tests
+        run: python -m unittest discover -s tests -p "test_lp_state_v5.py" -v
+
+      - name: V5 export, provenance, PSD tests
+        run: python -m unittest discover -s tests -p "test_lp_v5_export_quality.py" -v
+
+      - name: Verify all eligible real-data recordings
+        run: python lp_v5_labeler.py --dry-run --report /tmp/lp_v5_dry_run_audit.json
+
+      - name: Participant-held-out causal student and nine-score benchmark
+        run: python scripts/lp_v5_student_benchmark.py
+
+      - name: Upload complete V5 research evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lp-v5-validation
+          path: |
+            /tmp/lp_v5_dry_run_audit.json
+            /tmp/lp_v5_student_results.json
+          if-no-files-found: warn
+          retention-days: 30
