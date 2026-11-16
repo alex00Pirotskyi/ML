@@ -5,6 +5,9 @@ on:
       - research/tap-swipe-auto-label-v5
     paths:
       - '.github/workflows/tap-swipe-auto-label-v5.yml'
+      - 'research/tap_real/auto_label_v5.py'
+      - 'research/tap_real/audit_auto_label_v5.py'
+      - 'research/tap_real/test_auto_label_v5.py'
   workflow_dispatch:
 permissions:
   actions: read
