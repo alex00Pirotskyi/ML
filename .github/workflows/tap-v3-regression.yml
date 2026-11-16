@@ -1,0 +1,24 @@
+name: TAP V3 deterministic regression tests
+on:
+  push:
+    branches:
+      - research/tap-real-benchmark-20261116
+    paths:
+      - '.github/workflows/tap-v3-regression.yml'
+  workflow_dispatch:
+jobs:
+  synthetic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            research/tap_real
+            .github/workflows
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install numpy pandas scipy
+      - name: Validate shape segmentation and double-tap rearming
+        run: python research/tap_real/test_event_shape_v3.py
