@@ -1,0 +1,61 @@
+name: LP State V4 real-data audit
+
+on:
+  push:
+    branches:
+      - research/lp-state-strict-v4
+    paths:
+      - lp_state_v4.py
+      - tests/test_lp_state_v4.py
+      - .github/workflows/lp-state-v4-audit.yml
+      - scripts/lp_state_v4_real_audit.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: Full LP corpus audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Sparse-checkout LP files only
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /lp_state_v4.py
+            /tests/test_lp_state_v4.py
+            /scripts/lp_state_v4_real_audit.py
+            /DATA/DATA_LONG_PRESS/CONNECTED/
+            /DATA/DATA_LONG_PRESS/NOTHING/
+            /DATA/DATA_LONG_PRESS/LONG_PRESS/
+            /DATA/DATA_LONG_PRESS/SOFT_LONG_PRESS/
+            /DATA/DATA_LONG_PRESS/MID_LONG_PRESS/
+            /DATA/DATA_LONG_PRESS/STRONG_LONG_PRESS/
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install scientific dependencies
+        run: python -m pip install --disable-pip-version-check numpy pandas scipy
+
+      - name: Run synthetic contract tests
+        run: python -m unittest discover -s tests -p "test_lp_state_v4.py" -v
+
+      - name: Run full real-data audit
+        run: python scripts/lp_state_v4_real_audit.py --output /tmp/lp_state_v4_real_audit.json
+
+      - name: Upload reproducible audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lp-state-v4-real-audit
+          path: /tmp/lp_state_v4_real_audit.json
+          if-no-files-found: warn
+          retention-days: 30
