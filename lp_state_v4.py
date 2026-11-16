@@ -160,7 +160,10 @@ def label_recording(df, group, boundary_ms=250., min_active_ms=180.):
 
     floor_w = np.percentile(w[off], 30, axis=0)
     floor_p = np.percentile(p[off], 30, axis=0)
-    good_ch = (floor_w >= 65.) & (floor_w <= 3500.) & (floor_p >= .02) & (floor_p <= 5.5)
+    # Recorded CONNECTED controls often have PSD <0.02, whereas disconnected
+    # CH1/CH2 often show high PSD. A minimum PSD threshold falsely rejects
+    # legitimate quiet channels. Reject implausibly HIGH resting PSD instead.
+    good_ch = (floor_w >= 65.) & (floor_w <= 3500.) & (floor_p <= .60)
     audit["good_channels"] = [ch+1 for ch in range(3) if good_ch[ch]]
     if good_ch.sum() < 2:
         return done("fewer_than_two_usable_channels")
