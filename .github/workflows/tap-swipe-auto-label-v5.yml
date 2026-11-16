@@ -1,0 +1,92 @@
+name: TAP+SWIPE automatic weak-label V5 full corpus
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/tap-swipe-auto-label-v5.yml'
+      - 'research/tap_real/auto_label_v5.py'
+      - 'research/tap_real/audit_auto_label_v5.py'
+      - 'research/tap_real/test_auto_label_v5.py'
+      - 'research/tap_real/tap_event_shape_v3.py'
+      - 'research/tap_real/weak_shape_mil_v3.py'
+      - 'research/tap_real/test_event_shape_v3.py'
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: read
+jobs:
+  full_auto_labels:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            DATA/DATA_TAP
+            research/tap_real
+            .github/workflows
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install research dependencies
+        run: python -m pip install --disable-pip-version-check numpy pandas scipy scikit-learn lightgbm
+      - name: V3 event-state and V5 class-isolation regression tests
+        run: |
+          python research/tap_real/test_event_shape_v3.py
+          python research/tap_real/test_auto_label_v5.py
+      - name: Obtain frozen complete event features (or recreate if expired)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p research/tap_real/cache
+          if ! gh run download 43838651326 -n tap-v3-full-event-shape-research \
+               --repo "${{ github.repository }}" -D research/tap_real/cache; then
+             echo 'Cached feature artifact unavailable; recomputing from DATA_TAP source.'
+          fi
+          if [ ! -s research/tap_real/cache/research/tap_real/results_v3/v3_features.csv.gz ]; then
+             PYTHONPATH=research/tap_real python - <<'PY'
+          from pathlib import Path
+          from weak_shape_mil_v3 import collect
+          folder=Path("research/tap_real/cache/research/tap_real/results_v3")
+          collect(Path("DATA/DATA_TAP"),folder)
+          PY
+          fi
+          test -s research/tap_real/cache/research/tap_real/results_v3/v3_features.csv.gz
+          sha256sum research/tap_real/cache/research/tap_real/results_v3/v3_features.csv.gz
+      - name: Participant-held-out 5-fold 3-class event-shape model, OOF predictions, immutable source hashes
+        run: |
+          set -euo pipefail
+          python -u research/tap_real/auto_label_v5.py fit \
+            --features research/tap_real/cache/research/tap_real/results_v3/v3_features.csv.gz \
+            --input-dir DATA/DATA_TAP \
+            --out-dir research/tap_real/results_v5_model 2>&1 | tee v5_fit.log
+      - name: "Automatic folder-aware labels: TAP and SWIPE positive, remaining folders negative"
+        run: |
+          set -euo pipefail
+          python -u research/tap_real/auto_label_v5.py export \
+            --input-dir DATA/DATA_TAP \
+            --scores research/tap_real/results_v5_model/oof_event_scores.csv.gz \
+            --source-hashes research/tap_real/results_v5_model/source_sha256.csv \
+            --strict-provenance \
+            --out-dir research/tap_real/results_v5_labels 2>&1 | tee v5_export.log
+      - name: Independently reopen outputs and verify class isolation / event IDs
+        run: |
+          set -euo pipefail
+          python -u research/tap_real/audit_auto_label_v5.py \
+            --input-dir DATA/DATA_TAP \
+            --output-dir research/tap_real/results_v5_labels \
+            --min-target-coverage 0.70 2>&1 | tee v5_integrity.log
+      - name: Upload full V5 audit, source-bound label CSVs and teacher model
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tap-swipe-auto-label-v5-full
+          path: |
+            research/tap_real/results_v5_model/**
+            research/tap_real/results_v5_labels/**
+            v5_fit.log
+            v5_export.log
+            v5_integrity.log
+          retention-days: 30
