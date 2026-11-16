@@ -1,0 +1,25 @@
+name: LP v3 rest and contact feature research
+on:
+  push:
+    branches:
+      - research/lp-v3-rest-contact
+    paths:
+      - scripts/lp_v3_feature_probe.py
+      - .github/workflows/lp-v3-probe.yml
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      OPENBLAS_NUM_THREADS: "2"
+      OMP_NUM_THREADS: "2"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install dependencies
+        run: python3 -m pip install -q numpy pandas scikit-learn
+      - name: Evaluate contact features, GMM evidence, and domain shift
+        run: python3 scripts/lp_v3_feature_probe.py
