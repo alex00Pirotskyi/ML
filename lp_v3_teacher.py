@@ -178,7 +178,7 @@ def label_recording(df:pd.DataFrame,contact_prob=None,good_reference_wl=None,
         if not physical_wl_low and not responsive:
             base_unknown=max(base_unknown,.70)
         if wlmedian<40 and not hard_flat:
-            base_unknown=max(base_unknown,.80)
+            base_unknown=max(base_unknown,.95)
         if not present[ch]:
             base_unknown=1.
 
