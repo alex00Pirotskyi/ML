@@ -1,0 +1,70 @@
+name: Publish V6 Optuna top-10 firmware candidates to Git branch
+on:
+  workflow_run:
+    workflows:
+      - 'TAP+SWIPE student V6 — Optuna F1 vs firmware flash (10 models)'
+    types: [completed]
+permissions:
+  actions: read
+  contents: write
+jobs:
+  publish:
+    if: ${{ github.event.workflow_run.conclusion }} == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+      - name: Download validated V6 study exports
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/v6_release
+          gh run download ${{ github.event.workflow_run.id }} -n tap-swipe-v6-optuna-top10-firmware \
+            --repo "${{ github.repository }}" -D /tmp/v6_release
+          test -f /tmp/v6_release/research/tap_real/results_v6/summary.json
+      - name: Independently check ten complete, compiled exports
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          d=Path('/tmp/v6_release/research/tap_real/results_v6')
+          models=d/'models'
+          hs=list(models.glob('*.h'))
+          js=[p for p in models.glob('*.json') if not p.name.endswith('_feature_schema.json')]
+          assert len(hs)==len(js)==10,(len(hs),len(js))
+          summary=json.loads((d/'summary.json').read_text())
+          assert summary['selected_models']==10
+          for item in summary['ranking']:
+              p=models/item['header']
+              report=json.loads((models/item['json']).read_text())
+              assert hashlib.sha256(p.read_bytes()).hexdigest()==report['files']['header_sha256']
+              assert report['export_plus']['total_static_data_bytes']==item['actual_static_bytes']
+              assert report['compiled_c_stub']['status']=='passed'
+          print('PUBLISH_VERIFICATION_OK',len(hs),'firmware headers')
+          PY
+      - name: Publish versioned model headers and JSON audit files
+        env:
+          WORKFLOW_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          BRANCH="research/tap-swipe-optuna-v6-run-${WORKFLOW_ID}"
+          DEST="research/tap_real/exports_v6/${WORKFLOW_ID}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$BRANCH"
+          mkdir -p "$DEST/models"
+          cp /tmp/v6_release/research/tap_real/results_v6/models/*.h "$DEST/models/"
+          cp /tmp/v6_release/research/tap_real/results_v6/models/*.json "$DEST/models/"
+          cp /tmp/v6_release/research/tap_real/results_v6/summary.json "$DEST/"
+          cp /tmp/v6_release/research/tap_real/results_v6/experiment_manifest.json "$DEST/"
+          cp /tmp/v6_release/research/tap_real/results_v6/dataset_manifest.json "$DEST/"
+          cp /tmp/v6_release/research/tap_real/results_v6/optuna_trials.json "$DEST/"
+          echo "Models from Actions workflow $WORKFLOW_ID; verified V5 SILVER labels, not physical event ground truth." > "$DEST/README.txt"
+          git add -f "$DEST"
+          git commit -m "Models: publish V6 ten optimized TAP+SWIPE C headers and metrics (run $WORKFLOW_ID)"
+          git push origin "HEAD:refs/heads/$BRANCH"
+          echo "Git branch: $BRANCH"
