@@ -1,0 +1,63 @@
+name: TAP V7 full-corpus physiological pattern ablation
+on:
+  push:
+    branches:
+      - research/tap-pattern-v7-deep-20261116
+    paths:
+      - '.github/workflows/tap-v7-motif-benchmark.yml'
+      - 'research/tap_real/benchmark_psd_motifs_v7.py'
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: read
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            research/tap_real
+            .github/workflows
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install --disable-pip-version-check numpy pandas scipy scikit-learn lightgbm
+      - name: Fetch original source-checksum-bound 2790-recording waveforms
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p research/tap_real/v7_input
+          gh run download 43866509437 -n tap-v7-raw-waveform-motifs-full \
+            --repo "${{ github.repository }}" -D research/tap_real/v7_input
+          test -f research/tap_real/v7_input/research/tap_real/results_v7_motifs/psd_motifs.npz
+      - name: Benchmark full 345-value PSD pattern against hard FINGER and V5 seed baseline
+        run: |
+          set -euo pipefail
+          python -u research/tap_real/benchmark_psd_motifs_v7.py \
+            --motif-dir research/tap_real/v7_input/research/tap_real/results_v7_motifs \
+            --out-dir research/tap_real/results_v7_benchmark 2>&1 | tee v7_pattern_benchmark.log
+      - name: Audit no silent partial results
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=Path('research/tap_real/results_v7_benchmark')
+          s=json.loads((d/'summary.json').read_text())
+          assert s['source_files']==2790,s
+          assert s['waveform_events']==72016,s
+          assert len(s['methods'])==4,s.keys()
+          assert s['methods']['waveform345_morphology']['heldout_tap_finger_bag_auc']>.56,s['methods']
+          assert 'subject_block_bootstrap' in s
+          print('FULL_V7_MOTIF_BENCHMARK_VERIFIED',s['subject_block_bootstrap'],flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tap-v7-full-pattern-benchmark
+          path: |
+            research/tap_real/results_v7_benchmark/**
+            v7_pattern_benchmark.log
+          retention-days: 30
