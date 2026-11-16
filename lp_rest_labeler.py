@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate conservative pseudo-labels for 3-channel sEMG activity and contact.
+"""Generate causal firmware-aware pseudo-labels for 3-channel sEMG activity.
 
 Nine regression targets: lp_resting_ch1..3, lp_high_activity_ch1..3,
 lp_disconnection_ch1..3. Binary lp_state = 1 only when all channels appear
@@ -7,7 +7,7 @@ connected and confidently resting; 0 means activity, contact fault, OR
 uncertainty. lp_unknown_ch1..3 and lp_state_weight encode that uncertainty.
 
 No PointerState, TriggerPressure, class_id, subject, or directory labels are
-ever used as truth. This is an OFFLINE heuristic teacher, not clinical ground
+ever used as truth. This is a CAUSAL heuristic teacher, not clinical ground
 truth or a validated classifier. Output is a separate directory; input bytes
 are never modified.
 """
@@ -27,9 +27,9 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-VERSION = "lp_rest_teacher_v1"
+VERSION = "lp_causal_fw_v2"
 DEFAULT_INPUT = Path("DATA/DATA_LONG_PRESS")
-DEFAULT_OUTPUT = Path("DATA/DATA_LONG_PRESS_LABELED")
+DEFAULT_OUTPUT = Path("DATA/DATA_LONG_PRESS_LABELED_V2")
 CHANNELS = ("CH1", "CH2", "CH3")
 WL_COLUMNS = tuple(f"p_core->wl[{ch}]" for ch in CHANNELS)
 PSD_COLUMNS = tuple(
@@ -94,170 +94,15 @@ def stable_prefix_run(mask: np.ndarray, minimum: int) -> np.ndarray:
     return mask & ((idx - last_false) >= minimum)
 
 
-def compute_labels(df: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, Any]]:
-    """Compute OFFLINE pseudo-targets for one recording.
-
-    Uses whole-recording 15th percentiles as estimated floors. These are
-    NONCAUSAL training labels, not firmware-ready real-time decisions.
-    """
-    if not len(df):
-        raise ValueError("Empty recording")
-    for name in WL_COLUMNS:
-        if name not in df.columns:
-            raise ValueError(f"Missing required feature {name}")
-    for name in OUTPUT_COLUMNS:
-        if name in df.columns:
-            raise ValueError(f"Input already has label column {name}; use raw input")
-
-    nrows = len(df)
-    step_ms = median_step_ms(df)
-    fast_window = max(4, min(250, int(round(180.0 / step_ms))))
-    slow_window = max(fast_window + 1, min(800, int(round(2200.0 / step_ms))))
-
-    raw_wl = np.column_stack([positive_float_column(df, c) for c in WL_COLUMNS])
-    valid_wl = np.isfinite(raw_wl) & (raw_wl >= 0)
-    wl = np.maximum(np.nan_to_num(raw_wl, nan=0.0, posinf=0.0, neginf=0.0), 0.0)
-
-    psd_ok = np.ones((nrows, 3), dtype=bool)
-    psd = np.zeros((nrows, 3), dtype=np.float64)
-    psd_available = np.ones(3, dtype=bool)
-    for i, names in enumerate(PSD_COLUMNS):
-        if not all(c in df for c in names):
-            psd_available[i] = False
-            psd_ok[:, i] = False
-            continue
-        psd_raw = np.column_stack([positive_float_column(df, c) for c in names])
-        psd_ok[:, i] = np.all(np.isfinite(psd_raw) & (psd_raw >= 0), axis=1)
-        # No zone division: old files lack a trustworthy normalization flag.
-        # Ratios within one file work with either consistent PSD convention.
-        psd[:, i] = np.sum(np.maximum(np.nan_to_num(psd_raw, nan=0.0), 0), axis=1)
-
-    fast_wl = trailing_rolling_median(wl, fast_window)
-    slow_wl = trailing_rolling_median(fast_wl, slow_window)
-    pfast = trailing_rolling_median(psd, fast_window)
-
-    floor_wl = np.percentile(fast_wl, 15, axis=0)
-    floor_psd = np.percentile(pfast, 15, axis=0)
-    global_med = np.median(fast_wl, axis=0)
-    global_dyn = (np.percentile(fast_wl, 90, axis=0) + 1) / (
-        np.percentile(fast_wl, 10, axis=0) + 1
-    )
-
-    ratio_wl = (fast_wl + 25) / (floor_wl[None, :] + 25)
-    ratio_psd = (pfast + 25) / (floor_psd[None, :] + 25)
-    a_wl = smoothstep(
-        np.log(np.maximum(ratio_wl, 1e-8)),
-        math.log(ACTIVITY_LOW_WL), math.log(ACTIVITY_HIGH_WL),
-    )
-    a_psd = smoothstep(
-        np.log(np.maximum(ratio_psd, 1e-8)),
-        math.log(ACTIVITY_LOW_PSD), math.log(ACTIVITY_HIGH_PSD),
-    )
-    # Correlated signal representations: no double-vote treatment.
-    a = 0.75 * a_wl + 0.25 * a_psd
-    a = np.where(psd_available[None, :], a, a_wl)
-
-    # Only high AND stationary noise is strong contact-fault evidence.
-    slow_lo = trailing_quantile(fast_wl, slow_window, 0.1)
-    slow_hi = trailing_quantile(fast_wl, slow_window, 0.9)
-    local_dyn = (slow_hi + 1) / (slow_lo + 1)
-    high_level = smoothstep(slow_wl, STATIC_NOISE_LOW_WL, STATIC_NOISE_HIGH_WL)
-    low_modulation = 1 - smoothstep(local_dyn, STATIC_MIN_DYN, STATIC_MAX_DYN)
-    session_stability = 1 - smoothstep(global_dyn, 1.50, 2.40)
-    # A strong contraction plateau has an elevated baseline but often
-    # detectable activity elsewhere. Session-level modulation reduces the
-    # chance of misclassifying that plateau as disconnection.
-    disconnected = 0.98 * high_level * low_modulation * (
-        0.20 + 0.80 * session_stability[None, :]
-    )
-    hard_flatline = (slow_wl < 3.0) & (
-        trailing_rolling_median(psd, slow_window) < 3.0
-    )
-    disconnected = np.where(hard_flatline, np.maximum(disconnected, 0.95), disconnected)
-
-    # A quiet but nonzero channel is UNKNOWN, not necessarily disconnected.
-    # This specifically avoids assuming all channels share a file's contact
-    # label (CH3 may remain physically attached in DISCONNECTED recordings).
-    silence = 1 - smoothstep(slow_wl, 85.0, 250.0)
-    no_reference = (1 - smoothstep(global_dyn, 1.15, 1.75)) * smoothstep(
-        global_med, 1700.0, 5500.0
-    )
-    unknown = np.maximum(0.8 * silence, 0.90 * no_reference[None, :])
-    unknown = np.where(valid_wl, unknown, 1.0)
-    unknown = np.where(psd_available[None, :], unknown, np.maximum(unknown, 0.2))
-    unknown = np.where(psd_ok | (~psd_available[None, :]), unknown, 1.0)
-
-    # Outputs form a conservative four-way soft partition. The user-requested
-    # three regression targets are the first three; unknown is an extra
-    # abstention target to avoid inventing false rest/activity labels.
-    disconnected = np.clip(disconnected, 0.0, 1.0)
-    unknown = np.clip(unknown, 0.0, 1.0) * (1 - disconnected)
-    trust = np.maximum(0.0, 1.0 - disconnected - unknown)
-    resting = trust * (1.0 - a)
-    activity = trust * a
-
-    min_rest = resting.min(axis=1)
-    max_disc = disconnected.max(axis=1)
-    max_unknown = unknown.max(axis=1)
-    rest_candidate = (
-        (min_rest >= REST_SCORE_TO_ENTER)
-        & (max_disc < 0.35)
-        & (max_unknown < 0.22)
-    )
-    state = stable_prefix_run(
-        rest_candidate, max(1, int(round(REST_MIN_MS / step_ms)))
-    )
-    # All UNCERTAIN situations are binary zero, by request. That does NOT
-    # imply those rows are verified ACTIVE. Train with lp_state_weight.
-    certainty = np.clip(1.0 - np.max(unknown, axis=1), 0.0, 1.0)
-    ramp = np.clip(
-        np.arange(nrows, dtype=np.float64) / max(1, slow_window - 1), 0.1, 1.0
-    )
-    clear_nonrest = np.maximum(np.max(activity, axis=1), max_disc)
-    binary_margin = np.where(state, min_rest, clear_nonrest)
-    weight = certainty * (
-        0.3 + 0.7 * smoothstep(binary_margin, 0.25, 0.8)
-    ) * ramp
-    weight = np.where(
-        (~state) & (max_unknown > 0.45), weight * 0.15, weight
-    )
-
-    labels: dict[str, np.ndarray] = {}
-    for ch in range(3):
-        ci = ch + 1
-        labels[f"lp_resting_ch{ci}"] = resting[:, ch]
-        labels[f"lp_high_activity_ch{ci}"] = activity[:, ch]
-        labels[f"lp_disconnection_ch{ci}"] = disconnected[:, ch]
-        labels[f"lp_unknown_ch{ci}"] = unknown[:, ch]
-    labels["lp_state"] = state.astype(np.uint8)
-    labels["lp_state_weight"] = weight
-    result = pd.DataFrame(
-        labels, columns=[x for x in OUTPUT_COLUMNS if x != "lp_teacher_version"]
-    )
-    result["lp_teacher_version"] = VERSION
-    stats = {
-        "rows": nrows,
-        "sample_ms": round(step_ms, 3),
-        "floor_wl": [round(float(x), 2) for x in floor_wl],
-        "wl_global_dynamic": [round(float(x), 2) for x in global_dyn],
-        "lp_state_rest_fraction": round(float(np.mean(state)), 4),
-        "mean_disconnection_by_channel": [
-            round(float(x), 3) for x in disconnected.mean(axis=0)
-        ],
-        "mean_high_activity_by_channel": [
-            round(float(x), 3) for x in activity.mean(axis=0)
-        ],
-        "uncertain_fraction": round(
-            float(np.mean(np.max(unknown, axis=1) > 0.45)), 4
-        ),
-        "psd_available": psd_available.tolist(),
-    }
-    return result, stats
+def compute_labels(df: pd.DataFrame, psd_mode: str = "auto") -> tuple[pd.DataFrame, dict[str, Any]]:
+    """Causal firmware-informed teacher V2. No full-recording lookahead."""
+    from lp_causal_fw_teacher import compute_causal_labels
+    return compute_causal_labels(df, psd_mode=psd_mode)
 
 
 def read_csv_features(path: Path) -> pd.DataFrame:
     needed = set(WL_COLUMNS) | {x for group in PSD_COLUMNS for x in group} | {
-        "Timestamp", "MonotonicTimeUs"
+        "Timestamp", "MonotonicTimeUs", "psd_mean_applied"
     }
     return pd.read_csv(
         path, compression="infer", usecols=lambda name: name in needed,
@@ -319,8 +164,12 @@ def write_labeled(src: Path, output: Path, labels: pd.DataFrame) -> None:
             tmp.unlink()
 
 
-def label_one(task: tuple[str, str, str, bool]) -> dict[str, Any]:
-    src_str, root_str, output_str, overwrite = task
+def label_one(task: tuple) -> dict[str, Any]:
+    if len(task) == 4:
+        src_str, root_str, output_str, overwrite = task
+        psd_mode = "auto"
+    else:
+        src_str, root_str, output_str, overwrite, psd_mode = task
     src, root, out_root = Path(src_str), Path(root_str), Path(output_str)
     rel = src.relative_to(root)
     target = out_root / rel
@@ -328,7 +177,7 @@ def label_one(task: tuple[str, str, str, bool]) -> dict[str, Any]:
         return {"status": "skipped", "file": rel.as_posix()}
     try:
         feature_df = read_csv_features(src)
-        labels, stats = compute_labels(feature_df)
+        labels, stats = compute_labels(feature_df, psd_mode=psd_mode)
         write_labeled(src, target, labels)
         return {"status": "labeled", "file": rel.as_posix(), **stats}
     except Exception as e:
@@ -344,6 +193,8 @@ def main() -> int:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--input-dir", type=Path, default=DEFAULT_INPUT)
+    parser.add_argument("--psd-mode", choices=("auto", "raw", "legacy-divided"),
+        default="auto", help="auto trusts psd_mean_applied flag, otherwise assumes raw FW log-sums")
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument(
         "--workers", type=int,
@@ -397,6 +248,8 @@ def main() -> int:
         parser.error("No CSV or CSV.gz recordings were found")
     if args.summary_file is None:
         args.summary_file = destination / "label_summary.json"
+    print("[LP] Firmware EMG_PSD_MEAN=0: sum log zone bins; mean field = 15-frame log history")
+    print(f"[LP] PSD source mode: {args.psd_mode}")
     print(f"[LP] Input: {source}\n[LP] Output: {destination}")
     print(
         f"[LP] Files: {len(paths):,}; workers: {args.workers}; teacher: {VERSION}",
@@ -404,7 +257,7 @@ def main() -> int:
     )
     destination.mkdir(parents=True, exist_ok=True)
     jobs = (
-        (str(p), str(source), str(destination), args.overwrite)
+        (str(p), str(source), str(destination), args.overwrite, args.psd_mode)
         for p in paths
     )
     counts = {"labeled": 0, "skipped": 0, "error": 0}
