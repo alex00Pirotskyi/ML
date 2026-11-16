@@ -334,7 +334,11 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--input-dir',default='DATA/DATA_TAP');p.add_argument('--out-dir',default='DATA/DATA_TAP_LABELS_SHAPE_V3')
     p.add_argument('--max-files',type=int,default=None);p.add_argument('--only-double-taps',action='store_true')
-    p.add_argument('--full-rows',action='store_true');p.add_argument('--candidate-only',action='store_true',help='Do not promote any TAP candidate to positive')
+    p.add_argument('--full-rows',action='store_true')
+    p.add_argument('--experimental-positive-labels', action='store_true',
+                   help='UNVERIFIED: enable heuristic TAP positives (default outputs only UNKNOWN candidates)')
+    p.add_argument('--candidate-only',action='store_true',
+                   help='Compatibility alias for conservative default')
     args=p.parse_args()
     root=Path(args.input_dir).expanduser().resolve();out=Path(args.out_dir).expanduser().resolve()
     if not root.is_dir() or root.name!='DATA_TAP':p.error('input must be a DATA_TAP folder')
@@ -354,7 +358,7 @@ def main():
             seen[digest]=str(rel)
             df=pd.read_csv(f,low_memory=False)
             label,events,qc=label_recording(df,f.parent.name,f.name)
-            if args.candidate_only:
+            if not args.experimental_positive_labels or args.candidate_only:
                 label.loc[label.tap_label==1,'tap_label']=-1
                 label.loc[label.tap_label==-1,'tap_label_weight']=0
                 label.loc[label.tap_label==-1,'tap_event_id']=-1
