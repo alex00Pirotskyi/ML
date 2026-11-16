@@ -44,7 +44,11 @@ jobs:
           output=Path("tap_v3_samples/DATA/DATA_TAP")
           for f in chosen:
               p=output/f.relative_to(root);p.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(f,p)
-          result={"count":len(chosen),"by_cohort":{k:sum(k==("double" if "doubletap" in f.name.lower() else "soft" if "softtap" in f.name.lower() else "mid" if "midtap" in f.name.lower() else "other") if f.parent.name=="TAP" else f.parent.name.lower() for f in chosen) for k in quotas},"sha256":{}}
+          def classify(f):
+              if f.parent.name!="TAP":return f.parent.name.lower()
+              name=f.name.lower()
+              return "double" if "doubletap" in name else "soft" if "softtap" in name else "mid" if "midtap" in name else "other"
+          result={"count":len(chosen),"by_cohort":{k:sum(classify(f)==k for f in chosen) for k in quotas}}
           Path("tap_v3_samples/sample_manifest.json").write_text(json.dumps(result,indent=2))
           print(json.dumps(result,indent=2),flush=True)
           PY
