@@ -9,6 +9,7 @@ on:
       - tests/test_lp_state_v4.py
       - .github/workflows/lp-state-v4-audit.yml
       - scripts/lp_state_v4_real_audit.py
+      - scripts/lp_state_v4_diagnostics.py
   workflow_dispatch:
 
 permissions:
@@ -30,6 +31,7 @@ jobs:
             /lp_state_v4.py
             /tests/test_lp_state_v4.py
             /scripts/lp_state_v4_real_audit.py
+            /scripts/lp_state_v4_diagnostics.py
             /DATA/DATA_LONG_PRESS/CONNECTED/
             /DATA/DATA_LONG_PRESS/NOTHING/
             /DATA/DATA_LONG_PRESS/LONG_PRESS/
@@ -51,11 +53,16 @@ jobs:
       - name: Run full real-data audit
         run: python scripts/lp_state_v4_real_audit.py --output /tmp/lp_state_v4_real_audit.json
 
+      - name: Diagnose coverage and boundary sensitivity
+        run: python scripts/lp_state_v4_diagnostics.py
+
       - name: Upload reproducible audit
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: lp-state-v4-real-audit
-          path: /tmp/lp_state_v4_real_audit.json
+          path: |
+            /tmp/lp_state_v4_real_audit.json
+            /tmp/lp_v4_diagnostics.json
           if-no-files-found: warn
           retention-days: 30
