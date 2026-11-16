@@ -1,0 +1,34 @@
+name: LP FW-causal teacher classifier quick benchmark
+on:
+  push:
+    branches:
+      - research/lp-causal-fw-psd
+    paths:
+      - scripts/lp_classifier_benchmark_v2.py
+      - .github/workflows/lp-causal-benchmark.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      OMP_NUM_THREADS: "2"
+      OPENBLAS_NUM_THREADS: "2"
+      MKL_NUM_THREADS: "2"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install model dependencies
+        run: python3 -m pip install -q numpy pandas scikit-learn lightgbm
+      - name: Evaluate new teacher on held-out participants
+        run: python3 scripts/lp_classifier_benchmark_v2.py --input-dir DATA/DATA_LONG_PRESS --per-file 80 --tap-cap 100 --swipe-cap 100 --folds 3 --out /tmp/lp_causal_benchmark.json
+      - name: Upload results JSON
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lp-causal-classifier-metrics
+          path: /tmp/lp_causal_benchmark.json
+          if-no-files-found: warn
