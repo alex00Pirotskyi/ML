@@ -52,7 +52,7 @@ jobs:
             --features research/tap_real/cache/research/tap_real/results_v3/v3_features.csv.gz \
             --input-dir DATA/DATA_TAP \
             --out-dir research/tap_real/results_v5_model 2>&1 | tee v5_fit.log
-      - name: Automatic folder-aware labels: TAP and SWIPE positive, remaining folders negative
+      - name: "Automatic folder-aware labels: TAP and SWIPE positive, remaining folders negative"
         run: |
           set -euo pipefail
           python -u research/tap_real/auto_label_v5.py export \
