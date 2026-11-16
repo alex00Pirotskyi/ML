@@ -290,6 +290,70 @@ time-to-rest and false-REST-while-held against those timestamps. It would be
 unsound to optimize V2 merely to reproduce a larger portion of V1's
 noncausal labels.
 
+
+
+## 6.2 Held-out-person student imitation of firmware-corrected causal teacher
+
+After fixing an incidental timestamp-spacing lookahead in the student
+benchmark (the benchmark now uses the same first-32-row startup estimate),
+we ran a three-fold GroupKFold by participant ID, on 475 files: all 275
+non-TAP/SWIPE sessions, 100 TAP, 100 SWIPE, 38,000 sampled rows, 57
+normalized subject identifiers. Zero failed files.
+
+**Successful corrected run:** https://github.com/alex00Pirotskyi/ML/actions/runs/43816669080
+
+The STUDENT model is asked to reproduce V2's heuristic pseudo-labels.
+It is NOT evaluated against independent true rest, press/release or
+electrode-contact ground truth. The V1-to-V2 targets are also different,
+so comparing their numerical scores as if they were the same task is
+scientifically invalid.
+
+| Student | Raw accuracy | Balanced accuracy | Rest=1 F1 | Rest recall | ROC AUC |
+|---|---:|---:|---:|---:|---:|
+| Majority (always 0) | 88.27% | 50.00% | 0.000 | 0.00% | 0.448 |
+| Raw-only LightGBM | 85.00% | 72.16% | 0.464 | 55.38% | 0.847 |
+| Causal logistic | 82.17% | 80.94% | 0.511 | 79.34% | 0.879 |
+| **Causal LightGBM** | **92.65%** | **85.75%** | **0.710** | **76.74%** | **0.958** |
+| Noncausal oracle LightGBM | 93.78% | 87.97% | 0.752 | 80.37% | 0.971 |
+
+Causal LightGBM confusion matrix (true pseudo-label rows, predictions
+columns): [[31785, 1757], [1037, 3421]]. Positive class = rested
+lp_state=1; the 0 class combines activity, faulty contact and UNKNOWN.
+
+The oracle gap is **2.22 percentage points balanced accuracy**, much
+smaller than for the old noncausal-label teacher; this is expected
+because the new teacher uses only current/past observations. But the
+higher imitation score does not mean physical rest detection improved.
+
+Subgroup held-out causal LightGBM results (against V2 pseudo-labels):
+
+| Context | Tested rows | Balanced acc | Rest recall |
+|---|---:|---:|---:|
+| CONNECTED | 3,120 | 80.86% | 88.08% |
+| DISCONNECTED | 3,360 | 75.38% | 50.86% |
+| MID_LONG_PRESS | 3,280 | 77.68% | 62.91% |
+| SOFT_LONG_PRESS | 2,880 | 78.41% | 69.00% |
+| **STRONG_LONG_PRESS** | **1,600** | **58.18%** | **17.02%** |
+
+**Key negative result:** Despite causality correction, the trained
+student remains poor on strong LP resting intervals. V2 itself labels
+only ~5.4% of the strong-LP recording rows as confident rest.
+Some electrodes never calibrate reliably. The model rejects
+teacher-nonrest strongly, but this is not proof of correct release.
+A higher rest-label recall would require better causal references,
+less conservative yet verified contact criteria, and independent
+event-level rest/release annotations. No such accuracy is claimed.
+
+The student benchmark's per-channel V2 regression R² is also weak in
+some heads (first held-out fold), especially high-activity on CH1
+~0.230 and CH3 ~0.045. This limits a claim that all nine outputs are
+learned well from currently available causal features. These are
+*not* independently verified physiological regressions.
+
+**Practical conclusion:** Causal V2 is the correct architectural
+direction and avoids false hindsight, but improving strong-LP
+recognition remains a separate unsolved validation and model problem.
+
 ## 7. How to run
 
 From the repo root:
