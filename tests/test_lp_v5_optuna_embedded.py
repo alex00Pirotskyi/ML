@@ -55,7 +55,7 @@ class TestV5EmbeddedTrainer(unittest.TestCase):
         w=weighted_fit_weights(y,np.ones(4,np.float32))
         self.assertEqual(w.shape,(4,))
         self.assertAlmostEqual(float(w[0]),1.)
-        metric=score_predictions(y,np.array([.1,.8,.6,.3]),.65)
+        metric=score_predictions(y,np.array([.1,.8,.9,.3]),.65)
         self.assertLess(metric["hold_recall"],1.)
         self.assertGreaterEqual(metric["score"],0.)
 
