@@ -71,9 +71,9 @@ jobs:
       - name: Run full dataset Optuna size/score search and validated C export
         run: |
           python -u train_lp_v5_optuna.py \
-            --trials "${{ github.event_name == 'workflow_dispatch' && inputs.trials || '16' }}" \
+            --trials "${{ github.event_name == 'workflow_dispatch' && inputs.trials || '160' }}" \
             --max-static-bytes "${{ github.event_name == 'workflow_dispatch' && inputs.static_bytes || '24576' }}" \
-            --max-rows-per-file 384 \
+            --max-rows-per-file 480 \
             --cv-folds 3 \
             --workers 2 \
             --output LP_V5_EMBEDDED_OPTUNA
