@@ -1,0 +1,27 @@
+name: LP exhaustive compressed-versus-raw data identity check
+on:
+  push:
+    branches:
+      - research/lp-no-psd-mean-20261116
+    paths:
+      - scripts/lp_no_mean_full_identity.py
+      - .github/workflows/lp-no-mean-full-identity.yml
+permissions:
+  contents: read
+jobs:
+  full-identity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 12
+          persist-credentials: false
+      - name: Verify decompressed CSV equality for every long-press source file
+        run: python3 scripts/lp_no_mean_full_identity.py
+      - name: Upload audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lp-no-mean-entire-data-identity
+          path: /tmp/lp_no_mean_entire_dataset.csv_content.json
