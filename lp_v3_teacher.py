@@ -165,6 +165,11 @@ def label_recording(df:pd.DataFrame,contact_prob=None,good_reference_wl=None,
             bad_global=float(.20*ramp(cp,.65,.99))
         else:
             bad_global=float(.95*ramp(cp,.33,.90))
+        # A nearly silent electrode may be relaxed or missing contact.
+        # The context classifier cannot resolve that without impedance;
+        # prefer UNKNOWN over a high-confidence disconnect claim.
+        if wlmedian<40 and not hard_flat:
+            bad_global*=.12
         if not present[ch]:
             bad_global=0.
         base_unknown=float(.05 + .60*ramp(cp,.24,.70))
