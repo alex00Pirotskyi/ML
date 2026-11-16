@@ -128,9 +128,9 @@ def fit(features:Path,out:Path,folds:int=5,source_root:Path|None=None)->dict:
             raise ValueError('Source hash binding requires DATA_TAP directory')
         wanted=set(data_scored.file)
         sha_cache={}
-        for file in _source_files(source_root):
-            rel=file.relative_to(source_root).as_posix()
-            h=sha256(file,uncompressed=True)
+        for source_path in _source_files(source_root):
+            rel=source_path.relative_to(source_root).as_posix()
+            h=sha256(source_path,uncompressed=True)
             if h in sha_cache and rel in wanted:
                 raise ValueError('Model training contains duplicate source under a distinct file path: '+rel)
             sha_cache[h]=rel
