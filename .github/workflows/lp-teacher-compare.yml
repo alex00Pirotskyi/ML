@@ -1,0 +1,23 @@
+name: LP causal teacher comparison audit
+on:
+  push:
+    branches:
+      - research/lp-causal-fw-psd
+    paths:
+      - scripts/lp_teacher_compare.py
+      - .github/workflows/lp-teacher-compare.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install Python dependencies
+        run: python3 -m pip install -q numpy pandas
+      - name: Compare v1 noncausal and v2 causal on LP/contact sessions
+        run: PYTHONPATH=. python3 scripts/lp_teacher_compare.py
