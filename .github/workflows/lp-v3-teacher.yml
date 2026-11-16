@@ -1,0 +1,50 @@
+name: LP v3 mixture and quality teacher tests
+on:
+  push:
+    branches:
+      - research/lp-v3-rest-contact
+    paths:
+      - lp_v3_teacher.py
+      - lp_v3_labeler.py
+      - tests/test_lp_v3_teacher.py
+      - .github/workflows/lp-v3-teacher.yml
+permissions:
+  contents: read
+jobs:
+  synthetic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      OPENBLAS_NUM_THREADS: "2"
+      OMP_NUM_THREADS: "2"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install dependencies
+        run: python3 -m pip install -q numpy pandas scipy scikit-learn
+      - name: Validate synthetic signal segmentation, contact uncertainty and input integrity
+        run: |
+          python3 -m py_compile lp_v3_teacher.py lp_v3_labeler.py
+          python3 tests/test_lp_v3_teacher.py
+  real-data:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      OPENBLAS_NUM_THREADS: "2"
+      OMP_NUM_THREADS: "2"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install dependencies
+        run: python3 -m pip install -q numpy pandas scipy scikit-learn
+      - name: Label three recordings from every folder without changing original CSV
+        run: python3 lp_v3_labeler.py --limit-per-group 3 --dry-run
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lp-v3-smoke-audit
+          path: /tmp/lp_v3_dry_run.json
+          if-no-files-found: warn
