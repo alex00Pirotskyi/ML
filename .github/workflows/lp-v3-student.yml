@@ -1,0 +1,33 @@
+name: LP V3 held-out-person model benchmark
+on:
+  push:
+    branches:
+      - research/lp-v3-rest-contact
+    paths:
+      - scripts/lp_v3_student_benchmark.py
+      - .github/workflows/lp-v3-student.yml
+permissions:
+  contents: read
+jobs:
+  student:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      OPENBLAS_NUM_THREADS: "2"
+      OMP_NUM_THREADS: "2"
+      MKL_NUM_THREADS: "2"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install ML libraries
+        run: python3 -m pip install -q numpy pandas scipy scikit-learn lightgbm
+      - name: Evaluate 475 recordings with subject-held-out causal model
+        run: PYTHONPATH=. python3 scripts/lp_v3_student_benchmark.py --per-file 80 --tap-cap 100 --swipe-cap 100 --folds 3 --out /tmp/lp_v3_student.json
+      - name: Upload JSON metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lp-v3-student-benchmark
+          path: /tmp/lp_v3_student.json
+          if-no-files-found: warn
