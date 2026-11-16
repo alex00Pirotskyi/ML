@@ -20,7 +20,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import make_pipeline
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from lp_rest_labeler import compute_labels, median_step_ms, WL_COLUMNS, PSD_COLUMNS
+from lp_rest_labeler import compute_labels, WL_COLUMNS, PSD_COLUMNS
+from lp_causal_fw_teacher import step_ms as median_step_ms
 
 GROUPS = ("CONNECTED","DISCONNECTED","LOOSE","NOTHING","TABLE","MID_LONG_PRESS",
           "SOFT_LONG_PRESS","STRONG_LONG_PRESS","LONG_PRESS","DRAG_AND_DROP","TAP","SWIPE")
