@@ -19,7 +19,7 @@ def synthetic(n=900, press=(240, 575), signal=(220, 590)):
     d["PointerState"][slice(*press)] = 1
     for ch in range(1, 4):
         w = 500 + rng.normal(0, 9, n)
-        p = np.full(n, 6600.) + rng.normal(0, 12, n)
+        p = np.full(n, 2500.) + rng.normal(0, 12, n)
         if ch == 1:
             w[slice(*signal)] *= 4.0
             p[slice(*signal)] += 4400
@@ -51,7 +51,7 @@ class TestStrictState(unittest.TestCase):
         for ch in range(1, 4):
             df[f"p_core->wl[CH{ch}]"] = 500.
             for z in range(5):
-                df[f"p_core->emg_psd_mean[CH{ch}][{z}]"] = 6000.
+                df[f"p_core->emg_psd_mean[CH{ch}][{z}]"] = 2400.
         y, audit = label_recording(df, "STRONG_LONG_PRESS")
         self.assertTrue((y.lp_state == -1).all())
         self.assertEqual(audit["reason"], "no_verified_lp_event")
@@ -134,7 +134,7 @@ class TestStrictState(unittest.TestCase):
         for ch in range(1, 4):
             df[f"p_core->wl[CH{ch}]"] = 500.
             for z in range(5):
-                df[f"p_core->emg_psd_mean[CH{ch}][{z}]"] = 6000. + z * 60
+                df[f"p_core->emg_psd_mean[CH{ch}][{z}]"] = 2400. + z * 60
         y, _ = label_recording(df, "CONNECTED")
         self.assertGreater(np.mean(y.lp_state == 1), .8)
         self.assertFalse((y.lp_state == 0).any())
