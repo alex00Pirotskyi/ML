@@ -262,7 +262,6 @@ def main():
         (target/"label_summary.json").write_text(json.dumps(report,indent=2))
         (target/"review_queue.json").write_text(json.dumps(report["review_queue"],indent=2))
     else:
-        from pathlib import Path
         Path("/tmp/lp_v3_dry_run.json").write_text(json.dumps(report,indent=2))
     print("LP_V3_DONE",round(time.monotonic()-started,1),flush=True)
     return 1 if total["error"] else 0
