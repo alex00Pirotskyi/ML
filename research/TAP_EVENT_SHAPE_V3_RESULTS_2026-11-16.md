@@ -27,12 +27,12 @@ The decision is **continue with V3 as an offline candidate miner and weak-superv
 
 ### Files and workflow
 
-- [V3 state-machine / labeler](../research/tap_real/tap_event_shape_v3.py) — Python CLI and sidecar output
-- [V3 weak shape models and participant CV](../research/tap_real/weak_shape_mil_v3.py)
-- [V3 deterministic regression tests](../research/tap_real/test_event_shape_v3.py)
+- [V3 state-machine / labeler](https://github.com/alex00Pirotskyi/ML/blob/research/tap-real-benchmark-20261116/research/tap_real/tap_event_shape_v3.py) — Python CLI and sidecar output
+- [V3 weak shape models and participant CV](https://github.com/alex00Pirotskyi/ML/blob/research/tap-real-benchmark-20261116/research/tap_real/weak_shape_mil_v3.py)
+- [V3 deterministic regression tests](https://github.com/alex00Pirotskyi/ML/blob/research/tap-real-benchmark-20261116/research/tap_real/test_event_shape_v3.py)
 - [Full-corpus CI workflow](https://github.com/alex00Pirotskyi/ML/blob/research/tap-real-benchmark-20261116/.github/workflows/tap-v3-shape-full.yml)
 
-The source code is isolated on the research branch pending review; these relative links will resolve in a merged revision. The full GitHub Actions run provides the actual audit artifacts, including feature tables and out-of-fold per-event probabilities.
+The source code is isolated on the research branch pending review; the source links above target the experimental branch until a reviewed merge. The full GitHub Actions run provides the actual audit artifacts, including feature tables and out-of-fold per-event probabilities.
 
 ## Full real-data results
 
