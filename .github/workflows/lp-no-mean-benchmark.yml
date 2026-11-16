@@ -1,0 +1,72 @@
+name: LP new raw PSD classifier and regression benchmark
+on:
+  push:
+    branches:
+      - research/lp-no-psd-mean-20261116
+    paths:
+      - .github/workflows/lp-no-mean-benchmark.yml
+      - scripts/lp_no_mean_fingerprint.py
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  fingerprint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 4
+          persist-credentials: false
+      - name: Compare raw CSV content before/after push across all groups
+        run: python3 scripts/lp_no_mean_fingerprint.py
+      - name: Upload fingerprints
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lp-no-mean-csv-fingerprints
+          path: /tmp/lp_gzip_fingerprint.json
+  quick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      OMP_NUM_THREADS: "2"
+      OPENBLAS_NUM_THREADS: "2"
+      MKL_NUM_THREADS: "2"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install dependencies
+        run: python3 -m pip install -q numpy pandas scikit-learn lightgbm
+      - name: Reproduce balanced 475-file three-fold score
+        run: python3 scripts/lp_classifier_benchmark_v2.py --input-dir DATA/DATA_LONG_PRESS --per-file 80 --tap-cap 100 --swipe-cap 100 --folds 3 --out /tmp/lp_no_mean_quick.json
+      - name: Upload quick benchmark
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lp-no-mean-quick-results
+          path: /tmp/lp_no_mean_quick.json
+          if-no-files-found: warn
+  full:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      OMP_NUM_THREADS: "2"
+      OPENBLAS_NUM_THREADS: "2"
+      MKL_NUM_THREADS: "2"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install dependencies
+        run: python3 -m pip install -q numpy pandas scikit-learn lightgbm
+      - name: Full held-out-person five-fold score with all recordings
+        run: python3 scripts/lp_classifier_benchmark_v2.py --input-dir DATA/DATA_LONG_PRESS --per-file 80 --tap-cap 0 --swipe-cap 0 --folds 5 --out /tmp/lp_no_mean_full.json
+      - name: Upload full metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lp-no-mean-full-results
+          path: /tmp/lp_no_mean_full.json
+          if-no-files-found: warn
