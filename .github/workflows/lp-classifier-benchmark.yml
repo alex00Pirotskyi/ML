@@ -1,0 +1,34 @@
+name: LP classifier held-out-person benchmark
+on:
+  push:
+    branches:
+      - research/lp-classifier-eval
+    paths:
+      - scripts/lp_classifier_benchmark.py
+      - .github/workflows/lp-classifier-benchmark.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      OMP_NUM_THREADS: "2"
+      OPENBLAS_NUM_THREADS: "2"
+      MKL_NUM_THREADS: "2"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install benchmark dependencies
+        run: python3 -m pip install --disable-pip-version-check -q numpy pandas scikit-learn lightgbm
+      - name: Run held-out-person evaluation on all recordings
+        run: python3 scripts/lp_classifier_benchmark.py --input-dir DATA/DATA_LONG_PRESS --per-file 80 --folds 5 --out /tmp/lp_classifier_benchmark.json
+      - name: Upload JSON metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lp-classifier-benchmark-json
+          path: /tmp/lp_classifier_benchmark.json
+          if-no-files-found: warn
