@@ -42,7 +42,7 @@ jobs:
     needs: regression
     timeout-minutes: 85
     env:
-      OPTUNA_TRIALS: \${{ github.event.inputs.trials || '40' }}
+      OPTUNA_TRIALS: ${{ github.event.inputs.trials || '40' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -58,12 +58,12 @@ jobs:
         run: python -m pip install --disable-pip-version-check numpy pandas scipy scikit-learn lightgbm optuna joblib
       - name: Download frozen V5 full corpus label artifact
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           mkdir -p research/tap_real/v5_cache
           gh run download 43858013153 -n tap-swipe-auto-label-v5-full \
-            --repo "\${{ github.repository }}" -D research/tap_real/v5_cache
+            --repo "${{ github.repository }}" -D research/tap_real/v5_cache
           test -f research/tap_real/v5_cache/research/tap_real/results_v5_labels/manifest.jsonl
           test -f research/tap_real/v5_cache/research/tap_real/results_v5_labels/integrity_summary.json
           python - <<'PY'
