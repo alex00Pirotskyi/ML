@@ -90,3 +90,27 @@ For a fresh run, use a *new* output directory rather than overwriting earlier ge
 The physical onset of each soft tap, missing tap, or swipe is **not identifiable with absolute certainty from recording-class labels alone**. This study cannot provide actual event-level precision/recall, reliably quantify missing soft taps, or prove that a student trained on these labels will meet production runtime behavior. Validate the trained firmware on held-out physical events and negative daily activity before claiming an embedded model is production-ready.
 
 This document is a research release record; compare V5 weighted student models against V3/V4 and the archived production model before replacing the deployed firmware.
+
+
+## Full verified GitHub Actions run (2026-11-16)
+
+[**Successful complete fit → export → independent audit run #43855399972**](https://github.com/alex00Pirotskyi/ML/actions/runs/43855399972), artifact [`tap-swipe-auto-label-v5-full`](https://github.com/alex00Pirotskyi/ML/actions/runs/43855399972/artifacts/14219439371).
+
+| Metric | Result |
+|---|---:|
+| Original files scanned | 2,921 |
+| Unique files processed, source hashes bound | **2,790** |
+| Deduplicated CSVs | 131 |
+| Export/audit failures | **0** |
+| TAP target-event hypotheses | **11,652** |
+| SWIPE target-event hypotheses | **7,054** |
+| DoubleTaps selected pairs | 523 |
+| Positive-recording coverage | **2,142/2,142** |
+| Negatives containing any positive label | **0/648** |
+| `gesture_label=1` frames | **429,354** |
+| `gesture_label=0` frames | **1,602,078** |
+| `gesture_label=-1` frames | **3,475,266** |
+
+The 18,706 selected events break down to **11,465 strong pointer/EMG**, **4,492 weak pointer/EMG**, **2,321 MIL-high**, **313 uncertain-pointer**, and **115 very-low-weight bag witnesses**. This 100% positive bag coverage **does not mean 100% physical-event recall**. Row-by-row independent auditing reopened every label CSV, verified class isolation, source timestamps, exact row counts, event IDs, pair consistency and summary totals.
+
+See the preserved report on `main`: [`research/TAP_SWIPE_AUTO_LABEL_V5_RESULTS_2026-11-16.md`](https://github.com/alex00Pirotskyi/ML/blob/main/research/TAP_SWIPE_AUTO_LABEL_V5_RESULTS_2026-11-16.md).
