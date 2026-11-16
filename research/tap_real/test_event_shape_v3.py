@@ -50,6 +50,12 @@ def test_rearm_soft_soft():
         ts=[e.peak_ms-1782000000000 for e in ev if e.provisional=="TAP_SHAPE"]
         n,fp,fn=match(ts,[2000,2000+gap])
         assert n==2 and fp==0 and fn==0,(gap,ts)
+        paired=[e for e in ev if e.pair_id>0 and e.provisional=="TAP_SHAPE"]
+        assert len(paired)==2 and paired[0].pair_id==paired[1].pair_id,(gap,paired)
+        labels,_,qc=label_recording(df,"TAP","test_DoubleTaps.csv.gz")
+        assert qc["double_pair_candidates"]==1
+        assert int(labels.tap_pair_id.max())==1
+        assert "tap_candidate_id" in labels.columns
 
 def test_external_cues_not_features():
     df=recording(pointer="stuck")
