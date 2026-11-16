@@ -1,0 +1,37 @@
+name: TAP real-corpus labeler benchmark
+on:
+  push:
+    branches:
+      - research/tap-real-benchmark-20261116
+    paths:
+      - '.github/workflows/tap-real-benchmark.yml'
+      - 'research/tap_real/**'
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Approximate samples per class (0 means full corpus)'
+        default: '0'
+        required: false
+        type: string
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install requirements
+        run: python -m pip install --disable-pip-version-check numpy pandas scipy
+      - name: Benchmark read-only source data
+        run: |
+          python -u research/tap_real/benchmark.py ${{ inputs.limit || '0' }} 2>&1 | tee tap_benchmark.log
+      - name: Upload audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tap-benchmark-results
+          path: |
+            research/tap_real/results/**
+            tap_benchmark.log
