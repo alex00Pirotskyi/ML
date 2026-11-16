@@ -137,3 +137,23 @@ These published systems use different sensors/signals/datasets and cannot be num
 - [Source code on isolated V7 branch](https://github.com/alex00Pirotskyi/ML/blob/research/tap-pattern-v7-deep-20261116/research/tap_real/extract_psd_motifs_v7.py)
 - [Previous V5 auto-labeler](https://github.com/alex00Pirotskyi/ML/blob/main/research/tap_real/auto_label_v5.py)
 - [Previous V6 student Optuna baseline](https://github.com/alex00Pirotskyi/ML/blob/main/research/TAP_SWIPE_STUDENT_OPTUNA_V6_RESULTS_2026-11-16.md)
+
+
+## Additional falsification: class-enriched unsupervised prototypes
+
+We also tested a balanced, normalized EMG-pattern clustering approach rather than a single classifier: 24 or 40 compact morphology clusters were fitted on training groups; cluster candidates were retained if the cluster was more frequent in weak V5 TAP seed events than in FINGER events by factors of 1.5×, 2×, or 2.5×. Five-fold held-out participant strings were scored. The positive rows are still **unverified V5 pseudo labels**.
+
+| Clusters | Minimum seed-vs-FINGER enrichment | V5 TAP pseudo-positive recall | Hard-negative FINGER candidate acceptance |
+|---|---:|---:|---:|
+| 24 | 1.5× | 18.3% | 15.5% |
+| 24 | 2× | 2.9% | 7.6% |
+| 40 | 1.5× | 36.9% | 37.8% |
+| 40 | 2× | 16.4% | 19.4% |
+| 40 | 2.5× | 7.6% | 13.7% |
+
+The apparent positive-enrichment clusters **did not generalize as tap-specific**: for 40 clusters at 1.5×, 93.2% of TAP recordings but **96.5% of FINGER recordings** contained a matched prototype; for 40 clusters at 2×, TAP 61.4% and FINGER **64.9%**. This rejects a naive "unsupervised motifs + cluster enrichment" labeler. These figures are exploratory diagnostics, not false activation rates in firmware.
+
+The primary **independent GitHub Actions reproduction** of the original full 2,790-source pattern experiment also passed:
+[full V7 raw waveform ablation and source audit, run #43870045765](https://github.com/alex00Pirotskyi/ML/actions/runs/43870045765), [artifact 14226917060](https://github.com/alex00Pirotskyi/ML/actions/runs/43870045765/artifacts/14226917060); reproducible code is on the [research branch](https://github.com/alex00Pirotskyi/ML/blob/research/tap-pattern-v7-deep-20261116/research/tap_real/benchmark_psd_motifs_v7.py).
+
+**Confirmed full benchmark values:** simple morphology TAP-vs-FINGER recording AUC **0.54419**, full 345-dimensional waveform plus morphology **0.62034**, paired participant-block bootstrap improvement 95% descriptive interval **−0.00290 to +0.14065** (includes no improvement). No physical event labels were introduced.
