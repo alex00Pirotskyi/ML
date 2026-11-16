@@ -62,7 +62,7 @@ still uses the old hook; the replacement takes effect on the next attempt.
 
 ## Long-press sEMG pseudo-labeling
 
-Generate separate, non-destructive per-sample pseudo-labels for each sEMG
+Generate firmware-aware, causal and non-destructive per-sample pseudo-labels for each sEMG
 channel: resting, high activity, and suspected disconnection (0-1), plus a
 strict global binary `lp_state` where **1 = confidently resting on all
 channels**, otherwise **0**. Unknown cases have `lp_state_weight` so they
@@ -74,7 +74,14 @@ python lp_rest_labeler.py
 ```
 
 Default input: `DATA/DATA_LONG_PRESS`. Output:
-`DATA/DATA_LONG_PRESS_LABELED` (ignored by Git by default).
+`DATA/DATA_LONG_PRESS_LABELED_V2` (ignored by Git by default).
 Full documentation: [LP pseudo-label teacher](research/LP_LABELER_README.md).
 The teacher does not use PointerState or class_id as truth; scores are not
 validated physical muscle-state or electrode-impedance probabilities.
+
+
+Firmware-corrected teacher v2:
+- EMG_PSD_MEAN=0 at acquisition; PSD zones are uint16 log10(sum squared FFT-bin magnitudes+1) * 10000.
+- The emg_psd_mean field is still a 15-frame temporal average of logged spectra.
+- Per-channel resting floors and activity are causal; uncalibrated/poor-contact rows are UNKNOWN and low-weight.
+- Legacy teacher v1 is preserved under research/legacy/; corrected research report: research/LP_CAUSAL_FIRMWARE_PSD_RESEARCH_2026-11-16.md.
