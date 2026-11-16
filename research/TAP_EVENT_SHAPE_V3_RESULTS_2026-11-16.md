@@ -130,3 +130,21 @@ To inspect **unverified** heuristic-positive behavior, explicitly add `--experim
 ## Decision
 
 **Keep V3, not V1/V2, as the experiment branch’s event candidate miner; keep trained scores in research, not firmware.** Its stateful rearm logic is a meaningful improvement for double taps, and its weak-label event-shape model shows some value across the real corpus. The hard FINGER negatives remain an unresolved blocker, so do not automatically promote these pseudo-labels into final embedded model training.
+
+
+## Supplemental investigation — soft taps versus finger-only gestures
+
+A more targeted analysis exposed that the general two-stage V3 model is especially weak for soft taps. On the full held-out predictions, **SoftTap recording vs FINGER recording AUC = 0.407**, versus **0.778 for DoubleTaps vs FINGER**. At a 0.70 threshold the general model produces **53.7 high-probability events/hour** in SoftTap recordings, versus **519.5/hour in FINGER**. This directly contradicts a claim of reliable soft-tap recognition.
+
+A specialist, separately trained binary SoftTap-vs-FINGER model was therefore evaluated using the same V3 event-shape features and five-fold participant-string-grouped holdout. Source: all **276 unique SoftTap files + 339 unique FINGER files** (615 files; 16,773 extracted event episodes). **No Oculus or metronome input** was used.
+
+| Specialist model | SoftTap vs FINGER file ROC AUC | SoftTap high-p≥0.70 events/hour | FINGER high-p≥0.70 events/hour |
+|---|---:|---:|---:|
+| All event features, weak bag labels | 0.743 | 2,106 | 1,448 |
+| Two-stage weak event selection | **0.754** | 958 | 435 |
+| Two-stage without ACC | 0.749 | 997 | 448 |
+| Early-feature two-stage | 0.743 | 773 | 444 |
+
+**Interpretation:** Focusing the objective on the hard FINGER class improves ranking of *recordings* (0.407 → 0.754), but still passes hundreds of FINGER episodes/hour as high-scoring candidates. That is not a production false-positive rate, yet it shows that weak folder labels and these feature summaries alone cannot establish a safe operating point. The specialist result is exploratory and must be verified against manually annotated physical tap times, especially soft taps with poor electrode placement.
+
+Reproducible specialist script: [`soft_vs_finger_v3.py`](https://github.com/alex00Pirotskyi/ML/blob/research/tap-real-benchmark-20261116/research/tap_real/soft_vs_finger_v3.py). It requires the extracted `v3_features.csv.gz` from the full V3 workflow artifact.
