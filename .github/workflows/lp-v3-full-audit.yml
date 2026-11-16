@@ -1,0 +1,32 @@
+name: LP V3 full 2431-file labeling audit
+on:
+  push:
+    branches:
+      - research/lp-v3-rest-contact
+    paths:
+      - .github/workflows/lp-v3-full-audit.yml
+permissions:
+  contents: read
+jobs:
+  all-recordings:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      OPENBLAS_NUM_THREADS: "2"
+      OMP_NUM_THREADS: "2"
+      MKL_NUM_THREADS: "2"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install dependencies
+        run: python3 -m pip install -q numpy pandas scipy scikit-learn
+      - name: Compute V3 pseudo-labels for full source dataset (read-only)
+        run: python3 lp_v3_labeler.py --dry-run
+      - name: Upload quality report and review queue
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lp-v3-full-dataset-dryrun
+          path: /tmp/lp_v3_dry_run.json
+          if-no-files-found: warn
