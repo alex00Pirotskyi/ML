@@ -1,0 +1,25 @@
+name: LP v3 contact domain-shift training ablations
+on:
+  push:
+    branches:
+      - research/lp-v3-rest-contact
+    paths:
+      - scripts/lp_v3_contact_robustness.py
+      - .github/workflows/lp-v3-contact.yml
+permissions:
+  contents: read
+jobs:
+  contact:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      OPENBLAS_NUM_THREADS: "2"
+      OMP_NUM_THREADS: "2"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install dependencies
+        run: python3 -m pip install -q numpy pandas scikit-learn
+      - name: Compare weak LP augmentation on held-out-participant contact and strong-LP flags
+        run: PYTHONPATH=scripts python3 scripts/lp_v3_contact_robustness.py
