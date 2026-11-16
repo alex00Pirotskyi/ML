@@ -6,20 +6,12 @@ on:
       - research/lp-v5-optuna-embedded-20261116
     paths:
       - train_lp_v5_optuna.py
+      - lp_v5_labeler.py
+      - lp_v5_cpu.py
+      - tests/test_lp_v5_export_quality.py
       - tests/test_lp_v5_optuna_embedded.py
       - .github/workflows/lp-v5-optuna-train.yml
   workflow_dispatch:
-    inputs:
-      trials:
-        description: Optuna multiobjective trials (80-150 for deeper research)
-        required: true
-        default: '80'
-        type: string
-      static_bytes:
-        description: Maximum C static model bytes (excluding code/stack)
-        required: true
-        default: '24576'
-        type: string
 
 permissions:
   contents: read
@@ -39,6 +31,7 @@ jobs:
           sparse-checkout: |
             /export_plus.py
             /train_lp_v5_optuna.py
+            /lp_v5_cpu.py
             /lp_state_v5.py
             /lp_v5_labeler.py
             /lp_v3_labeler.py
@@ -69,14 +62,7 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_lp_v5_optuna_embedded.py' -v
 
       - name: Run full dataset Optuna size/score search and validated C export
-        run: |
-          python -u train_lp_v5_optuna.py \
-            --trials "${{ github.event_name == 'workflow_dispatch' && inputs.trials || '160' }}" \
-            --max-static-bytes "${{ github.event_name == 'workflow_dispatch' && inputs.static_bytes || '24576' }}" \
-            --max-rows-per-file 480 \
-            --cv-folds 3 \
-            --workers 2 \
-            --output LP_V5_EMBEDDED_OPTUNA
+        run: python -u train_lp_v5_optuna.py
 
       - name: Show final results and artifact integrity
         run: |
