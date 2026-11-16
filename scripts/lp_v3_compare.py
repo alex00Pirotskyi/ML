@@ -42,7 +42,7 @@ def main():
                     user=normalize_person(df["User"].iloc[0] if "User" in df else None,p.name)
                     model=person.get(user,full)
                     probs=model.predict_proba(np.array([c["feat"] for c in rec["ch"]]))[:,1]
-                l3,st=label_recording(df,contact_prob=probs,good_reference_wl=refs)
+                l3,st=label_recording(df,contact_prob=probs,good_reference_wl=refs,context=group)
                 n=len(df)
                 stat={"group":group,"file":p.name,"n":n,
                    "rest2":mean(l2["lp_state"]),"rest3":mean(l3["lp_state"]),

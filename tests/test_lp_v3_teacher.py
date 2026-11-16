@@ -41,8 +41,8 @@ def activate(df,ch,start,end,scale=4):
                 name=f"p_core->emg_psd[0][CH{ch}][{z}]"
             df.loc[sl,name]+=5000
 
-def run(d,contact=(.02,.02,.02)):
-    y,stats=label_recording(d,contact_prob=contact,
+def run(d,contact=(.02,.02,.02),context="CONNECTED"):
+    y,stats=label_recording(d,contact_prob=contact,context=context,
                             good_reference_wl=(1800,1800,1800))
     assert len(y)==len(d)
     assert y["lp_state"].isin((0,1)).all()
@@ -106,6 +106,13 @@ class TestV3(unittest.TestCase):
         self.assertTrue(s["channel_details"][0]["credible"])
         self.assertLess(y["lp_disconnection_ch1"].mean(),.25)
         self.assertGreater(y["lp_unknown_ch1"].mean(),.2)
+
+    def test_unresponsive_soft_gesture_remains_unknown(self):
+        df=synthetic()
+        y,st=run(df,context="SOFT_LONG_PRESS")
+        self.assertFalse(st["has_independent_activity_anchor"])
+        self.assertGreater(y["lp_unknown_ch1"].median(),.70)
+        self.assertLess(y["lp_state"].mean(),.03)
 
     def test_pointer_irrelevant(self):
         d=synthetic(n=800)

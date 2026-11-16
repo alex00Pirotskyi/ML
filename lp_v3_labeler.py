@@ -197,7 +197,7 @@ def main():
                 X=np.asarray([r["feat"] for r in rec["ch"]],float)
                 probs=model.predict_proba(X)[:,1]
             labels,stat=label_recording(df,contact_prob=probs,
-                good_reference_wl=ref,psd_mode=a.psd_mode)
+                good_reference_wl=ref,psd_mode=a.psd_mode,context=group)
             assert len(labels)==len(df)
             for ch in (1,2,3):
                 cols=[f"lp_{v}_ch{ch}" for v in
