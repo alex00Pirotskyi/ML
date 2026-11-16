@@ -87,7 +87,7 @@ def two_state(logwl,psdlog):
     return result
 
 def label_recording(df:pd.DataFrame,contact_prob=None,good_reference_wl=None,
-                    psd_mode="auto",boundary_frames=1):
+                    psd_mode="auto",boundary_frames=1,context=None):
     """Label one complete recording using future context deliberately.
 
     Contact scores are supplied by a held-out-person/weakly supervised
@@ -137,6 +137,13 @@ def label_recording(df:pd.DataFrame,contact_prob=None,good_reference_wl=None,
 
     r=np.zeros((nframe,3),float)
     a=np.zeros_like(r);bad=np.zeros_like(r);unk=np.zeros_like(r)
+    # Unlike a physical force switch, a low EMG waveform alone cannot
+    # certify that the user was not lightly contracting. Discover an
+    # independently visible low/high transition before trusting quiet
+    # channels in gesture-session recordings.
+    plans=[two_state(Wlog[:,ch],P[:,ch]) for ch in range(3)]
+    anchor_present=bool(any(pl["weak"] for pl in plans))
+    known_rest_reference=context in ("CONNECTED","NOTHING")
     descriptions=[]
     for ch in range(3):
         lw=Wlog[:,ch]
@@ -144,7 +151,7 @@ def label_recording(df:pd.DataFrame,contact_prob=None,good_reference_wl=None,
         dyn=(np.percentile(W[:,ch],90)+1)/(np.percentile(W[:,ch],10)+1)
         wlmedian=float(np.median(W[:,ch]))
         spec_median=float(np.median(ps))
-        desc=two_state(lw,ps)
+        desc=plans[ch]
         credible=desc["credible"];weak=desc["weak"]
         floor_w=math.expm1(desc["floor_logwl"])
         physical_wl_low=(wlmedian<=max(300.,float(good_reference_wl[ch])*1.35))
@@ -204,12 +211,16 @@ def label_recording(df:pd.DataFrame,contact_prob=None,good_reference_wl=None,
             # Unimodal low can be rest only if its level resembles
             # healthy connected references. High static/unimodal signals
             # remain UNKNOWN / contact-fault, never automatically rest.
-            if physical_wl_low and cp<.4 and present[ch]:
+            if (physical_wl_low and cp<.4 and present[ch] and
+                dyn<1.65 and (known_rest_reference or anchor_present)):
                 high=.06+.10*ramp(lw-np.median(lw),.06,.4)
-                uncertainty=np.full(nframe,.08)
+                uncertainty=np.full(nframe,.08 if anchor_present else .14)
             else:
-                high=np.full(nframe,.15)
-                uncertainty=np.full(nframe,.75)
+                # There is no evidence that a low, stationary amplitude
+                # means a resting muscle. Do not fabricate an active or
+                # resting label merely because the current file is quiet.
+                high=np.full(nframe,.12)
+                uncertainty=np.full(nframe,.82)
 
         # Movement artifacts are not always motion; only suppress
         # abrupt EMG changes accompanied by high accelerometer change.
@@ -271,6 +282,9 @@ def label_recording(df:pd.DataFrame,contact_prob=None,good_reference_wl=None,
     # Ambiguous zero is not a verified active muscle sample.
     weight=np.where((state==0)&(low_confi>.4),.02,weight)
     weight=np.clip(weight,0,1)
+    if known_rest_reference and not anchor_present:
+        # Recording context is weak rest supervision, not direct force truth.
+        weight=np.where(state==1,np.minimum(weight,.65),weight)
     labels={}
     for ch in range(3):
         for name,m in (("resting",R),("high_activity",A),
@@ -288,5 +302,7 @@ def label_recording(df:pd.DataFrame,contact_prob=None,good_reference_wl=None,
        "psd_raw_slot0_used":pinstant is not None,
        "acc_motion_features_used":accel is not None,
        "channel_details":descriptions,
+       "context_reference_used":bool(known_rest_reference),
+       "has_independent_activity_anchor":bool(anchor_present),
        **psdmeta}
     return result,stats
