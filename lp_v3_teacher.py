@@ -190,7 +190,7 @@ def label_recording(df:pd.DataFrame,contact_prob=None,good_reference_wl=None,
             high=median_filter(high,size=3,mode="nearest")
             near_boundaries=transitions(high>.5,boundary_frames)
             uncertainty=np.maximum(
-                .28 if credible else .52,
+                .07 if credible else .16,
                 .90*ramp(.22-np.abs(high-.5),.02,.22)
             )
             uncertainty=np.maximum(uncertainty,
