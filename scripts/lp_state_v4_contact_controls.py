@@ -45,7 +45,10 @@ def main():
             "channels":len(items),
             "wl_percentiles":{str(q):round(float(np.percentile(w,q)),5) for q in (5,25,50,75,95)},
             "psd_percentiles":{str(q):round(float(np.percentile(p,q)),5) for q in (5,25,50,75,95)},
-            "current_gate_pass":round(float(np.mean((w>=65)&(w<=3500)&(p>=.02)&(p<=5.5))),5),
+            "old_gate_pass":round(float(np.mean((w>=65)&(w<=3500)&(p>=.02)&(p<=5.5))),5),
+            "current_gate_pass":round(float(np.mean((w>=65)&(w<=3500)&(p<=.60))),5),
+            "alternates":{f"wl{max_w}_psd{max_p}":round(float(np.mean((w>=65)&(w<=max_w)&(p<=max_p))),5)
+                          for max_w in (2500,3000,3500) for max_p in (.3,.45,.6,.8)},
             "psd_min_pass":{str(t):round(float(np.mean(p>=t)),5)
                             for t in (0.001,0.005,0.01,0.015,0.02,0.03,0.05)},
             "median_wl":round(float(np.median(w)),2),
