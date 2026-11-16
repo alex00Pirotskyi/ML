@@ -87,7 +87,7 @@ def raw_features(df: pd.DataFrame) -> np.ndarray:
     absent = [k for k in FEATURES if k not in df.columns]
     if absent:
         raise KeyError(f"Missing required firmware feature(s): {absent[:4]}")
-    arr = df[FEATURES].apply(pd.to_numeric, errors="coerce").to_numpy(np.float32)
+    arr = df[FEATURES].apply(pd.to_numeric, errors="coerce").to_numpy(dtype=np.float32, copy=True)
     if "psd_mean_applied" in df:
         marker = pd.to_numeric(df["psd_mean_applied"], errors="coerce")
         if marker.eq(1).all():
