@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 4
+          fetch-depth: 12
           persist-credentials: false
       - name: Compare decompressed CSV bytes from previous and new commits
         run: python3 scripts/lp_no_mean_fingerprint_fixed.py
