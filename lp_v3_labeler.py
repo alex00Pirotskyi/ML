@@ -180,22 +180,26 @@ def main():
         try:
             df=pd.read_csv(src,compression="gzip",usecols=lambda c:c in EXTRA_READ,
                 low_memory=False)
-            if len(df)<250:
-                total["too_short"]+=1
-                continue
-            current=str(src)
-            if current in known_scores:
-                probs=known_scores[current]
+            short_recording=len(df)<250
+            if short_recording:
+                # No defensible per-file calibration exists. Preserve every
+                # source row and mark all short recordings as uncertain.
+                probs=[.55,.55,.55]
+                total["short_uncalibrated"]+=1
+            elif str(src) in known_scores:
+                probs=known_scores[str(src)]
             else:
                 rec=record(src,group)
                 if rec is None:
-                    total["too_short"]+=1
-                    continue
-                model=subject_models.get(normalize_person(
-                    df["User"].iloc[0] if "User" in df else None,src.name),
-                    full)
-                X=np.asarray([r["feat"] for r in rec["ch"]],float)
-                probs=model.predict_proba(X)[:,1]
+                    probs=[.55,.55,.55]
+                    total["short_uncalibrated"]+=1
+                    rec=None
+                if rec is not None:
+                    model=subject_models.get(normalize_person(
+                        df["User"].iloc[0] if "User" in df else None,src.name),
+                        full)
+                    X=np.asarray([r["feat"] for r in rec["ch"]],float)
+                    probs=model.predict_proba(X)[:,1]
             labels,stat=label_recording(df,contact_prob=probs,
                 good_reference_wl=ref,psd_mode=a.psd_mode,context=group)
             assert len(labels)==len(df)
