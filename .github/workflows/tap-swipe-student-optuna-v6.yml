@@ -1,0 +1,119 @@
+name: TAP+SWIPE student V6 — Optuna F1 vs firmware flash (10 models)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/tap-swipe-student-optuna-v6.yml'
+      - 'research/tap_real/train_optuna_student_v6.py'
+      - 'research/tap_real/test_train_optuna_student_v6.py'
+      - 'export_plus.py'
+  workflow_dispatch:
+    inputs:
+      trials:
+        description: 'Optuna trials (minimum 10)'
+        required: false
+        type: number
+        default: 40
+permissions:
+  actions: read
+  contents: read
+jobs:
+  regression:
+    name: Synthetic end-to-end export gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            research/tap_real
+            export_plus.py
+            .github/workflows
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install training/export/test dependencies
+        run: python -m pip install --disable-pip-version-check numpy pandas scipy scikit-learn lightgbm optuna joblib
+      - name: Train and export TEN synthetic candidates with C compile validation
+        run: python -u research/tap_real/test_train_optuna_student_v6.py
+  full_optuna:
+    name: Full source-bound V5 silver-label training
+    runs-on: ubuntu-latest
+    needs: regression
+    timeout-minutes: 85
+    env:
+      OPTUNA_TRIALS: \${{ github.event.inputs.trials || '40' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            DATA/DATA_TAP
+            research/tap_real
+            export_plus.py
+            .github/workflows
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install training dependencies
+        run: python -m pip install --disable-pip-version-check numpy pandas scipy scikit-learn lightgbm optuna joblib
+      - name: Download frozen V5 full corpus label artifact
+        env:
+          GH_TOKEN: \${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p research/tap_real/v5_cache
+          gh run download 43858013153 -n tap-swipe-auto-label-v5-full \
+            --repo "\${{ github.repository }}" -D research/tap_real/v5_cache
+          test -f research/tap_real/v5_cache/research/tap_real/results_v5_labels/manifest.jsonl
+          test -f research/tap_real/v5_cache/research/tap_real/results_v5_labels/integrity_summary.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("research/tap_real/v5_cache/research/tap_real/results_v5_labels/integrity_summary.json")
+          a=json.loads(p.read_text())
+          assert a["unique_files_verified"]==2790 and a["negative_positive_events"]==0,a
+          print("V5_SOURCE_AUDIT_OK", a["unique_files_verified"],flush=True)
+          PY
+      - name: Two-objective study and 10 validated export_plus C headers
+        run: |
+          set -euo pipefail
+          python -u research/tap_real/train_optuna_student_v6.py \
+            --input-dir DATA/DATA_TAP \
+            --labels-dir research/tap_real/v5_cache/research/tap_real/results_v5_labels \
+            --out-dir research/tap_real/results_v6 \
+            --trials "$OPTUNA_TRIALS" \
+            --cv-folds 3 --top-k 10 --max-per-class 45 --seed 20261116 \
+            2>&1 | tee v6_optuna_train.log
+      - name: Independently validate model count, JSON reports, model sizes and C export
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json,hashlib
+          d=Path("research/tap_real/results_v6")
+          s=json.loads((d/"summary.json").read_text())
+          models=sorted((d/"models").glob("*.h"))
+          reports=[p for p in (d/"models").glob("*.json") if not p.name.endswith("_feature_schema.json")]
+          assert len(models)==10,(len(models),len(reports))
+          assert len(reports)==10,(len(models),len(reports))
+          assert len(s["ranking"])==10 and len(set(x["trial"] for x in s["ranking"]))==10
+          for row in s["ranking"]:
+              r=json.loads((d/"models"/row["json"]).read_text())
+              h=d/"models"/row["header"]
+              assert h.is_file() and h.stat().st_size>1500
+              assert hashlib.sha256(h.read_bytes()).hexdigest()==r["files"]["header_sha256"]
+              assert r["export_plus"]["total_static_data_bytes"]==row["actual_static_bytes"]
+              assert r["compiled_c_stub"]["status"]=="passed"
+              assert r["export_plus"]["validation"] is not None
+          print("V6_FULL_AUDIT_OK",json.dumps({"ten_models":len(models),
+                "static_sizes":[x["actual_static_bytes"] for x in s["ranking"]],
+                "cv_f1":[round(x["cv_f1"],4) for x in s["ranking"]]}),flush=True)
+          PY
+      - name: Archive ten firmware headers, ten JSON reports, study and model pickles
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tap-swipe-v6-optuna-top10-firmware
+          path: |
+            research/tap_real/results_v6/**
+            v6_optuna_train.log
+          retention-days: 30
