@@ -24,7 +24,7 @@ import numpy as np
 import pandas as pd
 from scipy.ndimage import median_filter, maximum_filter1d
 
-VERSION = "lp_state_strict_v4_candidate"
+VERSION = "lp_state_strict_v4_1_candidate"
 SOURCE = Path("DATA/DATA_LONG_PRESS")
 DEST = Path("DATA/DATA_LONG_PRESS_LP_STATE_V4")
 LP_GROUPS = ("SOFT_LONG_PRESS", "MID_LONG_PRESS", "STRONG_LONG_PRESS", "LONG_PRESS")
