@@ -1,0 +1,66 @@
+name: TAP V4 strict source and annotation smoke tests
+on:
+  push:
+    branches:
+      - research/tap-production-labeler-v4
+    paths:
+      - '.github/workflows/tap-v4-smoke.yml'
+      - 'research/tap_real/production_labeler_v4.py'
+      - 'research/tap_real/silver_anchor.py'
+      - 'research/tap_real/test_production_labeler_v4.py'
+  workflow_dispatch:
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            DATA/DATA_TAP
+            research/tap_real
+            .github/workflows
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install
+        run: python -m pip install numpy pandas scipy
+      - name: Test strict production labeling and failure handling
+        run: |
+          set -o pipefail
+          python -u research/tap_real/test_production_labeler_v4.py | tee tap_v4_safety_tests.log
+      - name: Smoke export on real repository source
+        run: |
+          set -o pipefail
+          python -u research/tap_real/production_labeler_v4.py --input-dir DATA/DATA_TAP --out-dir tap_v4_smoke --max-files 28 --policy candidate | tee tap_v4_smoke_summary.log
+      - name: Inspect sample outputs
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import pandas as pd
+          root=Path('tap_v4_smoke')
+          q=json.loads((root/'summary.json').read_text())
+          assert q['files_seen']==28
+          assert q['files_ok']+q['duplicates']==28
+          assert q['failed']==0
+          assert q['total_positive_rows']==0
+          for p in root.rglob('*.labels.csv.gz'):
+              d=pd.read_csv(p)
+              assert set(d.tap_label.unique()).issubset({0,-1})
+              assert (d.tap_event_id==-1).all()
+              assert (d.tap_pair_id==0).all()
+              assert (d.loc[d.tap_label==-1,'tap_label_weight']==0).all()
+          print('V4_SMOKE_INTEGRITY',json.dumps(q))
+          PY
+      - name: Upload smoke results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tap-v4-smoke-evidence
+          path: |
+            tap_v4_smoke/summary.json
+            tap_v4_smoke/manifest.jsonl
+            tap_v4_safety_tests.log
+            tap_v4_smoke_summary.log
+          retention-days: 14
