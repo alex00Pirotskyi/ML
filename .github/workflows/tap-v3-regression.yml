@@ -5,6 +5,8 @@ on:
       - research/tap-real-benchmark-20261116
     paths:
       - '.github/workflows/tap-v3-regression.yml'
+      - 'research/tap_real/tap_event_shape_v3.py'
+      - 'research/tap_real/test_event_shape_v3.py'
   workflow_dispatch:
 jobs:
   synthetic:
