@@ -281,7 +281,7 @@ def metrics(y, probability, threshold, weight=None):
         "false_positive_rate":float(fp/(tn+fp)) if tn+fp else None,
         "false_negative_rate":float(fn/(tp+fn)) if tp+fn else None,
         "mcc":float(matthews_corrcoef(y,pred,sample_weight=w)),
-        "cohen_kappa":float(cohen_kappa_score(y,pred,sample_weight=w)),
+        "cohen_kappa":(lambda x: float(x) if np.isfinite(x) else None)(cohen_kappa_score(y,pred,sample_weight=w)),
         "roc_auc":_auc(roc_auc_score,y,p,w),
         "average_precision":_auc(average_precision_score,y,p,w),
         "brier":float(brier_score_loss(y,p,sample_weight=w)),
@@ -371,7 +371,7 @@ def pareto_select(study,k):
     if len(done)<k:raise RuntimeError(f"Expected {k} successful trials, got {len(done)}")
     score=np.array([t.values[0] for t in done],dtype=float)
     size=np.array([t.values[1] for t in done],dtype=float)
-    zsize=(np.log(size)-np.log(size).min())/(max(1e-9,np.log(size).ptp()))
+    zsize=(np.log(size)-np.log(size).min())/(max(1e-9,np.ptp(np.log(size))))
     zscore=(score-score.min())/(max(1e-9,np.ptp(score)))
     frontier=sorted(study.best_trials,key=lambda t:t.values[1])
     selected=[]
