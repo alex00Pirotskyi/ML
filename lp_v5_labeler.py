@@ -101,8 +101,21 @@ def main(argv=None):
     args=parser.parse_args(argv)
     root=args.input_dir.resolve();out=args.output_dir.resolve()
     if not root.is_dir():parser.error('Missing input root')
+    # Reproducibility and safety: never accept another source dataset even
+    # if --input-dir is supplied. The user explicitly designated this tree.
+    if root!=INPUT_ROOT.resolve():
+        parser.error('V5 only accepts source DATA/DATA_LONG_PRESS')
     if root==out or root in out.parents or out in root.parents:
         parser.error('Input and output directories must not be ancestors of each other')
+    protected={Path(x).resolve() for x in (
+        'DATA/DATA_LONG_PRESS_LABELED',
+        'DATA/DATA_LONG_PRESS_LABELED_V2',
+        'DATA/DATA_LONG_PRESS_LABELED_V3',
+        'DATA/DATA_LONG_PRESS_LP_STATE_V4',
+        'DATA/DATA_LONG_PRESS_LABELED_V4',
+    )}
+    if out in protected:
+        parser.error('Output points at a protected older labeled dataset')
     if args.limit_per_group<0:parser.error('Invalid limit')
     if args.report and (args.report.resolve()==root or root in args.report.resolve().parents):
         parser.error('Report must not be inside source tree')
