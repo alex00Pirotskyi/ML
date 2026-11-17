@@ -38,12 +38,14 @@ The runner reuses `research/tap_real/train_optuna_student_v6.py` with:
   forty trials by default;
 - ten C header exports, matching JSON, pickle files and a C syntax smoke
   compilation against a synthetic `t_core` stub;
-- raw, directly addressable firmware EMG-PSD, ACC-PSD and WL features. The
-  126-column features from Claude's experiment are not exported in this run;
-  they require separate firmware schema and C/Python parity validation.
+- all **126** direct raw `p_core->` columns from the original recordings: 72 ACC (current/oldest/mean/rate), 45 EMG (current/oldest/mean) and 9 WL (full/head/tail). No Python-only derived features are added.
+  - Optuna feature-group comparisons include the full **126** and original **36** (explicitly seeded first), ACC-only 72, EMG-only 45, and additional group ablations.
+  - The C-header compiler smoke test uses a synthetic `t_core` covering 126 fields; the real nRF52832 firmware ABI/macro values and computational cost still need validation.
 
-Outputs go to `research/tap_real/results_claude_v2_optuna/`, including
+Outputs go to `research/tap_real/results_claude_v2_optuna_126/`, including
 `summary.json`, `CLAUDE_V2_PROVENANCE.json`, and `models/`.
+
+A small backwards-compatible hook seeds the first two Optuna trials with `full126` and `instant36`, guaranteeing a direct side-by-side training baseline. The selected exported models may use narrower groups when F1/size is better.
 
 The upstream V6 exporter has legacy filenames (`tap_swipe_v6_...`) and
 some documentation referencing V5. The wrapper appends explicit
