@@ -429,7 +429,8 @@ typedef struct {
     return {"status":"passed","compiler":cc,"object_bytes":(stub/(name+".o")).stat().st_size,
             "scope":"C syntactic smoke with stub t_core; not actual nRF firmware integration"}
 
-def export_selected(data, train_idx, test_idx, study, selected, output, seed):
+def export_selected(data, train_idx, test_idx, study, selected, output, seed,
+                    stable_headers=False, header_postprocess=None):
     models_dir=output/"models";models_dir.mkdir(exist_ok=True)
     ranked=[]
     y=data["y"]
@@ -454,19 +455,27 @@ def export_selected(data, train_idx, test_idx, study, selected, output, seed):
         all_idx=np.arange(len(y))
         final=fit_one(data["X"][:,indices],y,weights_for(data,all_idx,pos_weight),params)
         tag=f"tap_swipe_v6_rank{rank:02d}_trial{trial.number:03d}"
-        schema=models_dir/(tag+"_feature_schema.json")
+        # Research/model metadata retains trial identity, while firmware headers
+        # have a stable API/name and live in separate candidate directories.
+        header_dir=(models_dir/"candidates"/f"rank_{rank:02d}") if stable_headers else models_dir
+        header_dir.mkdir(parents=True,exist_ok=True)
+        schema=header_dir/("TAP_SWIPE_feature_schema.json" if stable_headers
+                           else tag+"_feature_schema.json")
         save_json(schema,{"feature_map":{str(j):col for j,col in enumerate(cols)},
                           "positive_class_id":1,
                           "target_semantics":"TAP and SWIPE combined vs other gestures",
                           "source":"raw causal per-frame p_core features"})
-        info={"group_name":tag,"selected_indices":list(range(len(cols))),
+        info={"group_name":"TAP_SWIPE" if stable_headers else tag,
+              "selected_indices":list(range(len(cols))),
               "decision_threshold":threshold,"target_class_id":1,
               "preprocessing":"none","params":params}
-        header=models_dir/(tag+".h")
+        header=header_dir/("TAP_SWIPE.h" if stable_headers else tag+".h")
         report=export_plus.export_to_c_header(
             {"model":final,"preprocessing":"none","indices":list(range(len(cols)))},
             info,header,schema,validate=True)
-        compile_result=compile_header(header,tag,output)
+        if header_postprocess is not None:
+            header_postprocess(header)
+        compile_result=compile_header(header,"tap_swipe" if stable_headers else tag,output)
         estimated=export_plus._estimate_compact_tree_payload_legacy(final)
         assert int(estimated["total_static_data_bytes"])==int(report["total_static_data_bytes"])
         joblib.dump({"model":final,"preprocessing":"none","indices":list(range(len(cols))),
@@ -484,9 +493,9 @@ def export_selected(data, train_idx, test_idx, study, selected, output, seed):
                            "params":params,"decision_threshold":threshold,
                            "trained_on_all_participants":True},
             "export_plus":report,"compiled_c_stub":compile_result,
-            "files":{"header":header.name,"header_sha256":digest(header),
+            "files":{"header":str(header.relative_to(models_dir)),"header_sha256":digest(header),
                      "header_text_bytes":header.stat().st_size,
-                     "feature_schema":schema.name,"pickle":tag+".pkl"},
+                     "feature_schema":str(schema.relative_to(models_dir)),"pickle":tag+".pkl"},
             "dataset":{"n_sampled":int(len(y)),"positive_sampled":int(y.sum()),
                        "negative_sampled":int((y==0).sum()),
                        "holdout_subjects":sorted(set(data["group"][test_idx])),
@@ -500,7 +509,8 @@ def export_selected(data, train_idx, test_idx, study, selected, output, seed):
             ]
         }
         save_json(models_dir/(tag+".json"),full)
-        ranked.append({"rank":rank,"trial":trial.number,"header":header.name,
+        ranked.append({"rank":rank,"trial":trial.number,
+            "header":str(header.relative_to(models_dir)),
             "json":tag+".json","cv_f1":float(trial.values[0]),
             "cv_static_bytes":int(trial.values[1]),
             "holdout_f1":holdout["f1"],
@@ -558,7 +568,10 @@ def run(args):
                    gc_after_trial=True,
                    timeout=(args.timeout_minutes*60 if args.timeout_minutes else None))
     selection=pareto_select(study,args.top_k)
-    ranks=export_selected(data,train,test,study,selection,output,args.seed)
+    ranks=export_selected(
+        data,train,test,study,selection,output,args.seed,
+        stable_headers=getattr(args,"stable_headers",False),
+        header_postprocess=getattr(args,"header_postprocess",None))
     all_trials=[]
     for t in study.trials:
         all_trials.append({"id":t.number,"state":t.state.name,
