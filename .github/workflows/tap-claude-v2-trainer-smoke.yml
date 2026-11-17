@@ -1,0 +1,65 @@
+name: Smoke test Claude V2 onset Optuna trainer
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/tap-claude-v2-trainer-smoke.yml'
+      - 'research/tap_real/train_claude_v2_optuna.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            DATA/DATA_TAP
+            claude_research_tap
+            research/tap_real
+            export_plus.py
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install model and exporter dependencies
+        run: python -m pip install --disable-pip-version-check numpy pandas scipy scikit-learn lightgbm optuna joblib
+      - name: Compile and run real-source label conversion and small model smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile research/tap_real/train_claude_v2_optuna.py
+          python - <<'PY'
+          from pathlib import Path
+          import importlib.util
+          import numpy as np
+          script=Path('research/tap_real/train_claude_v2_optuna.py')
+          s=importlib.util.spec_from_file_location('claude_train',script)
+          module=importlib.util.module_from_spec(s)
+          s.loader.exec_module(module)
+          assert module.CPU_THREADS == max(1,int(module.cpu_count()*0.8))
+          module.prepare()
+          assert (module.ADAPTED/'manifest.jsonl').is_file()
+          count=sum(1 for _ in module.ADAPTED.rglob('*.labels.csv.gz'))
+          assert 2500 < count <= 2790, f'Adapted labels missing: {count}'
+          out=Path('/tmp/tap_claude_small_smoke')
+          out.mkdir(exist_ok=True)
+          data,info=module.v6.load_dataset(module.SOURCE,module.ADAPTED,out,
+                                            max_per_class=6,sample_files=6,verify_hash=True)
+          assert len(data['X']) and len(data['y']) and set(data['y'])=={0,1}
+          cols=[data['columns'].index(v) for v in data['feature_sets']['emg_acc']]
+          X=data['X'][:,cols]
+          import lightgbm as lgb
+          model=lgb.LGBMClassifier(objective='binary',n_estimators=12,
+               num_leaves=7,max_depth=4,min_child_samples=3,
+               verbosity=-1,n_jobs=module.CPU_THREADS,random_state=20261117)
+          model.fit(X,data['y'],sample_weight=data['w'])
+          prob=model.predict_proba(X)[:,1]
+          assert np.isfinite(prob).all()
+          size=module.v6.export_plus._estimate_compact_tree_payload_legacy(model)
+          assert size['total_static_data_bytes']>0
+          print('CLAUDE_V2_TRAINER_SMOKE_OK',{'sources':info['source_files'],
+                'samples':len(data['y']),'model_bytes':size['total_static_data_bytes'],
+                'cpu_threads':module.CPU_THREADS},flush=True)
+          PY
