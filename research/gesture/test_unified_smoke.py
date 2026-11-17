@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Real-source integration smoke. Never runs a full user Optuna experiment."""
+import gzip
 import json
 import subprocess
 import shutil
@@ -66,6 +67,12 @@ def main():
                      ("LOOSE",16),("TABLE",9),("TAP",12),("SWIPE",12)):
         for p in select_originals(g.SOURCE_LP,folder,n):
             put_sample(p,lp_root)
+    # Reproduce the Ubuntu user's *.csv.gz + *.csv sibling case. The
+    # unified labeler should count only the compressed original.
+    original=sorted(tap_root.glob("TAP/*.csv.gz"))[0]
+    plain=original.with_suffix("")
+    with gzip.open(original,"rb") as stream, plain.open("wb") as dest:
+        shutil.copyfileobj(stream,dest)
     g.SOURCE_TAP=tap_root
     g.SOURCE_LP=lp_root
     g.LABEL_TAP=ROOT/"research"/"gesture"/"_smoke_labels"/"DATA_TAP"
