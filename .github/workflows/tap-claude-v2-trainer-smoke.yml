@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/tap-claude-v2-trainer-smoke.yml'
       - 'research/tap_real/train_claude_v2_optuna.py'
+      - 'research/tap_real/publish_tap_swipe_headers.py'
   workflow_dispatch:
 permissions:
   contents: read
@@ -29,7 +30,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python -m py_compile research/tap_real/train_claude_v2_optuna.py
+          python -m py_compile research/tap_real/train_claude_v2_optuna.py research/tap_real/publish_tap_swipe_headers.py
           python - <<'PY'
           from pathlib import Path
           import importlib.util
@@ -94,6 +95,45 @@ jobs:
           check=module.compile_header_126(header,name,out)
           assert check['status']=='passed' and check['all_feature_accessors_probed']==126
           assert int(report['total_static_data_bytes'])==int(size['total_static_data_bytes'])
+          # Simulate existing completed Optuna study. Re-publish saved
+          # .pkl as stable TAP_SWIPE.h without running Optuna again.
+          from publish_tap_swipe_headers import _select_default
+          assert _select_default([
+              {'rank':1,'cv_f1':0.966070,'actual_static_bytes':28520},
+              {'rank':6,'cv_f1':0.942786,'actual_static_bytes':3924},
+              {'rank':7,'cv_f1':0.952499,'actual_static_bytes':5084},
+          ])['rank']==7
+          import joblib
+          bundle=out/'frozen_experiment'
+          (bundle/'models').mkdir(parents=True)
+          tag='tap_swipe_v6_rank07_trial033'
+          joblib.dump({'model':model,'preprocessing':'none',
+                       'indices':list(range(126)),'feature_names':data['columns']},
+                       bundle/'models'/(tag+'.pkl'),compress=3)
+          (bundle/'models'/(tag+'.json')).write_text(json.dumps({
+              'rank':7,'optuna_trial':33,
+              'final_model':{'features':data['columns'],
+                             'params':model.get_params(),
+                             'decision_threshold':0.5}}))
+          (bundle/'summary.json').write_text(json.dumps({
+              'status':'success','selected_models':1,
+              'ranking':[{'rank':7,'trial':33,'header':tag+'.h',
+                          'json':tag+'.json','cv_f1':0.952499,
+                          'holdout_f1':0.960744,'actual_static_bytes':size['total_static_data_bytes'],
+                          'feature_count':126}]}))
+          stable=module.publish_stable_headers(bundle,compile_header=module.compile_header_126)
+          h=(bundle/'models'/'TAP_SWIPE.h').read_text()
+          assert stable['selected_rank']==7
+          assert '#ifndef TAP_SWIPE_MODEL_H' in h
+          assert '#define TAP_SWIPE_predict tap_swipe_predict' in h
+          assert 'tap_swipe_predict(const t_core* p_core)' in h
+          assert '#define TAP_SWIPE_NUM_FEATURES 126u' in h
+          assert 'v6_rank' not in h.lower()
+          assert (bundle/'models'/'candidates'/'rank_07'/'TAP_SWIPE.h').is_file()
+          assert (bundle/'models'/'TAP_SWIPE_feature_schema.json').is_file()
+          assert (bundle/'models'/'TAP_SWIPE_VARIANTS.json').is_file()
+          print('STABLE_TAP_SWIPE_HEADER_SMOKE_OK',{'model_bytes':size['total_static_data_bytes'],
+              'file':'TAP_SWIPE.h','guard':'TAP_SWIPE_MODEL_H','default_rank':7},flush=True)
           print('CLAUDE_V2_126_EXPORT_SMOKE_OK',{'sources':info['source_files'],
                 'samples':len(data['y']),'features':len(data['columns']),
                 'model_bytes':size['total_static_data_bytes'],
