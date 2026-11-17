@@ -95,16 +95,31 @@ without retraining; alternatively run:
 python -u research/tap_real/publish_tap_swipe_headers.py
 ```
 
-The older versioned headers and trial metadata are retained for reproducibility,
-but new firmware should use `models/TAP_SWIPE.h` from the fixed-0.85 study.
-No other model's code or names need to appear in firmware source. No edit to
-`export_plus.py` is needed.
+**No rank/trial names in firmware C:** The exporter now directly emits
+`models/candidates/rank_XX/TAP_SWIPE.h` with the `TAP_SWIPE_MODEL_H`
+include guard and `TAP_SWIPE_*` macros. It no longer creates versioned
+per-trial `.h` files for new Claude training runs. Saved `.pkl` and
+research `.json` reports still include trial identifiers for traceability.
 
-The upstream V6 training code still has legacy filenames
-(`tap_swipe_v6_...`) and some documentation referencing V5; the wrapper
-appends explicit Claude V2 provenance to reports. For incomplete studies
-without `summary.json`, it still refuses to overwrite the output directory.
-Generated label cache and training outputs are Git-ignored.
+Existing completed fixed-0.85 runs can be repaired without retraining:
+
+```bash
+git pull --ff-only
+python -u research/tap_real/publish_tap_swipe_headers.py
+```
+
+This republishes all candidate headers with the stable API, updates their
+output references and removes **only original unmodified** rank-named generated
+headers after successful export and validation. An edited legacy header is
+preserved and reported rather than silently deleted. The publisher is
+idempotent. New firmware should include only
+`models/TAP_SWIPE.h` from the fixed-0.85 experiment.
+
+The upstream V6 **research model/report** filenames still include
+`tap_swipe_v6_...`; this does not appear in any newly generated C header.
+For incomplete studies without `summary.json`, the trainer refuses to
+overwrite the output directory. Generated label cache and training outputs are
+Git-ignored.
 
 **Limitations:** Cross-validated F1 means agreement with silver labels, not
 independent physical-onset recall. True deployment evaluation needs
