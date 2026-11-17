@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Real-source integration smoke. Never runs a full user Optuna experiment."""
 import json
+import subprocess
+import shutil
 import sys
 from pathlib import Path
 import numpy as np
@@ -100,6 +102,26 @@ def main():
         assert not any(x in names for x in ("PointerState","Timestamp","hold_ms","ch1_contact"))
         print("UNIFIED_REAL_SOURCE_C_EXPORT_OK",task,report["dataset"],
               len(names),h,flush=True)
+    # Firmware will include both generated model headers. Check for namespace
+    # collisions in the same translation unit, not just independent models.
+    combined=g.OUTPUT/"both_models.c"
+    combined.write_text(
+        '#include "TAP_SWIPE.h"\n#include "LONG_PRESS.h"\n'
+        'float both_models(const t_core *p_core) {\n'
+        '  return TAP_SWIPE_predict_value(p_core) + '
+        'LONG_PRESS_predict_value(p_core) +\n'
+        '  (float)TAP_SWIPE_predict(p_core) + '
+        '(float)LONG_PRESS_predict(p_core);\n}\n')
+    cc=shutil.which("cc") or shutil.which("gcc")
+    stub=g.OUTPUT/"lp"/"c_compiler_check"
+    cmd=[cc,"-std=c11","-O2","-c",str(combined),"-I",str(stub),
+         "-I",str(g.OUTPUT/"tap"/"models"),
+         "-I",str(g.OUTPUT/"lp"/"models"),
+         "-o",str(g.OUTPUT/"both_models.o")]
+    p=subprocess.run(cmd,text=True,capture_output=True,timeout=120)
+    if p.returncode:
+        raise RuntimeError("Combined firmware header C compile failed: "+p.stderr[-5000:])
+    print("UNIFIED_BOTH_HEADERS_COMPILE_TOGETHER",flush=True)
     print("UNIFIED_BOTH_TASKS_REAL_DATA_SMOKE_PASSED",flush=True)
 
 
