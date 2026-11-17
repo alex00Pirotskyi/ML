@@ -40,3 +40,5 @@ Run from an empty working directory; scripts read and write files there. Needs `
 | 11 | `python $P/student_eval.py out3/events.csv st_score_out3_F126_*.npy` | event-level comparison |
 
 `timing.py` is the pointer-offset study and `sheet.py` draws the contact sheets. The scripts are the code as run with paths made portable; they compile but the full chain was not re-run from a clean checkout.
+
+> **Labels:** use `claude_labeling/label_gestures.py` (taps, swipes and long presses in one script, with the disconnection rule).

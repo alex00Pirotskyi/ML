@@ -60,3 +60,5 @@ never saw them; an unknown or renamed file gets the average of the five models, 
 
 This is an **offline** labeler: it uses the whole recording (a floor per recording, a 1 s minimum for OFF). It is meant for `y_true`,
 not as the firmware model. A causal version is in `research/state_tool/`.
+
+> **Labels:** `claude_labeling/label_gestures.py` now labels taps, swipes and long presses in one script and reproduces these hold and channel labels exactly, adding the disconnection rule.
