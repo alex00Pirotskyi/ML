@@ -47,12 +47,49 @@ Outputs go to `research/tap_real/results_claude_v2_optuna_126/`, including
 
 A small backwards-compatible hook seeds the first two Optuna trials with `full126` and `instant36`, guaranteeing a direct side-by-side training baseline. At least one of the 10 exported C models is guaranteed to be a `full126` model; the other nine prioritize the quality/size trade-off.
 
-The upstream V6 exporter has legacy filenames (`tap_swipe_v6_...`) and
-some documentation referencing V5. The wrapper appends explicit
-Claude V2 provenance to its output reports.
+## Stable firmware header and existing results
 
-Do not rerun against a nonempty result directory: archive or rename the old
-experiment first. The generated label cache and outputs are Git-ignored.
+The training wrapper automatically publishes a **stable firmware interface**:
+
+- `models/TAP_SWIPE.h` — default firmware header, using plain
+  `TAP_SWIPE_MODEL_H` include guard and `TAP_SWIPE_*` constants.
+- `TAP_SWIPE_predict(&m_feat_core)` — convenient uppercase macro alias
+  to the generated native `tap_swipe_predict(&m_feat_core)` function.
+- `models/TAP_SWIPE_feature_schema.json` — exact C input feature mapping.
+- `models/TAP_SWIPE_model_info.json` and `models/TAP_SWIPE_VARIANTS.json`
+  — frozen source trial and balanced-model selection information.
+- `models/candidates/rank_01/TAP_SWIPE.h` through
+  `rank_10/TAP_SWIPE.h` — all ten models with **identical API**. Use
+  only one candidate's header in a firmware build.
+
+Default selection chooses the **smallest static model** whose **training
+cross-validation silver F1** is within 0.015 absolute of the best CV F1.
+This avoids using the held-out test F1 for the selection. For the November
+17 study (CV F1 best 0.9661), this chooses **rank 7** (5,084 static bytes).
+
+If the original 40-trial experiment is already completed, simply run:
+
+```bash
+git pull --ff-only
+python -u research/tap_real/train_claude_v2_optuna.py
+```
+
+It now **recognizes the completed study and republishes the stable C headers
+without retraining or relabeling**. Alternatively run only the exporter:
+
+```bash
+python -u research/tap_real/publish_tap_swipe_headers.py
+```
+
+The older versioned headers and trial metadata are retained for reproducibility,
+but firmware should use `models/TAP_SWIPE.h`. No other model's code or
+names need to appear in firmware source. No edit to `export_plus.py` is needed.
+
+The upstream V6 training code still has legacy filenames
+(`tap_swipe_v6_...`) and some documentation referencing V5; the wrapper
+appends explicit Claude V2 provenance to reports. For incomplete studies
+without `summary.json`, it still refuses to overwrite the output directory.
+Generated label cache and training outputs are Git-ignored.
 
 **Limitations:** Cross-validated F1 means agreement with silver labels, not
 independent physical-onset recall. True deployment evaluation needs
