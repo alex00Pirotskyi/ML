@@ -46,7 +46,8 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT/'research'/'tap_real'))
 import train_optuna_student_v6 as v6
-from publish_tap_swipe_headers import publish as publish_stable_headers
+from publish_tap_swipe_headers import (publish as publish_stable_headers,
+                                       _add_uppercase_predict_alias)
 
 SOURCE = ROOT/'DATA'/'DATA_TAP'
 CLAUDE = ROOT/'claude_research_tap'/'results'
@@ -302,7 +303,9 @@ def main():
                            max_per_class=MAX_ROWS_PER_CLASS_PER_FILE,
                            sample_files=None, seed=20261117, test_fraction=0.22,
                            timeout_minutes=0, verify_hash=True,
-                           initial_feature_sets=('full126','instant36'))
+                           initial_feature_sets=('full126','instant36'),
+                           stable_headers=True,
+                           header_postprocess=_add_uppercase_predict_alias)
     v6.run(args)
     provenance={'label_source':'Claude V2 sensor-timed 0-80ms, strong events only',
                 'unknown_excluded':True,'target_bag_background_as_negative':False,
@@ -311,7 +314,9 @@ def main():
                 'objectives':['participant-group CV silver-label F1 at fixed 0.85 (maximize)',
                               'export_plus compact static C model bytes (minimize)'],
                 'cpu_fraction':CPU_FRACTION,'cpu_threads':CPU_THREADS,
-                'warning':'V6 exporter filenames and some inherited comments say V5: actual input labels are Claude V2.',
+                'firmware_header':'TAP_SWIPE.h',
+                'stable_header_names_from_training':True,
+                'note':'Only research metadata retains trial identity; firmware C symbols and filenames are stable.',
                 'raw_features_available':len(FULL_126),
                 'compared_feature_sets':{k:len(v) for k,v in FEATURE_SETS.items()},
                 'limitations':['Silver-label agreement is NOT measured physical tap recall or false events/hour',
