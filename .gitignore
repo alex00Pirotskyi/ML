@@ -2,3 +2,8 @@
 /DATA/DATA_LONG_PRESS_LABELED/
 /DATA/DATA_LONG_PRESS_LABELED_V2/
 /DATA/DATA_LONG_PRESS_LABELED_V3/
+
+# Generated Claude V2 experimental labels and Optuna artifacts
+/DATA/DATA_TAP_LABELS_CLAUDE_V2_20261117/
+/research/tap_real/cache_claude_v2_v6_schema/
+/research/tap_real/results_claude_v2_optuna/
