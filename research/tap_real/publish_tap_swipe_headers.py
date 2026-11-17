@@ -30,8 +30,9 @@ import joblib
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 import export_plus
+from research.tap_real.train_optuna_student_v6 import FIXED_DECISION_THRESHOLD
 
-DEFAULT_OUTPUT = ROOT / "research" / "tap_real" / "results_claude_v2_optuna_126"
+DEFAULT_OUTPUT = ROOT / "research" / "tap_real" / "results_claude_v2_optuna_126_thr085"
 MODEL_NAME = "TAP_SWIPE"
 MAX_CV_F1_GAP = 0.015  # smallest model within 1.5 percentage points of best CV F1
 
@@ -89,6 +90,10 @@ def publish(output: Path = DEFAULT_OUTPUT,
     summary = json.loads(summary_file.read_text(encoding="utf-8"))
     if summary.get("status") != "success":
         raise ValueError("Cannot publish unsuccessful or incomplete training")
+    if (summary.get("fixed_decision_threshold") != FIXED_DECISION_THRESHOLD
+        or summary.get("threshold_optimized_by_optuna") is not False):
+        raise ValueError("Legacy Optuna study tuned its threshold; do not republish "
+                         "its scores as fixed-0.85. Train a new 0.85-fixed study.")
     rows = summary.get("ranking", [])
     if not rows or len({int(x["rank"]) for x in rows}) != len(rows):
         raise ValueError("Missing/ambiguous ranked models in completed summary")
@@ -130,7 +135,9 @@ def publish(output: Path = DEFAULT_OUTPUT,
             "origin": "Claude V2 strong-only onset silver labels",
         })
         header = candidate / "TAP_SWIPE.h"
-        threshold = float(details["final_model"]["decision_threshold"])
+        if float(details["final_model"]["decision_threshold"]) != FIXED_DECISION_THRESHOLD:
+            raise ValueError(f"Rank {rank} was not trained/evaluated at fixed 0.85")
+        threshold = FIXED_DECISION_THRESHOLD
         export_report = export_plus.export_to_c_header(
             container,
             {"group_name": MODEL_NAME,
@@ -185,7 +192,9 @@ def publish(output: Path = DEFAULT_OUTPUT,
     selection_info = {
         "selected_rank": default_rank,
         "selected_optuna_trial": int(selected["trial"]),
-        "selection_rule": "Smallest static model within 0.015 absolute grouped-CV silver F1 of best",
+        "selection_rule": "Smallest static model within 0.015 absolute grouped-CV silver F1 at fixed threshold 0.85 of best",
+        "fixed_decision_threshold": FIXED_DECISION_THRESHOLD,
+        "threshold_optimized_by_optuna": False,
         "cv_f1_gap_absolute": MAX_CV_F1_GAP,
         "stable_default_header": "models/TAP_SWIPE.h",
         "stable_default_macro_prefix": "TAP_SWIPE_",
