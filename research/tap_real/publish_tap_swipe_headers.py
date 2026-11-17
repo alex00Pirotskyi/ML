@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -102,17 +103,32 @@ def publish(output: Path = DEFAULT_OUTPUT,
         raise ValueError("Rank count differs from completed training summary")
 
     published = []
+    rewritten_reports = []
+    legacy_headers_to_delete = []
     for row in sorted(rows, key=lambda r: int(r["rank"])):
         rank = int(row["rank"])
-        legacy_header = row["header"]
-        legacy_tag = Path(legacy_header).stem
-        source_model = models / (legacy_tag + ".pkl")
+        # Saved research model names are independent of the firmware header.
+        # An existing experiment might have old rank-named C files, while new
+        # experiments already place TAP_SWIPE.h inside candidate folders.
+        metadata_tag = Path(row["json"]).stem
+        source_model = models / (metadata_tag + ".pkl")
         source_report = models / row["json"]
         if not source_model.is_file() or not source_report.is_file():
             raise FileNotFoundError(f"Missing frozen model/report for rank {rank}")
         details = json.loads(source_report.read_text(encoding="utf-8"))
         if int(details["rank"]) != rank or int(details["optuna_trial"]) != int(row["trial"]):
             raise ValueError(f"Model provenance mismatches Optuna summary at rank {rank}")
+        old_name = str(row["header"])
+        # Only clean unmodified legacy-generated headers, after all replacement
+        # C headers have been regenerated, validated and compiled.
+        if re.fullmatch(r"tap_swipe_v6_rank\d{2}_trial\d{3}\.h", old_name):
+            old_header = models / old_name
+            if old_header.exists():
+                expected_sha = details.get("files", {}).get("header_sha256")
+                if expected_sha and _sha(old_header) == expected_sha:
+                    legacy_headers_to_delete.append((old_header, expected_sha))
+                else:
+                    print("PRESERVE_EDITED_LEGACY_HEADER", str(old_header), flush=True)
         container = joblib.load(source_model)
         if not isinstance(container, dict) or "model" not in container:
             raise ValueError(f"Invalid saved model container: {source_model}")
@@ -177,6 +193,20 @@ def publish(output: Path = DEFAULT_OUTPUT,
             "evaluation_warning": "F1 is against silver labels, not physical tap ground truth",
         }
         _write_json(candidate / "TAP_SWIPE_model_info.json", info)
+        # Update the experiment's output references, NOT trial parameters.
+        # Repeated publish() calls stay valid after old .h files are cleaned.
+        relative_header = str(header.relative_to(models))
+        row["header"] = relative_header
+        row["header_text_bytes"] = header.stat().st_size
+        details.setdefault("files", {}).update({
+            "header": relative_header,
+            "header_sha256": _sha(header),
+            "header_text_bytes": header.stat().st_size,
+            "feature_schema": str(schema.relative_to(models)),
+        })
+        details["export_plus"] = export_report
+        details["compiled_c_stub"] = compile_result
+        rewritten_reports.append((source_report, details))
         published.append(info)
         print("STABLE_TAP_SWIPE_EXPORT", json.dumps({
             "rank": rank, "trial": info["optuna_trial"],
@@ -205,6 +235,17 @@ def publish(output: Path = DEFAULT_OUTPUT,
         "note": "Candidate headers intentionally have identical C APIs: use one header at a time",
     }
     _write_json(models / "TAP_SWIPE_VARIANTS.json", selection_info)
+    for source_report, details in rewritten_reports:
+        _write_json(source_report, details)
+    _write_json(summary_file, summary)
+    removed = 0
+    for old_header, old_sha in legacy_headers_to_delete:
+        if old_header.is_file() and _sha(old_header) == old_sha:
+            old_header.unlink()
+            removed += 1
+    print("STABLE_TAP_SWIPE_LEGACY_HEADERS_CLEANED",
+          json.dumps({"removed": removed, "checked": len(legacy_headers_to_delete)}),
+          flush=True)
     print("STABLE_TAP_SWIPE_READY", json.dumps({
         "default_rank": default_rank,
         "default_header": str((models / "TAP_SWIPE.h").relative_to(output)),
