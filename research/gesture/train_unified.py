@@ -354,15 +354,21 @@ def dataset(task: str, records, output: Path):
         raise ValueError(f"{task} has no both supervised classes")
     if len(set(result["group"])) < 7:
         raise ValueError(f"Only {len(set(result['group']))} person groups in {task}")
-    manifest = dict(task=task, features=columns, feature_sets=feature_set,
-                    n_sources=len(sources), n_samples=len(result["y"]),
-                    subjects=len(set(result["group"])), counts=dict(info),
-                    "labeler_sha256":sha256(CLAUDE_LABELER),
-                    "fixed_decision_threshold":FIXED_THRESHOLD,
-                    "positive_semantics":(TASKS[0] if task=="tap" else TASKS[1])["class_one"],
-                    "negative_semantics":(TASKS[0] if task=="tap" else TASKS[1])["class_zero"],
-                    "source_manifest":sources,
-                    "provenance_warning":"Silver labels from offline teacher, not physical ground truth; user grouping inferred from metadata")
+    manifest = {
+        "task": task,
+        "features": columns,
+        "feature_sets": feature_set,
+        "n_sources": len(sources),
+        "n_samples": len(result["y"]),
+        "subjects": len(set(result["group"])),
+        "counts": dict(info),
+        "labeler_sha256": sha256(CLAUDE_LABELER),
+        "fixed_decision_threshold": FIXED_THRESHOLD,
+        "positive_semantics": (TASKS[0] if task=="tap" else TASKS[1])["class_one"],
+        "negative_semantics": (TASKS[0] if task=="tap" else TASKS[1])["class_zero"],
+        "source_manifest": sources,
+        "provenance_warning": "Silver labels from offline teacher, not physical ground truth; user grouping inferred from metadata",
+    }
     output.mkdir(parents=True,exist_ok=True)
     write_json(output/"dataset_manifest.json",manifest)
     return result,manifest
