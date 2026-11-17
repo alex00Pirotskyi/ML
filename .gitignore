@@ -9,3 +9,10 @@
 /research/tap_real/results_claude_v2_optuna/
 /research/tap_real/results_claude_v2_optuna_126/
 /research/tap_real/results_claude_v2_optuna_126_thr085/
+
+# Unified Claude gesture labels and two-head Optuna experiment
+/DATA/LABELS/
+/research/gesture/results_unified_20261117/
+/research/gesture/_smoke_input/
+/research/gesture/_smoke_labels/
+/research/gesture/_smoke_results/
