@@ -91,10 +91,18 @@ the C APIs are deliberately identical.
 - **Threshold fixed at 0.85 for every trial, CV score, holdout evaluation and
   exported header. Optuna never searches thresholds.**
 - TAP objective: grouped-CV silver-label weighted F1.
-- LP objective: `0.70 * hold_safety + 0.30 * release_recall`, at threshold 0.85.
-  Hold safety means the fraction of held samples not prematurely classified
-  RELEASE. This prioritizes sustained holds instead of optimizing majority
-  RELEASE row-F1; neither metric constitutes real hardware safety.
+- LP objective: **weighted harmonic mean** of hold safety and release
+  recall, with 70% weight on hold safety and 30% on release recall, evaluated
+  at threshold 0.85. This objective becomes **zero** if a model never releases,
+  unlike an arithmetic weighted average. Hold safety means the fraction of
+  held samples not prematurely classified RELEASE. Release examples inside
+  real hold recordings receive half of the positive-class training weight;
+  otherwise the many TAP/SWIPE negatives would swamp release training.
+  Neither metric constitutes real hardware safety.
+- The class-weight hyperparameter is applied **after** class normalization.
+  In the older V6 helper it was canceled by normalization, making it inert.
+  For the LP head, Optuna searches the true positive class weight from
+  1 to 18 while holding the firmware decision threshold fixed.
 - CPU: 80% of affinity/cgroup-constrained logical CPUs (same policy as the
   current TAP experiment). No new runtime preprocessing.
 - Train-only person groups are used for CV and a separate unseen-person
