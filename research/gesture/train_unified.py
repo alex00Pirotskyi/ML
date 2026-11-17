@@ -77,7 +77,7 @@ TASKS = (
     dict(name="tap", header="TAP_SWIPE", class_one="TAP/SWIPE onset",
          class_zero="not an onset", metric="weighted grouped-CV silver F1"),
     dict(name="lp", header="LONG_PRESS", class_one="RELEASE/REST",
-         class_zero="HELD", metric="0.70 hold-safety + 0.30 release-recall"),
+         class_zero="HELD", metric="weighted harmonic mean: 0.70 hold-safety / 0.30 release-recall"),
 )
 
 
@@ -394,18 +394,54 @@ def split_heldout(data, task):
     raise RuntimeError(f"No usable person-disjoint {task} split, inspect category coverage")
 
 
+def weights_for_task(data, indices, task, positive_weight):
+    """File-normalized class balancing, with a REAL tunable positive weight.
+
+    In the old v6 helper positive_weight cancels during per-class
+    renormalization. Here it is applied only AFTER balancing. For LP,
+    release examples inside actual hold recordings receive half the total
+    release-class weight, rather than being swamped by many TAP/SWIPE
+    and ordinary non-gesture files.
+    """
+    y = data["y"][indices]
+    w = data["w"][indices].astype(np.float32).copy()
+    file_counts = Counter(data["file"][indices])
+    w /= np.asarray([math.sqrt(file_counts[f]) for f in data["file"][indices]],
+                    dtype=np.float32)
+    for cls in (0, 1):
+        take = y == cls
+        total = float(w[take].sum())
+        if total <= 0:
+            raise ValueError(f"Missing class {cls} in train or evaluation weights")
+        w[take] *= len(indices) / (2.0 * total)
+    if task == "lp":
+        is_hold_folder = np.isin(data["category"][indices],list(HOLD_FOLDERS))
+        inside = (y == 1) & is_hold_folder
+        outside = (y == 1) & ~is_hold_folder
+        sw = float(w[inside].sum())
+        ow = float(w[outside].sum())
+        if sw > 0 and ow > 0:
+            total = sw + ow
+            w[inside] *= (0.5 * total) / sw
+            w[outside] *= (0.5 * total) / ow
+    w[y==1] *= float(positive_weight)
+    return w.astype(np.float32)
+
+
 def metrics(task, y, p, weights=None):
     m = v6.metrics(y,p,FIXED_THRESHOLD,weights)
     if task == "tap":
         return dict(m, objective_score=m["f1"])
-    # For LP, a premature RELEASE is much worse than a late release.
+    # LP must avoid premature release AND must eventually release. A simple
+    # weighted arithmetic mean rewarded the degenerate never-release model.
     y=np.asarray(y,int);p=np.asarray(p,float)
     w=np.ones(len(y)) if weights is None else np.asarray(weights,dtype=float)
     keep_hold=y==0; keep_release=y==1
     hs=float(np.average(p[keep_hold]<FIXED_THRESHOLD,weights=w[keep_hold]))
     rr=float(np.average(p[keep_release]>=FIXED_THRESHOLD,weights=w[keep_release]))
+    score=(1.0/(0.70/hs+0.30/rr)) if hs>0 and rr>0 else 0.0
     return dict(m, hold_safety=hs, release_recall=rr,
-                objective_score=0.70*hs+0.30*rr)
+                objective_score=score)
 
 
 def build_params(trial):
@@ -417,7 +453,7 @@ def build_params(trial):
 def objective(trial,data,train_ids,task):
     name=trial.suggest_categorical("feature_set",list(data["feature_sets"]))
     selected=[data["columns"].index(x) for x in data["feature_sets"][name]]
-    positive_weight=trial.suggest_float("positive_weight",.75,2.5)
+    positive_weight=trial.suggest_float("positive_weight",1.0,18.0,log=True) if task=="lp" else trial.suggest_float("positive_weight",.75,3.0,log=True)
     params=build_params(trial)
     out_idx=[];out_p=[];max_size=0;fold_records=[]
     for fold,(a,b) in enumerate(GroupKFold(n_splits=CV_FOLDS).split(
@@ -426,18 +462,18 @@ def objective(trial,data,train_ids,task):
         if set(np.unique(data["y"][tr])) != {0,1} or set(np.unique(data["y"][val])) != {0,1}:
             raise optuna.TrialPruned("Missing class in person-grouped fold")
         model=v6.fit_one(data["X"][tr][:,selected],data["y"][tr],
-                         v6.weights_for(data,tr,positive_weight),params)
+                         weights_for_task(data,tr,task,positive_weight),params)
         p=model.predict_proba(data["X"][val][:,selected])[:,1]
         size=int(export_plus._estimate_compact_tree_payload_legacy(model)
                  ["total_static_data_bytes"])
         fold_records.append(dict(fold=fold, holdout_people=len(set(data["group"][val])),
                                  metrics=metrics(task,data["y"][val],p,
-                                     v6.weights_for(data,val,1.0)),bytes=size))
+                                     weights_for_task(data,val,task,1.0)),bytes=size))
         max_size=max(max_size,size)
         out_idx.extend(val.tolist());out_p.extend(p.tolist())
     vi=np.asarray(out_idx,dtype=np.int64)
     report=metrics(task,data["y"][vi],np.asarray(out_p),
-                   v6.weights_for(data,vi,1.0))
+                   weights_for_task(data,vi,task,1.0))
     trial.set_user_attr("training_params",params)
     trial.set_user_attr("selected_features",list(data["feature_sets"][name]))
     trial.set_user_attr("folds",fold_records)
@@ -496,9 +532,9 @@ def export_one(data, task, stem, tr,te, selected, outdir):
         pw=float(trial.params["positive_weight"])
         # Honest holdout metrics BEFORE the final full-data refit.
         prefit=v6.fit_one(data["X"][tr][:,ix],y[tr],
-                          v6.weights_for(data,tr,pw),train_params)
+                          weights_for_task(data,tr,task,pw),train_params)
         predictions=prefit.predict_proba(data["X"][te][:,ix])[:,1]
-        before=metrics(task,y[te],predictions,v6.weights_for(data,te,1.0))
+        before=metrics(task,y[te],predictions,weights_for_task(data,te,task,1.0))
         before["unweighted"]=metrics(task,y[te],predictions)
         subgroups={}
         for category in sorted(set(data["category"][te])):
@@ -513,7 +549,7 @@ def export_one(data, task, stem, tr,te, selected, outdir):
         # Freeze one model per rank; all candidates have identical firmware API.
         full_idx=np.arange(len(y))
         final=v6.fit_one(data["X"][:,ix],y,
-                         v6.weights_for(data,full_idx,pw),train_params)
+                         weights_for_task(data,full_idx,task,pw),train_params)
         candidate=model_dir/"candidates"/f"rank_{rank:02d}"
         candidate.mkdir(parents=True,exist_ok=True)
         schema=candidate/(stem+"_feature_schema.json")
@@ -615,9 +651,17 @@ def train_task(task: str, tap_files, lp_files):
         raise ValueError("Found old threshold-tuned trial: refuse reuse")
     n_left=max(0,TRIALS_PER_MODEL-len(study.trials))
     if len(study.trials)==0:
-        study.enqueue_trial(dict(feature_set="all_available"))
-        if "emg_wl54" in data["feature_sets"]:
-            study.enqueue_trial(dict(feature_set="emg_wl54"))
+        if task == "lp":
+            # These are model TRAINING class-weight hyperparameters, not
+            # decision thresholds. A strict .85 cutoff needs calibrated,
+            # high-confidence release predictions to be useful.
+            study.enqueue_trial(dict(feature_set="all_available",positive_weight=6.0))
+            if "emg_wl54" in data["feature_sets"]:
+                study.enqueue_trial(dict(feature_set="emg_wl54",positive_weight=6.0))
+        else:
+            study.enqueue_trial(dict(feature_set="all_available"))
+            if "emg_wl54" in data["feature_sets"]:
+                study.enqueue_trial(dict(feature_set="emg_wl54"))
     optuna.logging.set_verbosity(optuna.logging.WARNING)
     for _ in range(n_left):
         def fn(trial):
