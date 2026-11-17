@@ -45,7 +45,7 @@ The runner reuses `research/tap_real/train_optuna_student_v6.py` with:
 Outputs go to `research/tap_real/results_claude_v2_optuna_126/`, including
 `summary.json`, `CLAUDE_V2_PROVENANCE.json`, and `models/`.
 
-A small backwards-compatible hook seeds the first two Optuna trials with `full126` and `instant36`, guaranteeing a direct side-by-side training baseline. The selected exported models may use narrower groups when F1/size is better.
+A small backwards-compatible hook seeds the first two Optuna trials with `full126` and `instant36`, guaranteeing a direct side-by-side training baseline. At least one of the 10 exported C models is guaranteed to be a `full126` model; the other nine prioritize the quality/size trade-off.
 
 The upstream V6 exporter has legacy filenames (`tap_swipe_v6_...`) and
 some documentation referencing V5. The wrapper appends explicit
