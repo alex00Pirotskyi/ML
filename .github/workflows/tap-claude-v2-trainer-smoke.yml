@@ -49,8 +49,23 @@ jobs:
           assert 2500 < count <= 2790, f'Adapted labels missing: {count}'
           out=Path('/tmp/tap_claude_small_smoke')
           out.mkdir(exist_ok=True)
-          data,info=module.v6.load_dataset(module.SOURCE,module.ADAPTED,out,
-                                            max_per_class=6,sample_files=6,verify_hash=True)
+          # Reproduce the Ubuntu-server failure: a recording has both
+          # canonical .csv.gz and a locally decompressed .csv sibling.
+          # Ensure source discovery selects the frozen compressed original,
+          # including through the real hash-verified 126-feature loader.
+          import gzip
+          import shutil
+          original=sorted(module.SOURCE.glob('ARM/*.csv.gz'))[0]
+          plain=original.with_suffix('')
+          assert not plain.exists(), f'Smoke duplicate unexpectedly exists: {plain}'
+          with gzip.open(original,'rb') as read, open(plain,'wb') as write:
+              shutil.copyfileobj(read,write)
+          try:
+              assert module.v6._source_for(module.SOURCE,'ARM',original.name[:-7]) == original
+              data,info=module.v6.load_dataset(module.SOURCE,module.ADAPTED,out,
+                                                max_per_class=6,sample_files=6,verify_hash=True)
+          finally:
+              plain.unlink()
           assert len(data['X']) and len(data['y']) and set(data['y'])=={0,1}
           assert len(data['columns']) == 126, f'Found {len(data["columns"])} columns'
           assert tuple(data['columns']) == module.FULL_126
