@@ -1,0 +1,19 @@
+{
+ "features": [
+  "lw",
+  "Pm",
+  "r01",
+  "r32",
+  "sd3",
+  "min10",
+  "rise10",
+  "max10"
+ ],
+ "classes": [
+  "REST",
+  "ACTIVE",
+  "OFF"
+ ],
+ "grid_ms": 10,
+ "off_debounce_s": 1.0
+}

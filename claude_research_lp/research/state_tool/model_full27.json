@@ -1,0 +1,38 @@
+{
+ "features": [
+  "lw",
+  "ht",
+  "wlq",
+  "Pi",
+  "Pm",
+  "dPim",
+  "f0",
+  "f1",
+  "f2",
+  "f3",
+  "f4",
+  "r01",
+  "r21",
+  "r32",
+  "r43",
+  "sd1",
+  "rng1",
+  "min3",
+  "max3",
+  "sd3",
+  "min6",
+  "min10",
+  "max10",
+  "sd10",
+  "rise10",
+  "Pmin10",
+  "Prise10"
+ ],
+ "classes": [
+  "REST",
+  "ACTIVE",
+  "OFF"
+ ],
+ "grid_ms": 10,
+ "off_debounce_s": 1.0
+}
