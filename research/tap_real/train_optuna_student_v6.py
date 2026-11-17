@@ -527,6 +527,10 @@ def run(args):
         study_name="tap_swipe_student_v6",
         storage="sqlite:///"+str((output/"optuna_study.sqlite3").resolve()),
         load_if_exists=True)
+    # Optional, backwards-compatible named baselines for comparative studies.
+    # The original V6 CLI defines no initial_feature_sets and is unchanged.
+    for feature_set in getattr(args, "initial_feature_sets", ()):
+        study.enqueue_trial({"feature_set": feature_set}, skip_if_exists=True)
     def objective(trial):
         value=evaluate_trial(trial,data,train,args.cv_folds,args.seed)
         print("TRIAL",json.dumps({"trial":trial.number,"f1":value[0],
