@@ -1,0 +1,14 @@
+{
+  "feature_contract": "max-window 320ms pre/640ms post, event-baseline, sorted/native channels",
+  "folds": 5,
+  "preset": "deep",
+  "sample_ms": 20,
+  "seed": 20261116,
+  "source_fingerprint_sha256": "cfc04953e78390f21d0b364890334db40ec1302bdb6b2f91890ec119f0c36cc0",
+  "tasks": [
+    "tap",
+    "combined"
+  ],
+  "trees": 160,
+  "version": "9.0.1-research"
+}

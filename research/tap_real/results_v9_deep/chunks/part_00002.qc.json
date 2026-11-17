@@ -1,0 +1,187 @@
+{
+  "audits": [
+    {
+      "duration_s": 45.982,
+      "kept_events": 434,
+      "sample_dt_ms": 3.0,
+      "source": "ARM/Ohad-right-noise_ArmCircle_Horizontal_NONE_60bpm_2026-01-02_18-40-13.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 434,
+      "v3_events": 117
+    },
+    {
+      "duration_s": 52.83,
+      "kept_events": 500,
+      "sample_dt_ms": 3.0,
+      "source": "ARM/Ohad-right-noise_ArmCircle_Reverse_NONE_60bpm_2026-01-02_18-42-48.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 500,
+      "v3_events": 139
+    },
+    {
+      "duration_s": 65.918,
+      "kept_events": 636,
+      "sample_dt_ms": 3.0,
+      "source": "ARM/Ohad-right-noise_ArmCircle_Vertical_NONE_60bpm_2026-01-02_18-41-47.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 636,
+      "v3_events": 163
+    },
+    {
+      "duration_s": 39.542,
+      "kept_events": 371,
+      "sample_dt_ms": 3.0,
+      "source": "ARM/Ohad-right-noise_ArmMove_Horizontal_Left_right__Left_right_60bpm_2026-01-02_18-35-43.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 371,
+      "v3_events": 103
+    },
+    {
+      "duration_s": 33.985,
+      "kept_events": 313,
+      "sample_dt_ms": 3.0,
+      "source": "ARM/Ohad-right-noise_ArmMove_Horizontal_Up_Down__Up_Down_60bpm_2026-01-02_18-34-53.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 313,
+      "v3_events": 86
+    },
+    {
+      "duration_s": 35.212,
+      "kept_events": 337,
+      "sample_dt_ms": 3.0,
+      "source": "ARM/Ohad-right-noise_ArmMove_Reverse_Left_right__Left_right_60bpm_2026-01-02_18-38-54.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 337,
+      "v3_events": 85
+    },
+    {
+      "duration_s": 40.104,
+      "kept_events": 362,
+      "sample_dt_ms": 3.0,
+      "source": "ARM/Ohad-right-noise_ArmMove_Reverse_Up_Down__Up_Down_60bpm_2026-01-02_18-38-10.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 362,
+      "v3_events": 107
+    },
+    {
+      "duration_s": 32.154,
+      "kept_events": 280,
+      "sample_dt_ms": 3.0,
+      "source": "ARM/Ohad-right-noise_ArmMove_Vertical_Left_right__Left_right_60bpm_2026-01-02_18-37-16.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 280,
+      "v3_events": 76
+    },
+    {
+      "duration_s": 42.762,
+      "kept_events": 401,
+      "sample_dt_ms": 3.0,
+      "source": "ARM/Ohad-right-noise_ArmMove_Vertical_Up_Down__Up_Down_60bpm_2026-01-02_18-36-36.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 401,
+      "v3_events": 124
+    },
+    {
+      "duration_s": 68.695,
+      "kept_events": 587,
+      "sample_dt_ms": 3.0,
+      "source": "ARM/Ohad-right-noise_TaponArm_Horizontal_NONE_60bpm_2026-01-02_18-44-04.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 587,
+      "v3_events": 209
+    },
+    {
+      "duration_s": 46.948,
+      "kept_events": 437,
+      "sample_dt_ms": 3.0,
+      "source": "ARM/Ohad-right-noise_TaponArm_Reverse_NONE_60bpm_2026-01-02_18-46-10.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 437,
+      "v3_events": 152
+    },
+    {
+      "duration_s": 57.585,
+      "kept_events": 525,
+      "sample_dt_ms": 3.0,
+      "source": "ARM/Ohad-right-noise_TaponArm_Vertical_NONE_60bpm_2026-01-02_18-45-12.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 525,
+      "v3_events": 170
+    },
+    {
+      "duration_s": 8.993,
+      "kept_events": 66,
+      "sample_dt_ms": 3.0,
+      "source": "ARM/Shay_left_ArmCircle_Horizontal_Default_60bpm_2026-02-02_10-53-06.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 66,
+      "v3_events": 24
+    },
+    {
+      "duration_s": 8.99,
+      "kept_events": 61,
+      "sample_dt_ms": 3.0,
+      "source": "ARM/Shay_left_ArmCircle_Reverse_Default_60bpm_2026-02-02_10-53-36.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 61,
+      "v3_events": 20
+    },
+    {
+      "duration_s": 8.961,
+      "kept_events": 60,
+      "sample_dt_ms": 3.0,
+      "source": "ARM/Shay_left_ArmCircle_Vertical_Default_60bpm_2026-02-02_10-53-22.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 60,
+      "v3_events": 21
+    },
+    {
+      "duration_s": 8.977,
+      "kept_events": 53,
+      "sample_dt_ms": 3.0,
+      "source": "ARM/Shay_left_ArmMove_Horizontal_Left_right_60bpm_2026-02-02_10-54-08.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 53,
+      "v3_events": 15
+    },
+    {
+      "duration_s": 8.989,
+      "kept_events": 56,
+      "sample_dt_ms": 3.0,
+      "source": "ARM/Shay_left_ArmMove_Horizontal_Up_Down_60bpm_2026-02-02_10-53-54.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 56,
+      "v3_events": 19
+    },
+    {
+      "duration_s": 9.001,
+      "kept_events": 56,
+      "sample_dt_ms": 3.0,
+      "source": "ARM/Shay_left_ArmMove_Reverse_Left_right_60bpm_2026-02-02_10-55-10.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 56,
+      "v3_events": 23
+    },
+    {
+      "duration_s": 8.976,
+      "kept_events": 58,
+      "sample_dt_ms": 3.0,
+      "source": "ARM/Shay_left_ArmMove_Reverse_Up_Down_60bpm_2026-02-02_10-54-54.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 58,
+      "v3_events": 20
+    },
+    {
+      "duration_s": 9.002,
+      "kept_events": 60,
+      "sample_dt_ms": 3.0,
+      "source": "ARM/Shay_left_ArmMove_Vertical_Left_right_60bpm_2026-02-02_10-54-38.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 60,
+      "v3_events": 17
+    }
+  ],
+  "candidates": 5653,
+  "records": 20,
+  "source_fingerprint_sha256": "cfc04953e78390f21d0b364890334db40ec1302bdb6b2f91890ec119f0c36cc0"
+}

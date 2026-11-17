@@ -1,0 +1,187 @@
+{
+  "audits": [
+    {
+      "duration_s": 9.7,
+      "kept_events": 62,
+      "sample_dt_ms": 6.0,
+      "source": "TAP/vahe_LeftHand_StrongTap_Vertical_Default_60bpm_2026-07-15_12-47-20.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 62,
+      "v3_events": 14
+    },
+    {
+      "duration_s": 25.789,
+      "kept_events": 292,
+      "sample_dt_ms": 6.0,
+      "source": "TAP/vahe_LeftHand_Tapincontraction_Horizontal_Default_60bpm_2026-07-15_12-45-48.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 292,
+      "v3_events": 75
+    },
+    {
+      "duration_s": 16.77,
+      "kept_events": 117,
+      "sample_dt_ms": 3.0,
+      "source": "TAP/vahe_LeftHand_Tapincontraction_Reverse_Default_60bpm_2026-07-15_12-51-57.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 117,
+      "v3_events": 34
+    },
+    {
+      "duration_s": 9.723,
+      "kept_events": 87,
+      "sample_dt_ms": 6.0,
+      "source": "TAP/vahe_LeftHand_Tapincontraction_Vertical_Default_60bpm_2026-07-15_12-48-44.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 87,
+      "v3_events": 21
+    },
+    {
+      "duration_s": 21.67,
+      "kept_events": 241,
+      "sample_dt_ms": 7.0,
+      "source": "TAP/vahe_LeftHand_Taponmotion_Horizontal_Default_60bpm_2026-07-15_12-44-20.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 241,
+      "v3_events": 54
+    },
+    {
+      "duration_s": 16.573,
+      "kept_events": 154,
+      "sample_dt_ms": 3.0,
+      "source": "TAP/vahe_LeftHand_Taponmotion_Reverse_Default_60bpm_2026-07-15_12-51-11.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 154,
+      "v3_events": 37
+    },
+    {
+      "duration_s": 16.381,
+      "kept_events": 146,
+      "sample_dt_ms": 6.0,
+      "source": "TAP/vahe_LeftHand_Taponmotion_Vertical_Default_60bpm_2026-07-15_12-48-02.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 146,
+      "v3_events": 34
+    },
+    {
+      "duration_s": 7.026,
+      "kept_events": 75,
+      "sample_dt_ms": 6.0,
+      "source": "TAP/vahen_DoubleTaps_Horizontal_Default_40bpm_2026-01-29_14-22-19.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 75,
+      "v3_events": 14
+    },
+    {
+      "duration_s": 17.272,
+      "kept_events": 171,
+      "sample_dt_ms": 6.0,
+      "source": "TAP/vahen_DoubleTaps_Reverse_Default_40bpm_2026-01-29_14-23-13.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 171,
+      "v3_events": 52
+    },
+    {
+      "duration_s": 17.254,
+      "kept_events": 159,
+      "sample_dt_ms": 6.0,
+      "source": "TAP/vahen_DoubleTaps_Vertical_Default_40bpm_2026-01-29_14-22-46.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 159,
+      "v3_events": 48
+    },
+    {
+      "duration_s": 4.95,
+      "kept_events": 46,
+      "sample_dt_ms": 6.0,
+      "source": "TAP/vahen_MidTap_Horizontal_Default_120bpm_2026-01-29_14-17-19.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 46,
+      "v3_events": 15
+    },
+    {
+      "duration_s": 12.488,
+      "kept_events": 148,
+      "sample_dt_ms": 6.0,
+      "source": "TAP/vahen_MidTap_Horizontal_Default_60bpm_2026-01-29_14-17-06.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 148,
+      "v3_events": 31
+    },
+    {
+      "duration_s": 5.926,
+      "kept_events": 59,
+      "sample_dt_ms": 6.0,
+      "source": "TAP/vahen_MidTap_Reverse_Default_120bpm_2026-01-29_14-18-34.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 59,
+      "v3_events": 19
+    },
+    {
+      "duration_s": 11.521,
+      "kept_events": 113,
+      "sample_dt_ms": 7.0,
+      "source": "TAP/vahen_MidTap_Reverse_Default_60bpm_2026-01-29_14-18-14.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 113,
+      "v3_events": 36
+    },
+    {
+      "duration_s": 5.583,
+      "kept_events": 41,
+      "sample_dt_ms": 6.0,
+      "source": "TAP/vahen_MidTap_Vertical_Default_120bpm_2026-01-29_14-17-54.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 42,
+      "v3_events": 14
+    },
+    {
+      "duration_s": 11.538,
+      "kept_events": 124,
+      "sample_dt_ms": 6.0,
+      "source": "TAP/vahen_MidTap_Vertical_Default_60bpm_2026-01-29_14-17-43.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 124,
+      "v3_events": 30
+    },
+    {
+      "duration_s": 20.706,
+      "kept_events": 244,
+      "sample_dt_ms": 6.0,
+      "source": "TAP/vahen_SlowPinch_Horizontal_Default_30bpm_2026-01-29_14-23-58.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 244,
+      "v3_events": 54
+    },
+    {
+      "duration_s": 20.731,
+      "kept_events": 228,
+      "sample_dt_ms": 7.0,
+      "source": "TAP/vahen_SlowPinch_Reverse_Default_30bpm_2026-01-29_14-24-53.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 228,
+      "v3_events": 44
+    },
+    {
+      "duration_s": 18.589,
+      "kept_events": 218,
+      "sample_dt_ms": 6.0,
+      "source": "TAP/vahen_SlowPinch_Vertical_Default_30bpm_2026-01-29_14-24-24.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 218,
+      "v3_events": 45
+    },
+    {
+      "duration_s": 5.055,
+      "kept_events": 51,
+      "sample_dt_ms": 6.0,
+      "source": "TAP/vahen_SoftTap_Horizontal_Default_120bpm_2026-01-29_14-19-13.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 51,
+      "v3_events": 13
+    }
+  ],
+  "candidates": 2776,
+  "records": 20,
+  "source_fingerprint_sha256": "cfc04953e78390f21d0b364890334db40ec1302bdb6b2f91890ec119f0c36cc0"
+}

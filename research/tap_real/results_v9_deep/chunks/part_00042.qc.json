@@ -1,0 +1,187 @@
+{
+  "audits": [
+    {
+      "duration_s": 5.785,
+      "kept_events": 54,
+      "sample_dt_ms": 6.0,
+      "source": "SWIPE/mati.mizrahi_RightHand_SwipeStrong_Horizontal_Left_right_120bpm_2026-08-19_16-03-03.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 54,
+      "v3_events": 11
+    },
+    {
+      "duration_s": 9.476,
+      "kept_events": 84,
+      "sample_dt_ms": 6.0,
+      "source": "SWIPE/mati.mizrahi_RightHand_SwipeStrong_Horizontal_Left_right_60bpm_2026-08-19_16-02-51.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 84,
+      "v3_events": 17
+    },
+    {
+      "duration_s": 5.776,
+      "kept_events": 59,
+      "sample_dt_ms": 6.0,
+      "source": "SWIPE/mati.mizrahi_RightHand_SwipeStrong_Horizontal_Up_Down_120bpm_2026-08-19_16-04-37.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 59,
+      "v3_events": 11
+    },
+    {
+      "duration_s": 9.582,
+      "kept_events": 95,
+      "sample_dt_ms": 6.0,
+      "source": "SWIPE/mati.mizrahi_RightHand_SwipeStrong_Horizontal_Up_Down_60bpm_2026-08-19_16-04-27.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 95,
+      "v3_events": 15
+    },
+    {
+      "duration_s": 5.903,
+      "kept_events": 61,
+      "sample_dt_ms": 6.0,
+      "source": "SWIPE/mati.mizrahi_RightHand_SwipeStrong_Vertical_Left_right_120bpm_2026-08-19_16-06-41.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 61,
+      "v3_events": 13
+    },
+    {
+      "duration_s": 10.545,
+      "kept_events": 96,
+      "sample_dt_ms": 6.0,
+      "source": "SWIPE/mati.mizrahi_RightHand_SwipeStrong_Vertical_Left_right_60bpm_2026-08-19_16-06-30.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 96,
+      "v3_events": 15
+    },
+    {
+      "duration_s": 5.639,
+      "kept_events": 58,
+      "sample_dt_ms": 6.0,
+      "source": "SWIPE/mati.mizrahi_RightHand_SwipeStrong_Vertical_Up_Down_120bpm_2026-08-19_16-08-06.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 58,
+      "v3_events": 9
+    },
+    {
+      "duration_s": 9.644,
+      "kept_events": 90,
+      "sample_dt_ms": 6.0,
+      "source": "SWIPE/mati.mizrahi_RightHand_SwipeStrong_Vertical_Up_Down_60bpm_2026-08-19_16-07-55.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 90,
+      "v3_events": 17
+    },
+    {
+      "duration_s": 6.788,
+      "kept_events": 59,
+      "sample_dt_ms": 3.0,
+      "source": "SWIPE/michael.lebedinskiy_RightHand_SwipeMID_Horizontal_Left_right_120bpm_2026-08-05_12-07-35.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 59,
+      "v3_events": 17
+    },
+    {
+      "duration_s": 11.626,
+      "kept_events": 111,
+      "sample_dt_ms": 3.0,
+      "source": "SWIPE/michael.lebedinskiy_RightHand_SwipeMID_Horizontal_Left_right_60bpm_2026-08-05_12-06-49.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 111,
+      "v3_events": 24
+    },
+    {
+      "duration_s": 7.155,
+      "kept_events": 55,
+      "sample_dt_ms": 7.0,
+      "source": "SWIPE/michael.lebedinskiy_RightHand_SwipeMID_Horizontal_Up_Down_120bpm_2026-08-05_12-08-04.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 55,
+      "v3_events": 17
+    },
+    {
+      "duration_s": 10.549,
+      "kept_events": 86,
+      "sample_dt_ms": 3.0,
+      "source": "SWIPE/michael.lebedinskiy_RightHand_SwipeMID_Horizontal_Up_Down_60bpm_2026-08-05_12-07-52.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 86,
+      "v3_events": 21
+    },
+    {
+      "duration_s": 10.661,
+      "kept_events": 81,
+      "sample_dt_ms": 3.0,
+      "source": "SWIPE/michael.lebedinskiy_RightHand_SwipeMID_Vertical_Left_right_120bpm_2026-08-05_12-09-13.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 81,
+      "v3_events": 25
+    },
+    {
+      "duration_s": 9.899,
+      "kept_events": 83,
+      "sample_dt_ms": 4.0,
+      "source": "SWIPE/michael.lebedinskiy_RightHand_SwipeMID_Vertical_Left_right_60bpm_2026-08-05_12-08-57.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 83,
+      "v3_events": 22
+    },
+    {
+      "duration_s": 7.161,
+      "kept_events": 55,
+      "sample_dt_ms": 3.0,
+      "source": "SWIPE/michael.lebedinskiy_RightHand_SwipeMID_Vertical_Up_Down_120bpm_2026-08-05_12-08-40.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 55,
+      "v3_events": 16
+    },
+    {
+      "duration_s": 12.147,
+      "kept_events": 94,
+      "sample_dt_ms": 3.0,
+      "source": "SWIPE/michael.lebedinskiy_RightHand_SwipeMID_Vertical_Up_Down_60bpm_2026-08-05_12-08-27.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 94,
+      "v3_events": 26
+    },
+    {
+      "duration_s": 7.632,
+      "kept_events": 45,
+      "sample_dt_ms": 2.0,
+      "source": "SWIPE/michael.lebedinskiy_RightHand_SwipeSoft_Horizontal_Left_right_120bpm_2026-08-05_12-16-32.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 45,
+      "v3_events": 15
+    },
+    {
+      "duration_s": 15.237,
+      "kept_events": 136,
+      "sample_dt_ms": 3.0,
+      "source": "SWIPE/michael.lebedinskiy_RightHand_SwipeSoft_Horizontal_Left_right_60bpm_2026-08-05_12-16-19.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 136,
+      "v3_events": 33
+    },
+    {
+      "duration_s": 10.221,
+      "kept_events": 92,
+      "sample_dt_ms": 3.0,
+      "source": "SWIPE/michael.lebedinskiy_RightHand_SwipeSoft_Horizontal_Up_Down_120bpm_2026-08-05_12-09-54.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 92,
+      "v3_events": 22
+    },
+    {
+      "duration_s": 13.26,
+      "kept_events": 142,
+      "sample_dt_ms": 6.0,
+      "source": "SWIPE/michael.lebedinskiy_RightHand_SwipeSoft_Horizontal_Up_Down_60bpm_2026-08-05_12-09-35.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 142,
+      "v3_events": 28
+    }
+  ],
+  "candidates": 1636,
+  "records": 20,
+  "source_fingerprint_sha256": "cfc04953e78390f21d0b364890334db40ec1302bdb6b2f91890ec119f0c36cc0"
+}

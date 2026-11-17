@@ -1,0 +1,97 @@
+{
+  "audits": [
+    {
+      "duration_s": 21.88,
+      "kept_events": 185,
+      "sample_dt_ms": 5.0,
+      "source": "WRIST/ohadright_WristExtraction_Contraction(Bending)_Horizontal_Up_Down__Up_Down_60bpm_2025-12-31_20-03-16.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 185,
+      "v3_events": 53
+    },
+    {
+      "duration_s": 22.06,
+      "kept_events": 193,
+      "sample_dt_ms": 5.0,
+      "source": "WRIST/ohadright_WristExtraction_Contraction(Bending)_Reverse_Up_Down__Up_Down_60bpm_2025-12-31_20-04-27.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 193,
+      "v3_events": 62
+    },
+    {
+      "duration_s": 16.076,
+      "kept_events": 74,
+      "sample_dt_ms": 1.0,
+      "source": "WRIST/s_Twist_Default_NONE_60bpm_2025-12-28_17-31-24.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 74,
+      "v3_events": 36
+    },
+    {
+      "duration_s": 15.235,
+      "kept_events": 73,
+      "sample_dt_ms": 1.0,
+      "source": "WRIST/s_WristCircle_Horizontal_NONE_60bpm_2025-12-28_17-30-58.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 73,
+      "v3_events": 30
+    },
+    {
+      "duration_s": 21.332,
+      "kept_events": 118,
+      "sample_dt_ms": 1.0,
+      "source": "WRIST/s_WristExtraction_Contraction(Bending)_Horizontal_Left_right__Left_right_60bpm_2025-12-28_17-28-47.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 118,
+      "v3_events": 59
+    },
+    {
+      "duration_s": 16.535,
+      "kept_events": 87,
+      "sample_dt_ms": 1.0,
+      "source": "WRIST/s_WristExtraction_Contraction(Bending)_Horizontal_Up_Down__Up_Down_60bpm_2025-12-28_17-28-15.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 87,
+      "v3_events": 44
+    },
+    {
+      "duration_s": 12.529,
+      "kept_events": 57,
+      "sample_dt_ms": 1.0,
+      "source": "WRIST/s_WristExtraction_Contraction(Bending)_Reverse_Left_right__Left_right_60bpm_2025-12-28_17-30-35.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 57,
+      "v3_events": 27
+    },
+    {
+      "duration_s": 16.474,
+      "kept_events": 72,
+      "sample_dt_ms": 1.0,
+      "source": "WRIST/s_WristExtraction_Contraction(Bending)_Reverse_Up_Down__Up_Down_60bpm_2025-12-28_17-30-16.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 72,
+      "v3_events": 36
+    },
+    {
+      "duration_s": 15.662,
+      "kept_events": 84,
+      "sample_dt_ms": 1.0,
+      "source": "WRIST/s_WristExtraction_Contraction(Bending)_Vertical_Left_right__Left_right_60bpm_2025-12-28_17-29-47.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 84,
+      "v3_events": 39
+    },
+    {
+      "duration_s": 24.948,
+      "kept_events": 138,
+      "sample_dt_ms": 1.0,
+      "source": "WRIST/s_WristExtraction_Contraction(Bending)_Vertical_Up_Down__Up_Down_60bpm_2025-12-28_17-29-18.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 138,
+      "v3_events": 72
+    }
+  ],
+  "candidates": 1081,
+  "records": 10,
+  "source_fingerprint_sha256": "cfc04953e78390f21d0b364890334db40ec1302bdb6b2f91890ec119f0c36cc0"
+}

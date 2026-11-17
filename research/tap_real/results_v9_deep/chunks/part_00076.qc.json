@@ -1,0 +1,187 @@
+{
+  "audits": [
+    {
+      "duration_s": 23.62,
+      "kept_events": 195,
+      "sample_dt_ms": 6.0,
+      "source": "TAP/Naama_Taponmotion_Vertical_Default_60bpm_2026-07-01_12-55-42.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 195,
+      "v3_events": 56
+    },
+    {
+      "duration_s": 10.745,
+      "kept_events": 98,
+      "sample_dt_ms": 7.0,
+      "source": "TAP/Neomi_Tepler_LeftHand_DoubleTaps_Horizontal_Default_60bpm_2026-08-19_12-20-51.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 98,
+      "v3_events": 22
+    },
+    {
+      "duration_s": 14.826,
+      "kept_events": 155,
+      "sample_dt_ms": 4.0,
+      "source": "TAP/Neomi_Tepler_LeftHand_DoubleTaps_Reverse_Default_60bpm_2026-08-19_12-21-28.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 155,
+      "v3_events": 37
+    },
+    {
+      "duration_s": 10.843,
+      "kept_events": 97,
+      "sample_dt_ms": 5.0,
+      "source": "TAP/Neomi_Tepler_LeftHand_DoubleTaps_Vertical_Default_60bpm_2026-08-19_12-21-07.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 97,
+      "v3_events": 29
+    },
+    {
+      "duration_s": 6.882,
+      "kept_events": 55,
+      "sample_dt_ms": 3.0,
+      "source": "TAP/Neomi_Tepler_LeftHand_MidTap_Horizontal_Default_120bpm_2026-08-19_12-13-55.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 55,
+      "v3_events": 13
+    },
+    {
+      "duration_s": 3.221,
+      "kept_events": 21,
+      "sample_dt_ms": 3.0,
+      "source": "TAP/Neomi_Tepler_LeftHand_MidTap_Horizontal_Default_240bpm_2026-08-19_12-14-03.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 21,
+      "v3_events": 13
+    },
+    {
+      "duration_s": 10.569,
+      "kept_events": 113,
+      "sample_dt_ms": 4.0,
+      "source": "TAP/Neomi_Tepler_LeftHand_MidTap_Horizontal_Default_60bpm_2026-08-19_12-13-43.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 113,
+      "v3_events": 23
+    },
+    {
+      "duration_s": 6.572,
+      "kept_events": 52,
+      "sample_dt_ms": 3.0,
+      "source": "TAP/Neomi_Tepler_LeftHand_MidTap_Reverse_Default_120bpm_2026-08-19_12-17-49.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 52,
+      "v3_events": 15
+    },
+    {
+      "duration_s": 3.426,
+      "kept_events": 20,
+      "sample_dt_ms": 2.0,
+      "source": "TAP/Neomi_Tepler_LeftHand_MidTap_Reverse_Default_240bpm_2026-08-19_12-17-58.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 20,
+      "v3_events": 11
+    },
+    {
+      "duration_s": 9.707,
+      "kept_events": 104,
+      "sample_dt_ms": 4.0,
+      "source": "TAP/Neomi_Tepler_LeftHand_MidTap_Reverse_Default_60bpm_2026-08-19_12-17-38.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 104,
+      "v3_events": 26
+    },
+    {
+      "duration_s": 5.669,
+      "kept_events": 44,
+      "sample_dt_ms": 3.0,
+      "source": "TAP/Neomi_Tepler_LeftHand_MidTap_Vertical_Default_120bpm_2026-08-19_12-15-48.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 44,
+      "v3_events": 15
+    },
+    {
+      "duration_s": 7.995,
+      "kept_events": 73,
+      "sample_dt_ms": 3.0,
+      "source": "TAP/Neomi_Tepler_LeftHand_MidTap_Vertical_Default_240bpm_2026-08-19_12-16-00.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 73,
+      "v3_events": 24
+    },
+    {
+      "duration_s": 10.761,
+      "kept_events": 87,
+      "sample_dt_ms": 3.0,
+      "source": "TAP/Neomi_Tepler_LeftHand_MidTap_Vertical_Default_60bpm_2026-08-19_12-15-38.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 87,
+      "v3_events": 26
+    },
+    {
+      "duration_s": 34.595,
+      "kept_events": 349,
+      "sample_dt_ms": 3.0,
+      "source": "TAP/Neomi_Tepler_LeftHand_SlowPinch_Horizontal_Default_30bpm_2026-08-19_12-23-05.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 349,
+      "v3_events": 84
+    },
+    {
+      "duration_s": 22.605,
+      "kept_events": 231,
+      "sample_dt_ms": 3.0,
+      "source": "TAP/Neomi_Tepler_LeftHand_SlowPinch_Reverse_Default_30bpm_2026-08-19_12-23-57.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 231,
+      "v3_events": 59
+    },
+    {
+      "duration_s": 18.775,
+      "kept_events": 176,
+      "sample_dt_ms": 3.0,
+      "source": "TAP/Neomi_Tepler_LeftHand_SlowPinch_Vertical_Default_30bpm_2026-08-19_12-23-29.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 176,
+      "v3_events": 59
+    },
+    {
+      "duration_s": 5.831,
+      "kept_events": 46,
+      "sample_dt_ms": 3.0,
+      "source": "TAP/Neomi_Tepler_LeftHand_StrongTap_Horizontal_Default_120bpm_2026-08-19_12-15-11.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 46,
+      "v3_events": 13
+    },
+    {
+      "duration_s": 3.59,
+      "kept_events": 28,
+      "sample_dt_ms": 3.0,
+      "source": "TAP/Neomi_Tepler_LeftHand_StrongTap_Horizontal_Default_240bpm_2026-08-19_12-15-18.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 28,
+      "v3_events": 11
+    },
+    {
+      "duration_s": 10.732,
+      "kept_events": 96,
+      "sample_dt_ms": 3.0,
+      "source": "TAP/Neomi_Tepler_LeftHand_StrongTap_Horizontal_Default_60bpm_2026-08-19_12-15-01.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 96,
+      "v3_events": 21
+    },
+    {
+      "duration_s": 5.77,
+      "kept_events": 42,
+      "sample_dt_ms": 5.0,
+      "source": "TAP/Neomi_Tepler_LeftHand_StrongTap_Reverse_Default_120bpm_2026-08-19_12-19-04.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 42,
+      "v3_events": 13
+    }
+  ],
+  "candidates": 2082,
+  "records": 20,
+  "source_fingerprint_sha256": "cfc04953e78390f21d0b364890334db40ec1302bdb6b2f91890ec119f0c36cc0"
+}

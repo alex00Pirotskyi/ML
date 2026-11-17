@@ -1,0 +1,28 @@
+{
+  "complete": true,
+  "config": {
+    "chunk_files": 20,
+    "max_files_per_category": 0,
+    "min_candidate_gap_ms": 40.0,
+    "sample_ms": 20,
+    "version": "9.0.1-research"
+  },
+  "cross_category_conflict_archives_quarantined": 0,
+  "cross_category_conflict_groups_quarantined": 0,
+  "duplicates_excluded": 3052,
+  "extraction_errors": [],
+  "per_category_unique": {
+    "ARM": 113,
+    "BAND": 42,
+    "FINGER": 339,
+    "NOTHING": 5,
+    "SWIPE": 896,
+    "TAP": 1246,
+    "WRIST": 149
+  },
+  "scope": "Unverified EMG event hypotheses, NO physical tap onset labels",
+  "source_archives": 5842,
+  "source_fingerprint_sha256": "cfc04953e78390f21d0b364890334db40ec1302bdb6b2f91890ec119f0c36cc0",
+  "total_chunks": 140,
+  "unique_recordings": 2790
+}

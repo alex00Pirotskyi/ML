@@ -1,0 +1,187 @@
+{
+  "audits": [
+    {
+      "duration_s": 8.995,
+      "kept_events": 65,
+      "sample_dt_ms": 3.0,
+      "source": "WRIST/EitanLachin_WristExtraction_Contraction(Bending)_Vertical_Left_right_60bpm_2026-01-29_12-38-15.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 65,
+      "v3_events": 21
+    },
+    {
+      "duration_s": 8.993,
+      "kept_events": 74,
+      "sample_dt_ms": 3.0,
+      "source": "WRIST/MichaelNarovlyansky_TaponHand_Horizontal_Default_60bpm_2026-01-29_14-35-00.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 74,
+      "v3_events": 28
+    },
+    {
+      "duration_s": 8.978,
+      "kept_events": 65,
+      "sample_dt_ms": 3.0,
+      "source": "WRIST/MichaelNarovlyansky_TaponHand_Reverse_Default_60bpm_2026-01-29_14-35-32.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 65,
+      "v3_events": 26
+    },
+    {
+      "duration_s": 8.988,
+      "kept_events": 77,
+      "sample_dt_ms": 3.0,
+      "source": "WRIST/MichaelNarovlyansky_TaponHand_Vertical_Default_60bpm_2026-01-29_14-35-16.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 77,
+      "v3_events": 29
+    },
+    {
+      "duration_s": 8.963,
+      "kept_events": 68,
+      "sample_dt_ms": 3.0,
+      "source": "WRIST/MichaelNarovlyansky_Twist_Default_Default_60bpm_2026-01-29_14-35-56.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 68,
+      "v3_events": 21
+    },
+    {
+      "duration_s": 8.964,
+      "kept_events": 71,
+      "sample_dt_ms": 3.0,
+      "source": "WRIST/MichaelNarovlyansky_WristCircle_Horizontal_Default_60bpm_2026-01-29_14-34-08.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 71,
+      "v3_events": 18
+    },
+    {
+      "duration_s": 8.963,
+      "kept_events": 79,
+      "sample_dt_ms": 3.0,
+      "source": "WRIST/MichaelNarovlyansky_WristCircle_Reverse_Default_60bpm_2026-01-29_14-34-39.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 79,
+      "v3_events": 22
+    },
+    {
+      "duration_s": 8.947,
+      "kept_events": 72,
+      "sample_dt_ms": 3.0,
+      "source": "WRIST/MichaelNarovlyansky_WristCircle_Vertical_Default_60bpm_2026-01-29_14-34-23.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 72,
+      "v3_events": 24
+    },
+    {
+      "duration_s": 8.936,
+      "kept_events": 71,
+      "sample_dt_ms": 3.0,
+      "source": "WRIST/MichaelNarovlyansky_WristExtraction_Contraction(Bending)_Horizontal_Up_Down_60bpm_2026-01-29_14-33-09.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 71,
+      "v3_events": 22
+    },
+    {
+      "duration_s": 8.993,
+      "kept_events": 65,
+      "sample_dt_ms": 3.0,
+      "source": "WRIST/MichaelNarovlyansky_WristExtraction_Contraction(Bending)_Reverse_Up_Down_60bpm_2026-01-29_14-33-48.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 65,
+      "v3_events": 19
+    },
+    {
+      "duration_s": 8.985,
+      "kept_events": 71,
+      "sample_dt_ms": 3.0,
+      "source": "WRIST/MichaelNarovlyansky_WristExtraction_Contraction(Bending)_Vertical_Left_right_60bpm_2026-01-29_14-33-30.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 71,
+      "v3_events": 27
+    },
+    {
+      "duration_s": 8.987,
+      "kept_events": 79,
+      "sample_dt_ms": 3.0,
+      "source": "WRIST/Nikol_TaponHand_Horizontal_Default_60bpm_2026-01-29_12-11-17.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 79,
+      "v3_events": 31
+    },
+    {
+      "duration_s": 8.992,
+      "kept_events": 71,
+      "sample_dt_ms": 3.0,
+      "source": "WRIST/Nikol_TaponHand_Reverse_Default_60bpm_2026-01-29_12-11-48.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 71,
+      "v3_events": 26
+    },
+    {
+      "duration_s": 8.993,
+      "kept_events": 79,
+      "sample_dt_ms": 3.0,
+      "source": "WRIST/Nikol_TaponHand_Vertical_Default_60bpm_2026-01-29_12-11-33.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 79,
+      "v3_events": 31
+    },
+    {
+      "duration_s": 8.988,
+      "kept_events": 54,
+      "sample_dt_ms": 3.0,
+      "source": "WRIST/Nikol_Twist_Default_Default_60bpm_2026-01-29_12-12-10.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 54,
+      "v3_events": 18
+    },
+    {
+      "duration_s": 8.972,
+      "kept_events": 72,
+      "sample_dt_ms": 3.0,
+      "source": "WRIST/Nikol_WristCircle_Horizontal_Default_60bpm_2026-01-29_12-10-25.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 72,
+      "v3_events": 21
+    },
+    {
+      "duration_s": 8.946,
+      "kept_events": 75,
+      "sample_dt_ms": 3.0,
+      "source": "WRIST/Nikol_WristCircle_Reverse_Default_60bpm_2026-01-29_12-10-58.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 75,
+      "v3_events": 19
+    },
+    {
+      "duration_s": 8.993,
+      "kept_events": 71,
+      "sample_dt_ms": 3.0,
+      "source": "WRIST/Nikol_WristCircle_Vertical_Default_60bpm_2026-01-29_12-10-42.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 71,
+      "v3_events": 20
+    },
+    {
+      "duration_s": 8.988,
+      "kept_events": 60,
+      "sample_dt_ms": 3.0,
+      "source": "WRIST/Nikol_WristExtraction_Contraction(Bending)_Horizontal_Up_Down_60bpm_2026-01-29_12-09-31.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 60,
+      "v3_events": 18
+    },
+    {
+      "duration_s": 8.991,
+      "kept_events": 74,
+      "sample_dt_ms": 3.0,
+      "source": "WRIST/Nikol_WristExtraction_Contraction(Bending)_Reverse_Up_Down_60bpm_2026-01-29_12-10-07.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 74,
+      "v3_events": 22
+    }
+  ],
+  "candidates": 1413,
+  "records": 20,
+  "source_fingerprint_sha256": "cfc04953e78390f21d0b364890334db40ec1302bdb6b2f91890ec119f0c36cc0"
+}

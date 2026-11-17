@@ -1,0 +1,89 @@
+{
+  "best_metrics": {
+    "bag_count": 2790,
+    "doubletap_finger_auc": 0.7435128243587821,
+    "folds": [
+      {
+        "fold": 0,
+        "test_events": 60029,
+        "test_people": 4,
+        "train_events": 163714
+      },
+      {
+        "fold": 1,
+        "test_events": 60012,
+        "test_people": 14,
+        "train_events": 176572
+      },
+      {
+        "fold": 2,
+        "test_events": 60057,
+        "test_people": 13,
+        "train_events": 172520
+      },
+      {
+        "fold": 3,
+        "test_events": 60083,
+        "test_people": 13,
+        "train_events": 175752
+      },
+      {
+        "fold": 4,
+        "test_events": 60218,
+        "test_people": 12,
+        "train_events": 171382
+      }
+    ],
+    "max_recording_score_finger_p95_exploratory": 0.92097487449646,
+    "midtap_finger_auc": 0.7643536697337319,
+    "positive_bag_count": 1246,
+    "primary_tap_finger_ap": 0.9036812652639359,
+    "primary_tap_finger_auc": 0.7494471985871011,
+    "softtap_finger_auc": 0.7464623145654312,
+    "strongtap_finger_auc": 0.7053605195198115,
+    "taponmotion_finger_auc": 0.8120887224869526,
+    "target_all_hardneg_ap": 0.8596771017219951,
+    "target_all_hardneg_auc": 0.7847209836910212,
+    "target_all_hardneg_top3_auc": 0.7992365693676554
+  },
+  "best_trial": {
+    "finger_weight": 3.0,
+    "mode": "relative",
+    "order": "native",
+    "positive_selection": "mil8",
+    "post_ms": 640,
+    "pre_ms": 100,
+    "representation": "temporal",
+    "task": "tap",
+    "trial_id": "d8f9c865eabd51de"
+  },
+  "completed_trials": 3460,
+  "failed_trials": 0,
+  "passed_trials": 3460,
+  "research_restrictions": [
+    "No V5 pseudo positives used as truth",
+    "No pointer, metronome, filenames or BPM in feature matrix",
+    "Hyperparameter search on participant OOF results is exploratory; final heldout independent dataset required",
+    "No automatic production-positive or ground-truth labels emitted",
+    "Potential wearer aliases and session confounding"
+  ],
+  "scope": "Recording-level evidence from weak labels only; event onset/FP and double-pair accuracy unknown",
+  "source": {
+    "cross_category_conflict_archives_quarantined": 0,
+    "cross_category_conflict_groups_quarantined": 0,
+    "duplicates_excluded": 3052,
+    "per_category_unique": {
+      "ARM": 113,
+      "BAND": 42,
+      "FINGER": 339,
+      "NOTHING": 5,
+      "SWIPE": 896,
+      "TAP": 1246,
+      "WRIST": 149
+    },
+    "source_archives": 5842,
+    "source_fingerprint_sha256": "cfc04953e78390f21d0b364890334db40ec1302bdb6b2f91890ec119f0c36cc0",
+    "unique_recordings": 2790
+  },
+  "version": "9.0.1-research"
+}

@@ -1,0 +1,187 @@
+{
+  "audits": [
+    {
+      "duration_s": 6.144,
+      "kept_events": 43,
+      "sample_dt_ms": 6.0,
+      "source": "SWIPE/noam.scialom_RightHand_SwipeMID_Horizontal_Up_Down_120bpm_2026-08-19_17-10-49.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 43,
+      "v3_events": 14
+    },
+    {
+      "duration_s": 11.326,
+      "kept_events": 94,
+      "sample_dt_ms": 4.0,
+      "source": "SWIPE/noam.scialom_RightHand_SwipeMID_Horizontal_Up_Down_60bpm_2026-08-19_17-10-38.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 94,
+      "v3_events": 17
+    },
+    {
+      "duration_s": 6.612,
+      "kept_events": 55,
+      "sample_dt_ms": 6.0,
+      "source": "SWIPE/noam.scialom_RightHand_SwipeMID_Vertical_Left_right_120bpm_2026-08-19_17-12-29.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 55,
+      "v3_events": 13
+    },
+    {
+      "duration_s": 12.252,
+      "kept_events": 120,
+      "sample_dt_ms": 6.0,
+      "source": "SWIPE/noam.scialom_RightHand_SwipeMID_Vertical_Left_right_60bpm_2026-08-19_17-12-18.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 120,
+      "v3_events": 28
+    },
+    {
+      "duration_s": 6.097,
+      "kept_events": 48,
+      "sample_dt_ms": 6.0,
+      "source": "SWIPE/noam.scialom_RightHand_SwipeMID_Vertical_Up_Down_120bpm_2026-08-19_17-13-58.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 48,
+      "v3_events": 14
+    },
+    {
+      "duration_s": 12.208,
+      "kept_events": 106,
+      "sample_dt_ms": 6.0,
+      "source": "SWIPE/noam.scialom_RightHand_SwipeMID_Vertical_Up_Down_60bpm_2026-08-19_17-13-46.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 106,
+      "v3_events": 23
+    },
+    {
+      "duration_s": 7.073,
+      "kept_events": 72,
+      "sample_dt_ms": 6.0,
+      "source": "SWIPE/noam.scialom_RightHand_SwipeSoft_Horizontal_Left_right_120bpm_2026-08-19_17-09-49.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 72,
+      "v3_events": 13
+    },
+    {
+      "duration_s": 14.47,
+      "kept_events": 160,
+      "sample_dt_ms": 6.0,
+      "source": "SWIPE/noam.scialom_RightHand_SwipeSoft_Horizontal_Left_right_60bpm_2026-08-19_17-09-38.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 160,
+      "v3_events": 30
+    },
+    {
+      "duration_s": 6.644,
+      "kept_events": 55,
+      "sample_dt_ms": 3.0,
+      "source": "SWIPE/noam.scialom_RightHand_SwipeSoft_Horizontal_Up_Down_120bpm_2026-08-19_17-11-18.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 55,
+      "v3_events": 13
+    },
+    {
+      "duration_s": 11.336,
+      "kept_events": 107,
+      "sample_dt_ms": 4.0,
+      "source": "SWIPE/noam.scialom_RightHand_SwipeSoft_Horizontal_Up_Down_60bpm_2026-08-19_17-11-06.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 107,
+      "v3_events": 20
+    },
+    {
+      "duration_s": 7.174,
+      "kept_events": 68,
+      "sample_dt_ms": 4.0,
+      "source": "SWIPE/noam.scialom_RightHand_SwipeSoft_Vertical_Left_right_120bpm_2026-08-19_17-13-01.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 68,
+      "v3_events": 18
+    },
+    {
+      "duration_s": 13.484,
+      "kept_events": 129,
+      "sample_dt_ms": 6.0,
+      "source": "SWIPE/noam.scialom_RightHand_SwipeSoft_Vertical_Left_right_60bpm_2026-08-19_17-12-48.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 129,
+      "v3_events": 35
+    },
+    {
+      "duration_s": 6.62,
+      "kept_events": 58,
+      "sample_dt_ms": 6.0,
+      "source": "SWIPE/noam.scialom_RightHand_SwipeSoft_Vertical_Up_Down_120bpm_2026-08-19_17-14-27.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 58,
+      "v3_events": 14
+    },
+    {
+      "duration_s": 11.283,
+      "kept_events": 116,
+      "sample_dt_ms": 6.0,
+      "source": "SWIPE/noam.scialom_RightHand_SwipeSoft_Vertical_Up_Down_60bpm_2026-08-19_17-14-17.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 116,
+      "v3_events": 24
+    },
+    {
+      "duration_s": 6.027,
+      "kept_events": 53,
+      "sample_dt_ms": 6.0,
+      "source": "SWIPE/noam.scialom_RightHand_SwipeStrong_Horizontal_Left_right_120bpm_2026-08-19_17-10-19.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 53,
+      "v3_events": 13
+    },
+    {
+      "duration_s": 10.431,
+      "kept_events": 92,
+      "sample_dt_ms": 6.0,
+      "source": "SWIPE/noam.scialom_RightHand_SwipeStrong_Horizontal_Left_right_60bpm_2026-08-19_17-10-09.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 92,
+      "v3_events": 17
+    },
+    {
+      "duration_s": 6.407,
+      "kept_events": 39,
+      "sample_dt_ms": 2.0,
+      "source": "SWIPE/noam.scialom_RightHand_SwipeStrong_Horizontal_Up_Down_120bpm_2026-08-19_17-11-47.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 39,
+      "v3_events": 10
+    },
+    {
+      "duration_s": 10.32,
+      "kept_events": 90,
+      "sample_dt_ms": 6.0,
+      "source": "SWIPE/noam.scialom_RightHand_SwipeStrong_Horizontal_Up_Down_60bpm_2026-08-19_17-11-36.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 90,
+      "v3_events": 19
+    },
+    {
+      "duration_s": 5.889,
+      "kept_events": 43,
+      "sample_dt_ms": 6.0,
+      "source": "SWIPE/noam.scialom_RightHand_SwipeStrong_Vertical_Left_right_120bpm_2026-08-19_17-13-27.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 43,
+      "v3_events": 11
+    },
+    {
+      "duration_s": 10.066,
+      "kept_events": 94,
+      "sample_dt_ms": 6.0,
+      "source": "SWIPE/noam.scialom_RightHand_SwipeStrong_Vertical_Left_right_60bpm_2026-08-19_17-13-17.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 94,
+      "v3_events": 21
+    }
+  ],
+  "candidates": 1642,
+  "records": 20,
+  "source_fingerprint_sha256": "cfc04953e78390f21d0b364890334db40ec1302bdb6b2f91890ec119f0c36cc0"
+}

@@ -1,0 +1,187 @@
+{
+  "audits": [
+    {
+      "duration_s": 24.525,
+      "kept_events": 296,
+      "sample_dt_ms": 6.0,
+      "source": "TAP/kirilleft_SlowPinch_Horizontal_NONE_30bpm_2026-01-04_13-40-54.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 296,
+      "v3_events": 63
+    },
+    {
+      "duration_s": 20.708,
+      "kept_events": 262,
+      "sample_dt_ms": 6.0,
+      "source": "TAP/kirilleft_SlowPinch_Reverse_NONE_30bpm_2026-01-04_13-41-54.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 262,
+      "v3_events": 44
+    },
+    {
+      "duration_s": 20.504,
+      "kept_events": 254,
+      "sample_dt_ms": 6.0,
+      "source": "TAP/kirilleft_SlowPinch_Vertical_NONE_30bpm_2026-01-04_13-41-23.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 254,
+      "v3_events": 49
+    },
+    {
+      "duration_s": 6.083,
+      "kept_events": 56,
+      "sample_dt_ms": 6.0,
+      "source": "TAP/kirilleft_SoftTap_Horizontal_NONE_120bpm_2026-01-04_13-33-17.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 56,
+      "v3_events": 16
+    },
+    {
+      "duration_s": 10.498,
+      "kept_events": 113,
+      "sample_dt_ms": 6.0,
+      "source": "TAP/kirilleft_SoftTap_Horizontal_NONE_60bpm_2026-01-04_13-33-06.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 113,
+      "v3_events": 32
+    },
+    {
+      "duration_s": 5.499,
+      "kept_events": 56,
+      "sample_dt_ms": 5.0,
+      "source": "TAP/kirilleft_SoftTap_Reverse_NONE_120bpm_2026-01-04_13-34-42.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 56,
+      "v3_events": 14
+    },
+    {
+      "duration_s": 22.485,
+      "kept_events": 274,
+      "sample_dt_ms": 5.0,
+      "source": "TAP/kirilleft_SoftTap_Reverse_NONE_60bpm_2026-01-04_13-34-26.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 274,
+      "v3_events": 46
+    },
+    {
+      "duration_s": 7.043,
+      "kept_events": 71,
+      "sample_dt_ms": 5.0,
+      "source": "TAP/kirilleft_SoftTap_Vertical_NONE_120bpm_2026-01-04_13-33-52.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 71,
+      "v3_events": 16
+    },
+    {
+      "duration_s": 12.675,
+      "kept_events": 145,
+      "sample_dt_ms": 6.0,
+      "source": "TAP/kirilleft_SoftTap_Vertical_NONE_60bpm_2026-01-04_13-33-38.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 145,
+      "v3_events": 18
+    },
+    {
+      "duration_s": 5.488,
+      "kept_events": 33,
+      "sample_dt_ms": 5.0,
+      "source": "TAP/kirilleft_StrongTap_Horizontal_NONE_120bpm_2026-01-04_13-35-18.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 33,
+      "v3_events": 13
+    },
+    {
+      "duration_s": 10.488,
+      "kept_events": 94,
+      "sample_dt_ms": 6.0,
+      "source": "TAP/kirilleft_StrongTap_Horizontal_NONE_60bpm_2026-01-04_13-35-07.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 94,
+      "v3_events": 27
+    },
+    {
+      "duration_s": 5.47,
+      "kept_events": 47,
+      "sample_dt_ms": 5.0,
+      "source": "TAP/kirilleft_StrongTap_Reverse_NONE_120bpm_2026-01-04_13-36-26.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 47,
+      "v3_events": 12
+    },
+    {
+      "duration_s": 10.517,
+      "kept_events": 74,
+      "sample_dt_ms": 6.0,
+      "source": "TAP/kirilleft_StrongTap_Reverse_NONE_60bpm_2026-01-04_13-36-09.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 74,
+      "v3_events": 21
+    },
+    {
+      "duration_s": 5.49,
+      "kept_events": 40,
+      "sample_dt_ms": 5.0,
+      "source": "TAP/kirilleft_StrongTap_Vertical_NONE_120bpm_2026-01-04_13-35-48.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 40,
+      "v3_events": 15
+    },
+    {
+      "duration_s": 10.5,
+      "kept_events": 75,
+      "sample_dt_ms": 5.0,
+      "source": "TAP/kirilleft_StrongTap_Vertical_NONE_60bpm_2026-01-04_13-35-37.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 75,
+      "v3_events": 24
+    },
+    {
+      "duration_s": 10.436,
+      "kept_events": 92,
+      "sample_dt_ms": 6.0,
+      "source": "TAP/kirilleft_tapWithContaction_Horizontal_Up_Down__Up_Down_60bpm_2026-01-04_13-39-12.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 92,
+      "v3_events": 23
+    },
+    {
+      "duration_s": 12.488,
+      "kept_events": 93,
+      "sample_dt_ms": 6.0,
+      "source": "TAP/kirilleft_tapWithContaction_Reverse_Up_Down__Up_Down_60bpm_2026-01-04_13-40-11.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 93,
+      "v3_events": 26
+    },
+    {
+      "duration_s": 10.526,
+      "kept_events": 75,
+      "sample_dt_ms": 6.0,
+      "source": "TAP/kirilleft_tapWithContaction_Vertical_Left_right__Left_right_60bpm_2026-01-04_13-39-44.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 75,
+      "v3_events": 23
+    },
+    {
+      "duration_s": 9.521,
+      "kept_events": 91,
+      "sample_dt_ms": 6.0,
+      "source": "TAP/kirilleft_taponmotion_Horizontal_NONE_60bpm_2026-01-04_13-36-50.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 91,
+      "v3_events": 26
+    },
+    {
+      "duration_s": 10.463,
+      "kept_events": 104,
+      "sample_dt_ms": 6.0,
+      "source": "TAP/kirilleft_taponmotion_Reverse_NONE_60bpm_2026-01-04_13-37-27.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 104,
+      "v3_events": 25
+    }
+  ],
+  "candidates": 2345,
+  "records": 20,
+  "source_fingerprint_sha256": "cfc04953e78390f21d0b364890334db40ec1302bdb6b2f91890ec119f0c36cc0"
+}

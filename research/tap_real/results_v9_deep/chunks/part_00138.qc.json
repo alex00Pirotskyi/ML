@@ -1,0 +1,187 @@
+{
+  "audits": [
+    {
+      "duration_s": 6.89,
+      "kept_events": 75,
+      "sample_dt_ms": 6.0,
+      "source": "WRIST/ohad-PSD9-left_WristExtraction_Contraction(Bending)_Horizontal_Left_right__Left_right_60bpm_2025-12-29_11-24-56.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 75,
+      "v3_events": 20
+    },
+    {
+      "duration_s": 13.867,
+      "kept_events": 146,
+      "sample_dt_ms": 6.0,
+      "source": "WRIST/ohad-PSD9-left_WristExtraction_Contraction(Bending)_Horizontal_Up_Down__Up_Down_60bpm_2025-12-29_11-24-43.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 146,
+      "v3_events": 35
+    },
+    {
+      "duration_s": 7.28,
+      "kept_events": 81,
+      "sample_dt_ms": 6.0,
+      "source": "WRIST/ohad-PSD9-left_WristExtraction_Contraction(Bending)_Reverse_Left_right__Left_right_60bpm_2025-12-29_11-25-53.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 81,
+      "v3_events": 24
+    },
+    {
+      "duration_s": 8.47,
+      "kept_events": 82,
+      "sample_dt_ms": 5.0,
+      "source": "WRIST/ohad-PSD9-left_WristExtraction_Contraction(Bending)_Reverse_Up_Down__Up_Down_60bpm_2025-12-29_11-25-37.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 82,
+      "v3_events": 23
+    },
+    {
+      "duration_s": 9.501,
+      "kept_events": 109,
+      "sample_dt_ms": 5.0,
+      "source": "WRIST/ohad-PSD9-left_WristExtraction_Contraction(Bending)_Vertical_Left_right__Left_right_60bpm_2025-12-29_11-25-24.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 109,
+      "v3_events": 26
+    },
+    {
+      "duration_s": 8.481,
+      "kept_events": 97,
+      "sample_dt_ms": 6.0,
+      "source": "WRIST/ohad-PSD9-left_WristExtraction_Contraction(Bending)_Vertical_Up_Down__Up_Down_60bpm_2025-12-29_11-25-09.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 97,
+      "v3_events": 24
+    },
+    {
+      "duration_s": 8.99,
+      "kept_events": 97,
+      "sample_dt_ms": 4.0,
+      "source": "WRIST/ohad.new.left_WristCircle_Horizontal_Default_60bpm_2026-02-16_16-29-08.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 97,
+      "v3_events": 21
+    },
+    {
+      "duration_s": 8.999,
+      "kept_events": 104,
+      "sample_dt_ms": 4.0,
+      "source": "WRIST/ohad.new.left_WristCircle_Reverse_Default_60bpm_2026-02-16_16-29-36.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 104,
+      "v3_events": 20
+    },
+    {
+      "duration_s": 8.992,
+      "kept_events": 93,
+      "sample_dt_ms": 4.0,
+      "source": "WRIST/ohad.new.left_WristCircle_Vertical_Default_60bpm_2026-02-16_16-29-22.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 93,
+      "v3_events": 26
+    },
+    {
+      "duration_s": 8.998,
+      "kept_events": 89,
+      "sample_dt_ms": 4.0,
+      "source": "WRIST/ohad.new.left_WristExtraction_Contraction(Bending)_Horizontal_Up_Down_60bpm_2026-02-16_16-28-17.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 89,
+      "v3_events": 25
+    },
+    {
+      "duration_s": 8.996,
+      "kept_events": 93,
+      "sample_dt_ms": 4.0,
+      "source": "WRIST/ohad.new.left_WristExtraction_Contraction(Bending)_Reverse_Up_Down_60bpm_2026-02-16_16-28-51.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 93,
+      "v3_events": 22
+    },
+    {
+      "duration_s": 8.989,
+      "kept_events": 89,
+      "sample_dt_ms": 4.0,
+      "source": "WRIST/ohad.new.left_WristExtraction_Contraction(Bending)_Vertical_Left_right_60bpm_2026-02-16_16-28-35.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 89,
+      "v3_events": 21
+    },
+    {
+      "duration_s": 44.864,
+      "kept_events": 541,
+      "sample_dt_ms": 5.0,
+      "source": "WRIST/ohadright_TaponHand_Horizontal_NONE_60bpm_2025-12-31_20-06-45.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 541,
+      "v3_events": 123
+    },
+    {
+      "duration_s": 30.342,
+      "kept_events": 343,
+      "sample_dt_ms": 5.0,
+      "source": "WRIST/ohadright_TaponHand_Reverse_NONE_60bpm_2025-12-31_20-08-01.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 343,
+      "v3_events": 84
+    },
+    {
+      "duration_s": 32.107,
+      "kept_events": 353,
+      "sample_dt_ms": 5.0,
+      "source": "WRIST/ohadright_TaponHand_Vertical_NONE_60bpm_2025-12-31_20-07-24.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 353,
+      "v3_events": 89
+    },
+    {
+      "duration_s": 23.257,
+      "kept_events": 218,
+      "sample_dt_ms": 5.0,
+      "source": "WRIST/ohadright_Twist_Default_NONE_60bpm_2025-12-31_20-08-33.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 218,
+      "v3_events": 60
+    },
+    {
+      "duration_s": 20.725,
+      "kept_events": 178,
+      "sample_dt_ms": 5.0,
+      "source": "WRIST/ohadright_WristCircle_Horizontal_NONE_60bpm_2025-12-31_20-04-58.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 178,
+      "v3_events": 54
+    },
+    {
+      "duration_s": 16.362,
+      "kept_events": 175,
+      "sample_dt_ms": 5.0,
+      "source": "WRIST/ohadright_WristCircle_Reverse_NONE_60bpm_2025-12-31_20-05-52.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 175,
+      "v3_events": 42
+    },
+    {
+      "duration_s": 23.62,
+      "kept_events": 263,
+      "sample_dt_ms": 5.0,
+      "source": "WRIST/ohadright_WristCircle_Vertical_NONE_60bpm_2025-12-31_20-05-29.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 263,
+      "v3_events": 57
+    },
+    {
+      "duration_s": 17.761,
+      "kept_events": 178,
+      "sample_dt_ms": 5.0,
+      "source": "WRIST/ohadright_WristExtraction_Contraction(Bending)_Horizontal_Left_right__Left_right_60bpm_2025-12-31_20-03-42.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 178,
+      "v3_events": 42
+    }
+  ],
+  "candidates": 3404,
+  "records": 20,
+  "source_fingerprint_sha256": "cfc04953e78390f21d0b364890334db40ec1302bdb6b2f91890ec119f0c36cc0"
+}

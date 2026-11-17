@@ -1,0 +1,75 @@
+{
+  "status": "VALIDATED_CLAUDE_V2_SILVER_LABELS_NOT_PHYSICAL_GROUND_TRUTH",
+  "source": "DATA/DATA_TAP",
+  "source_provenance": "Matches committed claude_research_tap/results/folds.csv name, category and decompressed SHA256",
+  "exporter": "claude_research_tap/pipeline/export_labels.py (unchanged)",
+  "onset_window_ms": [
+    0,
+    80
+  ],
+  "weak_presses_included": false,
+  "promote_double_partners": false,
+  "counts": {
+    "files": 2790,
+    "rows": 5506698,
+    "onset_pos": 248936,
+    "onset_neg": 2959907,
+    "onset_unk": 2297855
+  },
+  "by_category": {
+    "ARM": {
+      "files": 113,
+      "rows": 307572,
+      "positive": 0,
+      "negative": 307572,
+      "unknown": 0
+    },
+    "BAND": {
+      "files": 42,
+      "rows": 122307,
+      "positive": 0,
+      "negative": 122307,
+      "unknown": 0
+    },
+    "FINGER": {
+      "files": 339,
+      "rows": 747024,
+      "positive": 0,
+      "negative": 747024,
+      "unknown": 0
+    },
+    "NOTHING": {
+      "files": 5,
+      "rows": 21471,
+      "positive": 0,
+      "negative": 21471,
+      "unknown": 0
+    },
+    "SWIPE": {
+      "files": 896,
+      "rows": 1527045,
+      "positive": 97811,
+      "negative": 324211,
+      "unknown": 1105023
+    },
+    "TAP": {
+      "files": 1246,
+      "rows": 2357460,
+      "positive": 151125,
+      "negative": 1013503,
+      "unknown": 1192832
+    },
+    "WRIST": {
+      "files": 149,
+      "rows": 423819,
+      "positive": 0,
+      "negative": 423819,
+      "unknown": 0
+    }
+  },
+  "limitations": [
+    "Teacher scores use future context and pointer corroboration",
+    "Physical event onset has no independent ground truth",
+    "These are research silver labels, not certified firmware targets"
+  ]
+}

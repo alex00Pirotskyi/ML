@@ -1,0 +1,187 @@
+{
+  "audits": [
+    {
+      "duration_s": 5.476,
+      "kept_events": 57,
+      "sample_dt_ms": 15.0,
+      "source": "SWIPE/Eli_riv_RightHand_SwipeSoft_Horizontal_Left_right_120bpm_2026-07-22_14-06-11.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 57,
+      "v3_events": 19
+    },
+    {
+      "duration_s": 10.726,
+      "kept_events": 121,
+      "sample_dt_ms": 15.0,
+      "source": "SWIPE/Eli_riv_RightHand_SwipeSoft_Horizontal_Left_right_60bpm_2026-07-22_14-06-01.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 121,
+      "v3_events": 32
+    },
+    {
+      "duration_s": 7.074,
+      "kept_events": 74,
+      "sample_dt_ms": 16.0,
+      "source": "SWIPE/Eli_riv_RightHand_SwipeSoft_Horizontal_Up_Down_120bpm_2026-07-22_14-06-39.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 74,
+      "v3_events": 21
+    },
+    {
+      "duration_s": 10.92,
+      "kept_events": 123,
+      "sample_dt_ms": 15.0,
+      "source": "SWIPE/Eli_riv_RightHand_SwipeSoft_Horizontal_Up_Down_60bpm_2026-07-22_14-06-27.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 123,
+      "v3_events": 29
+    },
+    {
+      "duration_s": 5.288,
+      "kept_events": 50,
+      "sample_dt_ms": 19.0,
+      "source": "SWIPE/Eli_riv_RightHand_SwipeSoft_Vertical_Left_right_120bpm_2026-07-22_14-09-42.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 50,
+      "v3_events": 14
+    },
+    {
+      "duration_s": 9.578,
+      "kept_events": 97,
+      "sample_dt_ms": 17.0,
+      "source": "SWIPE/Eli_riv_RightHand_SwipeSoft_Vertical_Left_right_60bpm_2026-07-22_14-09-28.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 97,
+      "v3_events": 22
+    },
+    {
+      "duration_s": 5.456,
+      "kept_events": 45,
+      "sample_dt_ms": 17.0,
+      "source": "SWIPE/Eli_riv_RightHand_SwipeSoft_Vertical_Up_Down_120bpm_2026-07-22_14-09-13.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 45,
+      "v3_events": 13
+    },
+    {
+      "duration_s": 10.662,
+      "kept_events": 120,
+      "sample_dt_ms": 19.0,
+      "source": "SWIPE/Eli_riv_RightHand_SwipeSoft_Vertical_Up_Down_60bpm_2026-07-22_14-09-03.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 120,
+      "v3_events": 30
+    },
+    {
+      "duration_s": 5.761,
+      "kept_events": 61,
+      "sample_dt_ms": 16.0,
+      "source": "SWIPE/Eli_riv_RightHand_SwipeStrong_Horizontal_Left_right_120bpm_2026-07-22_14-07-34.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 61,
+      "v3_events": 13
+    },
+    {
+      "duration_s": 9.726,
+      "kept_events": 97,
+      "sample_dt_ms": 16.0,
+      "source": "SWIPE/Eli_riv_RightHand_SwipeStrong_Horizontal_Left_right_60bpm_2026-07-22_14-07-22.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 97,
+      "v3_events": 24
+    },
+    {
+      "duration_s": 5.312,
+      "kept_events": 52,
+      "sample_dt_ms": 16.0,
+      "source": "SWIPE/Eli_riv_RightHand_SwipeStrong_Horizontal_Up_Down_120bpm_2026-07-22_14-07-06.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 52,
+      "v3_events": 17
+    },
+    {
+      "duration_s": 9.763,
+      "kept_events": 86,
+      "sample_dt_ms": 15.0,
+      "source": "SWIPE/Eli_riv_RightHand_SwipeStrong_Horizontal_Up_Down_60bpm_2026-07-22_14-06-57.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 86,
+      "v3_events": 18
+    },
+    {
+      "duration_s": 5.6,
+      "kept_events": 51,
+      "sample_dt_ms": 17.0,
+      "source": "SWIPE/Eli_riv_RightHand_SwipeStrong_Vertical_Left_right_120bpm_2026-07-22_14-10-39.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 51,
+      "v3_events": 15
+    },
+    {
+      "duration_s": 9.428,
+      "kept_events": 85,
+      "sample_dt_ms": 17.0,
+      "source": "SWIPE/Eli_riv_RightHand_SwipeStrong_Vertical_Left_right_60bpm_2026-07-22_14-10-28.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 85,
+      "v3_events": 22
+    },
+    {
+      "duration_s": 5.747,
+      "kept_events": 49,
+      "sample_dt_ms": 20.0,
+      "source": "SWIPE/Eli_riv_RightHand_SwipeStrong_Vertical_Up_Down_120bpm_2026-07-22_14-10-09.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 49,
+      "v3_events": 12
+    },
+    {
+      "duration_s": 9.802,
+      "kept_events": 86,
+      "sample_dt_ms": 19.0,
+      "source": "SWIPE/Eli_riv_RightHand_SwipeStrong_Vertical_Up_Down_60bpm_2026-07-22_14-09-58.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 86,
+      "v3_events": 21
+    },
+    {
+      "duration_s": 5.373,
+      "kept_events": 47,
+      "sample_dt_ms": 3.0,
+      "source": "SWIPE/GonenYemini_RightHand_SwipeMID_Horizontal_Left_right_120bpm_2026-07-15_12-23-04.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 47,
+      "v3_events": 18
+    },
+    {
+      "duration_s": 10.803,
+      "kept_events": 95,
+      "sample_dt_ms": 3.0,
+      "source": "SWIPE/GonenYemini_RightHand_SwipeMID_Horizontal_Left_right_60bpm_2026-07-15_12-22-53.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 95,
+      "v3_events": 31
+    },
+    {
+      "duration_s": 6.043,
+      "kept_events": 62,
+      "sample_dt_ms": 6.0,
+      "source": "SWIPE/GonenYemini_RightHand_SwipeMID_Horizontal_Up_Down_120bpm_2026-07-15_12-22-36.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 62,
+      "v3_events": 19
+    },
+    {
+      "duration_s": 13.129,
+      "kept_events": 117,
+      "sample_dt_ms": 3.0,
+      "source": "SWIPE/GonenYemini_RightHand_SwipeMID_Horizontal_Up_Down_60bpm_2026-07-15_12-22-24.csv",
+      "timestamp_gaps_gt_140ms": 0,
+      "union_events": 117,
+      "v3_events": 36
+    }
+  ],
+  "candidates": 1575,
+  "records": 20,
+  "source_fingerprint_sha256": "cfc04953e78390f21d0b364890334db40ec1302bdb6b2f91890ec119f0c36cc0"
+}
