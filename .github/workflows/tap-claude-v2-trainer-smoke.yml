@@ -120,6 +120,7 @@ jobs:
                           'cv':{'f1':0.9},'folds':[]},
               values=(0.9,size['total_static_data_bytes']))
           fresh=out/'direct_training_export'
+          fresh.mkdir(parents=True,exist_ok=True)  # v6.run() normally creates this
           ranked=module.v6.export_selected(
               data,train,hold,None,[trial],fresh,20261117,
               stable_headers=True,
