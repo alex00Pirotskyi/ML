@@ -1,0 +1,193 @@
+name: Claude V2 TAP/SWIPE label export (source-verified)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/tap-claude-v2-label-export.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  export:
+    name: Export strong-only 0-80ms onset labels
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - name: Check out original recordings and committed Claude research
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          sparse-checkout: |
+            DATA/DATA_TAP
+            claude_research_tap
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install export dependencies
+        run: python -m pip install --disable-pip-version-check numpy pandas
+
+      - name: Verify source dataset against Claude's original training folds and hashes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import gzip, hashlib, json
+          import pandas as pd
+          base=Path('DATA/DATA_TAP')
+          foldpath=Path('claude_research_tap/results/folds.csv')
+          eventpath=Path('claude_research_tap/results/events_v3.csv.gz')
+          summarypath=Path('claude_research_tap/results/summary.json')
+          assert base.is_dir() and foldpath.is_file() and eventpath.is_file() and summarypath.is_file()
+          folds=pd.read_csv(foldpath, dtype={'sha':str})
+          needed={'name','cat','sha'}
+          assert needed.issubset(folds.columns), f'Missing fold columns: {needed-set(folds.columns)}'
+          expected=set(zip(folds.cat,folds.name,folds.sha))
+          assert len(expected)==len(folds), 'Duplicate/ambiguous entries in folds.csv'
+          actual=set(); seen=set(); filenames={}
+          n_archives=0
+          for path in sorted(base.glob('*/*.csv.gz')):
+              n_archives+=1
+              h=hashlib.sha256()
+              with gzip.open(path,'rb') as f:
+                  for part in iter(lambda:f.read(1048576),b''):
+                      h.update(part)
+              digest=h.hexdigest()
+              if digest in seen:
+                  continue
+              seen.add(digest)
+              cat=path.parent.name
+              name=path.name
+              if name in filenames:
+                  raise AssertionError(f'Output basename collision: {name} ({filenames[name]} and {cat})')
+              filenames[name]=cat
+              actual.add((cat,name,digest))
+          extra=actual-expected
+          missing=expected-actual
+          assert not extra and not missing, (
+              f'Dataset differs from Claude frozen training source: {len(extra)} unexpected, {len(missing)} missing. '
+              f'Examples extra={list(extra)[:3]}, missing={list(missing)[:3]}')
+          assert n_archives==2921 and len(actual)==2790, (
+              f'Expected 2,921 archives / 2,790 unique; got {n_archives}/{len(actual)}')
+          with gzip.open(eventpath,'rt') as f:
+              header=f.readline()
+          assert 'tier' in header and 't_on' in header and 'name' in header, 'Event schema mismatch'
+          s=json.loads(summarypath.read_text())
+          assert '1' in s['thr_at_neg_false_per_min'], 'Strong label threshold missing'
+          print('CLAUDE_SOURCE_CONTRACT_OK',json.dumps({
+              'archives':n_archives,'unique':len(actual),'frozen_fold_entries':len(folds),
+              'threshold_1_false_per_min':s['thr_at_neg_false_per_min']['1']},sort_keys=True))
+          PY
+
+      - name: Run unchanged Claude V2 exporter, strong labels only, onset 0-80ms
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -u claude_research_tap/pipeline/export_labels.py \
+            DATA/DATA_TAP \
+            claude_research_tap/results/events_v3.csv.gz \
+            claude_research_tap/results/summary.json \
+            DATA/DATA_TAP_LABELS_CLAUDE_V2_20261117 \
+            --win 0 80 \
+            2>&1 | tee claude_v2_export.log
+
+      - name: Independently validate every output and create SHA-256 source-output manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import collections, gzip, hashlib, json
+          import numpy as np
+          import pandas as pd
+          src=Path('DATA/DATA_TAP')
+          dst=Path('DATA/DATA_TAP_LABELS_CLAUDE_V2_20261117')
+          folds=pd.read_csv('claude_research_tap/results/folds.csv',dtype={'sha':str})
+          expected={(r.cat,r.name,r.sha) for r in folds.itertuples()}
+          actual=set()
+          by_category=collections.defaultdict(lambda:{'files':0,'rows':0,'positive':0,'negative':0,'unknown':0})
+          counts=collections.Counter()
+          rows=[]; seen=set(); names=set()
+          allowed={'TAP','SWIPE','FINGER','WRIST','ARM','BAND','NOTHING'}
+          columns=['Timestamp','onset_label','active_label','gesture_kind','event_id','weight']
+          for source in sorted(src.glob('*/*.csv.gz')):
+              h=hashlib.sha256()
+              with gzip.open(source,'rb') as f:
+                  for block in iter(lambda:f.read(1048576),b''): h.update(block)
+              digest=h.hexdigest()
+              if digest in seen: continue
+              seen.add(digest)
+              cat=source.parent.name; name=source.name
+              assert cat in allowed, f'Unexpected category {cat}'
+              actual.add((cat,name,digest))
+              assert name not in names, f'Colliding export basename {name}'
+              names.add(name)
+              out=dst/name.replace('.csv.gz','.labels.csv.gz')
+              assert out.is_file(), f'Missing export {out}'
+              original=pd.read_csv(source,compression='gzip',usecols=['Timestamp']).Timestamp.to_numpy()
+              label=pd.read_csv(out,compression='gzip')
+              assert list(label.columns)==columns, f'Unexpected output schema: {out}'
+              assert len(original)==len(label), f'Row count mismatch: {out}'
+              assert np.array_equal(original,label.Timestamp.to_numpy()), f'Timestamps changed: {out}'
+              assert label.onset_label.isin([-1,0,1]).all(), f'Invalid onset label: {out}'
+              assert label.active_label.isin([-1,0,1]).all(), f'Invalid active label: {out}'
+              assert label.gesture_kind.isin([0,1,2]).all(), f'Invalid kind: {out}'
+              assert np.isfinite(label.weight.to_numpy()).all(), f'Nonfinite weights: {out}'
+              assert ((label.weight>=0)&(label.weight<=1.000001)).all(), f'Weight out of range: {out}'
+              on=label.onset_label.to_numpy()
+              active=label.active_label.to_numpy()
+              weight=label.weight.to_numpy()
+              assert np.all(weight[on==1]>0), f'Unweighted positive onset: {out}'
+              assert np.all(weight[(on==-1)&(active==-1)]==0), f'Unmasked unknown: {out}'
+              if cat not in ('TAP','SWIPE'):
+                  assert not ((on==1)|(active==1)).any(), f'Positive label in trusted negative category: {out}'
+              else:
+                  kd=1 if cat=='TAP' else 2
+                  assert (label.loc[active==1,'gesture_kind']==kd).all(), f'Gesture kind mismatch: {out}'
+              p=int((on==1).sum()); neg=int((on==0).sum()); unknown=int((on==-1).sum())
+              info=by_category[cat]
+              info['files']+=1; info['rows']+=len(on); info['positive']+=p
+              info['negative']+=neg; info['unknown']+=unknown
+              counts.update({'files':1,'rows':len(on),'onset_pos':p,'onset_neg':neg,'onset_unk':unknown})
+              out_sha=hashlib.sha256(out.read_bytes()).hexdigest()
+              rows.append({'source':source.relative_to(src).as_posix(),'source_sha256_uncompressed':digest,
+                           'label_file':out.name,'label_sha256_compressed':out_sha,
+                           'rows':len(on),'positive_onset_rows':p,'negative_onset_rows':neg,'unknown_onset_rows':unknown})
+          assert actual==expected, 'Frozen source-hash mapping changed'
+          assert counts['files']==2790, f'Wrong unique output count: {counts["files"]}'
+          outputs=list(dst.glob('*.labels.csv.gz'))
+          assert len(outputs)==counts['files'], f'Unexpected label output files: {len(outputs)}'
+          original_summary=json.loads((dst/'_export_summary.json').read_text())['totals']
+          for a,b in [('files','files'),('onset_pos','onset_pos'),('onset_neg','onset_neg'),('onset_unk','onset_unk')]:
+              assert int(original_summary[a])==counts[b], f'Independent count mismatch for {a}'
+          assert counts['onset_pos']>0 and counts['onset_neg']>0 and counts['onset_unk']>0
+          result={
+              'status':'VALIDATED_CLAUDE_V2_SILVER_LABELS_NOT_PHYSICAL_GROUND_TRUTH',
+              'source':'DATA/DATA_TAP',
+              'source_provenance':'Matches committed claude_research_tap/results/folds.csv name, category and decompressed SHA256',
+              'exporter':'claude_research_tap/pipeline/export_labels.py (unchanged)',
+              'onset_window_ms':[0,80], 'weak_presses_included':False,
+              'promote_double_partners':False,'counts':dict(counts),
+              'by_category':dict(sorted(by_category.items())),
+              'limitations':['Teacher scores use future context and pointer corroboration',
+                  'Physical event onset has no independent ground truth','These are research silver labels, not certified firmware targets']}
+          Path('claude_v2_audit.json').write_text(json.dumps(result,indent=2)+'\n')
+          pd.DataFrame(rows).to_csv('claude_v2_source_output_manifest.csv.gz',index=False)
+          print('CLAUDE_V2_EXPORT_AUDIT_OK',json.dumps(result,sort_keys=True))
+          PY
+
+      - name: Upload verified labels, audit, and manifest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: claude-v2-tap-swipe-labels-20261117
+          if-no-files-found: warn
+          retention-days: 30
+          path: |
+            DATA/DATA_TAP_LABELS_CLAUDE_V2_20261117/**
+            claude_v2_export.log
+            claude_v2_audit.json
+            claude_v2_source_output_manifest.csv.gz
