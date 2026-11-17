@@ -124,10 +124,19 @@ def _manifest_checks(label_root):
     return trusted
 
 def _source_for(root,category,stem):
-    choices=[root/category/(stem+".csv.gz"),root/category/(stem+".csv")]
-    found=[p for p in choices if p.is_file()]
-    if len(found)!=1:raise ValueError(f"Expected one source for {category}/{stem}; found {found}")
-    return found[0]
+    """Prefer the canonical compressed recording when a local .csv copy also exists.
+
+    The chosen filename must still appear in the frozen source manifest,
+    and load_dataset() validates its decompressed SHA-256 before using rows.
+    Never combine, delete, or silently substitute the uncompressed copy.
+    """
+    compressed = root/category/(stem+".csv.gz")
+    if compressed.is_file():
+        return compressed
+    plain = root/category/(stem+".csv")
+    if plain.is_file():
+        return plain
+    raise FileNotFoundError(f"Missing source for {category}/{stem}; expected {compressed} or {plain}")
 
 def _scan_sources(source_root,label_root,manifest,limit=None):
     label_files=sorted(label_root.glob("*/*.labels.csv.gz"))
