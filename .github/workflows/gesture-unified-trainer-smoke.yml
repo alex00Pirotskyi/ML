@@ -1,0 +1,63 @@
+name: Smoke test unified TAP + LP Claude trainer
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'research/gesture/train_unified.py'
+      - 'research/gesture/test_unified_smoke.py'
+      - '.github/workflows/gesture-unified-trainer-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  real-source-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            DATA/DATA_TAP/TAP
+            DATA/DATA_TAP/SWIPE
+            DATA/DATA_TAP/FINGER
+            DATA/DATA_TAP/ARM
+            DATA/DATA_TAP/WRIST
+            DATA/DATA_TAP/BAND
+            DATA/DATA_LONG_PRESS/SOFT_LONG_PRESS
+            DATA/DATA_LONG_PRESS/MID_LONG_PRESS
+            DATA/DATA_LONG_PRESS/STRONG_LONG_PRESS
+            DATA/DATA_LONG_PRESS/DRAG_AND_DROP
+            DATA/DATA_LONG_PRESS/LONG_PRESS
+            DATA/DATA_LONG_PRESS/CONNECTED
+            DATA/DATA_LONG_PRESS/DISCONNECTED
+            DATA/DATA_LONG_PRESS/LOOSE
+            DATA/DATA_LONG_PRESS/TABLE
+            DATA/DATA_LONG_PRESS/TAP
+            DATA/DATA_LONG_PRESS/SWIPE
+            claude_labeling
+            research/tap_real
+            research/gesture
+            export_plus.py
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install lightweight training dependencies
+        run: python -m pip install --disable-pip-version-check numpy pandas scipy scikit-learn lightgbm optuna joblib
+      - name: Compile and execute real-source two-model smoke
+        run: |
+          python -m py_compile research/gesture/train_unified.py research/gesture/test_unified_smoke.py
+          python -u research/gesture/test_unified_smoke.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unified-tap-lp-smoke-reports
+          path: |
+            research/gesture/_smoke_results/tap/summary.json
+            research/gesture/_smoke_results/lp/summary.json
+            research/gesture/_smoke_results/tap/models/TAP_SWIPE.h
+            research/gesture/_smoke_results/lp/models/LONG_PRESS.h
+          if-no-files-found: warn
+          retention-days: 7
