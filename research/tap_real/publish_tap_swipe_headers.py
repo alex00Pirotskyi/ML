@@ -30,7 +30,8 @@ import joblib
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 import export_plus
-from research.tap_real.train_optuna_student_v6 import FIXED_DECISION_THRESHOLD
+sys.path.insert(0, str(ROOT / "research" / "tap_real"))
+from train_optuna_student_v6 import FIXED_DECISION_THRESHOLD
 
 DEFAULT_OUTPUT = ROOT / "research" / "tap_real" / "results_claude_v2_optuna_126_thr085"
 MODEL_NAME = "TAP_SWIPE"
