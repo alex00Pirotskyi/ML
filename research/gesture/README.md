@@ -63,13 +63,17 @@ The inversion preserves `-1` as unknown. It does not affect source labels.
     #include "LONG_PRESS.h"
 
     bool onset = TAP_SWIPE_predict(&m_feat_core);
-    bool release = LONG_PRESS_predict(&m_feat_core);
+    float release_probability = LONG_PRESS_predict_value(&m_feat_core);
+    bool release_if_single_sample = LONG_PRESS_predict(&m_feat_core);
 
 `LONG_PRESS_predict()` returning false **does not start a new press**;
-only the separate TAP model may start one. Integrate the release score into
-the actual 10-prediction averaged firmware policy. These generated APIs
-output a hard decision at 0.85; where the firmware needs *probabilities*,
-use the header's generated native probability API, not the boolean method.
+only the separate TAP model may start one. **For the firmware's existing
+10-sample averaging, average `LONG_PRESS_predict_value()`, not the boolean
+`LONG_PRESS_predict()`.** The exporter uses an efficient Q20 representation:
+the returned float is quantized in 0.05 increments (equivalently call
+`LONG_PRESS_probability_q20()` for an integer in [0, 20]). Both the
+value and Q20 APIs have stable, trial-independent aliases and are exercised
+by C syntax tests. The final firmware release threshold stays fixed at 0.85.
 
 **Never run both rank variants of the same header simultaneously** because
 the C APIs are deliberately identical.
