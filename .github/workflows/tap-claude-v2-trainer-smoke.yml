@@ -40,6 +40,13 @@ jobs:
           module=importlib.util.module_from_spec(s)
           s.loader.exec_module(module)
           assert module.CPU_THREADS == max(1,int(module.cpu_count()*0.8))
+          assert module.v6.FIXED_DECISION_THRESHOLD == 0.85
+          # A hard regression guard: threshold tuning must NOT reappear in Optuna.
+          import inspect
+          trial_code=inspect.getsource(module.v6.evaluate_trial)
+          assert 'suggest_float("decision_threshold"' not in trial_code
+          assert "threshold=FIXED_DECISION_THRESHOLD" in trial_code
+          assert "trial.params[\"decision_threshold\"]" not in inspect.getsource(module.v6.export_selected)
           module.prepare()
           module.enable_full_feature_schema()
           assert module.CPU_THREADS == max(1,int(module.cpu_count()*0.8))
@@ -89,7 +96,7 @@ jobs:
           report=module.v6.export_plus.export_to_c_header(
               {'model':model,'preprocessing':'none','indices':list(range(126))},
               {'group_name':name,'selected_indices':list(range(126)),
-               'decision_threshold':0.5,'target_class_id':1,
+               'decision_threshold':module.v6.FIXED_DECISION_THRESHOLD,'target_class_id':1,
                'preprocessing':'none','params':model.get_params()},
               header,schema,validate=True)
           check=module.compile_header_126(header,name,out)
@@ -114,9 +121,10 @@ jobs:
               'rank':7,'optuna_trial':33,
               'final_model':{'features':data['columns'],
                              'params':model.get_params(),
-                             'decision_threshold':0.5}}))
+                             'decision_threshold':module.v6.FIXED_DECISION_THRESHOLD}}))
           (bundle/'summary.json').write_text(json.dumps({
-              'status':'success','selected_models':1,
+              'status':'success','fixed_decision_threshold':0.85,
+              'threshold_optimized_by_optuna':False,'selected_models':1,
               'ranking':[{'rank':7,'trial':33,'header':tag+'.h',
                           'json':tag+'.json','cv_f1':0.952499,
                           'holdout_f1':0.960744,'actual_static_bytes':size['total_static_data_bytes'],
@@ -128,6 +136,8 @@ jobs:
           assert '#define TAP_SWIPE_predict tap_swipe_predict' in h
           assert 'tap_swipe_predict(const t_core* p_core)' in h
           assert '#define TAP_SWIPE_NUM_FEATURES 126u' in h
+          assert '#define TAP_SWIPE_THRESHOLD 0.850000024f' in h
+          assert json.loads((bundle/'models'/'TAP_SWIPE_model_info.json').read_text())['decision_threshold'] == 0.85
           assert 'v6_rank' not in h.lower()
           assert (bundle/'models'/'candidates'/'rank_07'/'TAP_SWIPE.h').is_file()
           assert (bundle/'models'/'TAP_SWIPE_feature_schema.json').is_file()
