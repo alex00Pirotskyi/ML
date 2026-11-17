@@ -17,6 +17,12 @@ The script uses 80% of affinity/cgroup-constrained logical CPU threads, with a
 minimum of one thread. This is a hardcoded constant; there is **no --threads**
 argument. Training with 40 Optuna trials may take substantial time.
 
+**The classifier decision threshold is hardcoded at 0.85 everywhere**:
+Optuna DOES NOT sample or optimize it. The 0.85 operating threshold is
+identical for all CV folds, held-out testing, candidate ranking and
+`TAP_SWIPE.h` export. Optuna optimizes model structure, feature groups,
+positive-class weight, and other training hyperparameters versus C model size.
+
 If absent, the script first calls the committed Claude V2 label exporter to
 create `DATA/DATA_TAP_LABELS_CLAUDE_V2_20261117` (strong-only labels,
 0–80 ms onset, weak press partners not promoted). The original data are read-only.
@@ -42,7 +48,7 @@ The runner reuses `research/tap_real/train_optuna_student_v6.py` with:
   - Optuna feature-group comparisons include the full **126** and original **36** (explicitly seeded first), ACC-only 72, EMG-only 45, and additional group ablations.
   - The C-header compiler smoke test uses a synthetic `t_core` covering 126 fields; the real nRF52832 firmware ABI/macro values and computational cost still need validation.
 
-Outputs go to `research/tap_real/results_claude_v2_optuna_126/`, including
+Outputs go to `research/tap_real/results_claude_v2_optuna_126_thr085/`, including
 `summary.json`, `CLAUDE_V2_PROVENANCE.json`, and `models/`.
 
 A small backwards-compatible hook seeds the first two Optuna trials with `full126` and `instant36`, guaranteeing a direct side-by-side training baseline. At least one of the 10 exported C models is guaranteed to be a `full126` model; the other nine prioritize the quality/size trade-off.
@@ -64,26 +70,35 @@ The training wrapper automatically publishes a **stable firmware interface**:
 
 Default selection chooses the **smallest static model** whose **training
 cross-validation silver F1** is within 0.015 absolute of the best CV F1.
-This avoids using the held-out test F1 for the selection. For the November
-17 study (CV F1 best 0.9661), this chooses **rank 7** (5,084 static bytes).
+This avoids using the held-out test F1 for the selection. For each new fixed-0.85 study, the default is selected only from **CV F1
+measured at 0.85**. Prior study rankings are not reused.
 
-If the original 40-trial experiment is already completed, simply run:
+The earlier successful 40-trial study in
+`research/tap_real/results_claude_v2_optuna_126/` **optimized a variable
+decision threshold**, so its F1 numbers and rank ordering are NOT valid for the
+new fixed-0.85 objective. The old study is deliberately preserved and will
+not be silently republished as if it used 0.85.
+
+To run the correct fixed-0.85 study, use:
 
 ```bash
 git pull --ff-only
 python -u research/tap_real/train_claude_v2_optuna.py
 ```
 
-It now **recognizes the completed study and republishes the stable C headers
-without retraining or relabeling**. Alternatively run only the exporter:
+This starts a **new experiment** in `results_claude_v2_optuna_126_thr085`.
+Original labels are reused, so relabeling is unnecessary. If that new study
+has already completed, the same command republishes its stable C headers
+without retraining; alternatively run:
 
 ```bash
 python -u research/tap_real/publish_tap_swipe_headers.py
 ```
 
 The older versioned headers and trial metadata are retained for reproducibility,
-but firmware should use `models/TAP_SWIPE.h`. No other model's code or
-names need to appear in firmware source. No edit to `export_plus.py` is needed.
+but new firmware should use `models/TAP_SWIPE.h` from the fixed-0.85 study.
+No other model's code or names need to appear in firmware source. No edit to
+`export_plus.py` is needed.
 
 The upstream V6 training code still has legacy filenames
 (`tap_swipe_v6_...`) and some documentation referencing V5; the wrapper
