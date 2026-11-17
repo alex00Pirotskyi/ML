@@ -90,6 +90,8 @@ def main():
         text=h.read_text()
         assert f"#ifndef {stem}_MODEL_H" in text
         assert f"#define {stem}_predict {stem.lower()}_predict" in text
+        assert f"#define {stem}_predict_value {stem.lower()}_predict_value" in text
+        assert f"#define {stem}_probability_q20 {stem.lower()}_probability_q20" in text
         assert f"#define {stem}_THRESHOLD 0.850000024f" in text
         assert "V6_RANK" not in text and "v6_rank" not in text
         schema=json.loads((out/"models"/(stem+"_feature_schema.json")).read_text())
