@@ -52,7 +52,8 @@ SOURCE = ROOT/'DATA'/'DATA_TAP'
 CLAUDE = ROOT/'claude_research_tap'/'results'
 ORIGINAL = ROOT/'DATA'/'DATA_TAP_LABELS_CLAUDE_V2_20261117'
 ADAPTED = ROOT/'research'/'tap_real'/'cache_claude_v2_v6_schema'
-OUTPUT = ROOT/'research'/'tap_real'/'results_claude_v2_optuna_126'
+OUTPUT = ROOT/'research'/'tap_real'/'results_claude_v2_optuna_126_thr085'
+# Keep original threshold-tuned experiments immutable; this is a new study.
 POS = {'TAP', 'SWIPE'}
 NEG = {'FINGER', 'WRIST', 'ARM', 'BAND', 'NOTHING'}
 TRIALS = 40
@@ -248,14 +249,16 @@ def main():
         summary_file = OUTPUT / 'summary.json'
         if summary_file.is_file():
             summary = json.loads(summary_file.read_text(encoding='utf-8'))
-            if summary.get('status') == 'success':
+            if (summary.get('status') == 'success'
+                    and summary.get('fixed_decision_threshold') == v6.FIXED_DECISION_THRESHOLD
+                    and summary.get('threshold_optimized_by_optuna') is False):
                 stable = publish_stable_headers(
                     OUTPUT, compile_header=compile_header_126)
                 print('CLAUDE_V2_REUSE_EXISTING_STUDY_NO_RETRAIN',
                       str(OUTPUT/'models'/'TAP_SWIPE.h'),
                       'rank', stable['selected_rank'], flush=True)
                 return
-        raise ValueError('Incomplete/immutable study exists; inspect or archive '+str(OUTPUT))
+        raise ValueError('Incomplete or legacy threshold-tuned study exists; inspect or archive '+str(OUTPUT))
     prepare()
     enable_full_feature_schema()
     base_load = v6.load_dataset
@@ -303,13 +306,16 @@ def main():
     v6.run(args)
     provenance={'label_source':'Claude V2 sensor-timed 0-80ms, strong events only',
                 'unknown_excluded':True,'target_bag_background_as_negative':False,
-                'objectives':['participant-group CV silver-label F1 (maximize)',
+                'fixed_decision_threshold':v6.FIXED_DECISION_THRESHOLD,
+                'threshold_optimized_by_optuna':False,
+                'objectives':['participant-group CV silver-label F1 at fixed 0.85 (maximize)',
                               'export_plus compact static C model bytes (minimize)'],
                 'cpu_fraction':CPU_FRACTION,'cpu_threads':CPU_THREADS,
                 'warning':'V6 exporter filenames and some inherited comments say V5: actual input labels are Claude V2.',
                 'raw_features_available':len(FULL_126),
                 'compared_feature_sets':{k:len(v) for k,v in FEATURE_SETS.items()},
                 'limitations':['Silver-label agreement is NOT measured physical tap recall or false events/hour',
+                               'Legacy 2026-11-17 study with tuned threshold is NOT directly comparable to fixed-0.85 CV F1',
                                '126 logged p_core fields assumed available at runtime; actual firmware declarations and memory/CPU costs must be checked',
                                'Stub C compilation is not an nRF52832 firmware build']}
     v6.save_json(OUTPUT/'CLAUDE_V2_PROVENANCE.json',provenance)
