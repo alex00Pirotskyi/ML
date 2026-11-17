@@ -46,6 +46,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT/'research'/'tap_real'))
 import train_optuna_student_v6 as v6
+from publish_tap_swipe_headers import publish as publish_stable_headers
 
 SOURCE = ROOT/'DATA'/'DATA_TAP'
 CLAUDE = ROOT/'claude_research_tap'/'results'
@@ -242,7 +243,19 @@ def prepare():
 def main():
     print('CPU_80_PERCENT',cpu_count(),CPU_THREADS,flush=True)
     if OUTPUT.exists() and any(OUTPUT.iterdir()):
-        raise ValueError('Immutable previous study exists; archive/rename '+str(OUTPUT))
+        # Completed results can be republished with a stable C API without
+        # rerunning a 40-trial Optuna study. Preserve the trained model bytes.
+        summary_file = OUTPUT / 'summary.json'
+        if summary_file.is_file():
+            summary = json.loads(summary_file.read_text(encoding='utf-8'))
+            if summary.get('status') == 'success':
+                stable = publish_stable_headers(
+                    OUTPUT, compile_header=compile_header_126)
+                print('CLAUDE_V2_REUSE_EXISTING_STUDY_NO_RETRAIN',
+                      str(OUTPUT/'models'/'TAP_SWIPE.h'),
+                      'rank', stable['selected_rank'], flush=True)
+                return
+        raise ValueError('Incomplete/immutable study exists; inspect or archive '+str(OUTPUT))
     prepare()
     enable_full_feature_schema()
     base_load = v6.load_dataset
@@ -307,7 +320,10 @@ def main():
             report['limitations']=[str(x).replace('V5 inferred','Claude V2 inferred').replace('V5 ','Claude V2 ')
                                    for x in report.get('limitations',[])]
             v6.save_json(p,report)
-    print('CLAUDE_V2_TRAINING_FINISHED',OUTPUT,'raw_features',len(FULL_126),flush=True)
+    stable = publish_stable_headers(OUTPUT, compile_header=compile_header_126)
+    print('CLAUDE_V2_TRAINING_FINISHED',OUTPUT,'raw_features',len(FULL_126),
+          'stable_header',str(OUTPUT/'models'/'TAP_SWIPE.h'),
+          'default_rank',stable['selected_rank'],flush=True)
 
 if __name__=='__main__':
     main()
