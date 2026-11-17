@@ -266,6 +266,21 @@ def main():
         return params
     v6.load_dataset = load
     v6.model_params = model_params
+    # Always export one real full126 model, even if a smaller feature set wins
+    # Optuna's Pareto/utility ranking. Preserve the other nine ranked choices.
+    original_select = v6.pareto_select
+    def retain_full126_candidate(study, k):
+        selected = original_select(study, k)
+        full = [t for t in study.trials
+                if t.state == v6.optuna.trial.TrialState.COMPLETE
+                and t.values is not None and t.params.get('feature_set') == 'full126']
+        if not full:
+            raise RuntimeError('No successful full126 trial: check the study failures')
+        best = max(full, key=lambda t: float(t.values[0]))
+        if best.number not in {t.number for t in selected}:
+            selected[-1] = best
+        return selected
+    v6.pareto_select = retain_full126_candidate
     args = SimpleNamespace(input_dir=SOURCE, labels_dir=ADAPTED, out_dir=OUTPUT,
                            trials=TRIALS, cv_folds=FOLDS, top_k=TOP_K,
                            max_per_class=MAX_ROWS_PER_CLASS_PER_FILE,
