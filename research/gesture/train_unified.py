@@ -124,8 +124,15 @@ def labels_complete(source: Path, output: Path, files: list[Path]) -> bool:
     state = json.loads(summary.read_text(encoding="utf-8"))
     total = state.get("totals", {})
     args = total.get("args", {})
-    if total.get("failed") != 0 or int(total.get("files", -1)) != len(files):
+    if total.get("failed") != 0 or int(total.get("files", -1)) < len(files):
         return False
+    if int(total["files"]) > len(files):
+        # The older Claude tool scans both *.csv and *.csv.gz. Some users
+        # have local uncompressed copies beside the canonical archive.
+        # Reuse its per-canonical-file labels only when every canonical
+        # sidecar exists; the row/timestamp audit below still applies.
+        if next(source.glob("*/*.csv"), None) is None:
+            return False
     if args.get("kind", "auto") != "auto":
         return False
     if args.get("disconnect_rule", "all") != "all":
@@ -155,7 +162,7 @@ def ensure_labels(root: Path, label_dir: Path) -> list[Path]:
     staging.parent.mkdir(parents=True, exist_ok=True)
     # Claude's labeler walks .csv.gz AND .csv. Use a canonical symlink tree
     # when a local uncompressed sibling exists, so no recording is doubled.
-    extra_csv = any(root.glob("*/*.csv")) if False else next(root.glob("*/*.csv"), None) is not None
+    extra_csv = next(root.glob("*/*.csv"), None) is not None
     input_dir = root
     symlink_root = None
     if extra_csv:
