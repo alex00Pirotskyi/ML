@@ -51,6 +51,8 @@ ALL_CLASSES = TARGETS | NEGATIVES
 LABEL_COLUMNS = ("Timestamp","gesture_label","gesture_weight","gesture_kind","gesture_event_id")
 FLOAT_COLUMNS = ("gesture_weight",)
 LABEL_SUFFIX = ".labels.csv.gz"
+# Fixed firmware decision policy: Optuna MUST NOT tune a probability threshold.
+FIXED_DECISION_THRESHOLD = 0.85
 
 def digest(path, decompress=False):
     h=hashlib.sha256()
@@ -345,7 +347,7 @@ def fit_one(X,y,w,params):
 def evaluate_trial(trial, data, train_indices, folds, seed):
     family=trial.suggest_categorical("feature_set",list(data["feature_sets"]))
     selected=[data["columns"].index(x) for x in data["feature_sets"][family]]
-    threshold=trial.suggest_float("decision_threshold",.30,.75,step=.05)
+    threshold=FIXED_DECISION_THRESHOLD  # Not an Optuna hyperparameter
     pos_weight=trial.suggest_float("positive_weight",.75,2.5)
     params=model_params(trial,seed)
     train_groups=data["group"][train_indices]
@@ -372,7 +374,8 @@ def evaluate_trial(trial, data, train_indices, folds, seed):
     trial.set_user_attr("size_fold_max",max(bytes_list))
     trial.set_user_attr("selected_features",data["feature_sets"][family])
     trial.set_user_attr("training_params",params)
-    trial.set_user_attr("evaluation","confidence-weighted V5 pseudo-label F1; user-block OOF")
+    trial.set_user_attr("evaluation","confidence-weighted silver-label F1 at FIXED threshold 0.85; user-block OOF")
+    trial.set_user_attr("fixed_decision_threshold",FIXED_DECISION_THRESHOLD)
     return float(m["f1"]), int(max(bytes_list))
 
 def pareto_select(study,k):
@@ -434,7 +437,9 @@ def export_selected(data, train_idx, test_idx, study, selected, output, seed):
         params=trial.user_attrs["training_params"]
         cols=trial.user_attrs["selected_features"]
         indices=[data["columns"].index(x) for x in cols]
-        threshold=float(trial.params["decision_threshold"])
+        if "decision_threshold" in trial.params:
+            raise ValueError("Legacy trial tuned decision_threshold; rerun Optuna at fixed 0.85")
+        threshold=FIXED_DECISION_THRESHOLD
         pos_weight=float(trial.params["positive_weight"])
         # First compute a truly subject-held-out score for the candidate;
         # never use test subjects to tune hyperparameters or threshold.
@@ -524,6 +529,7 @@ def run(args):
         "heldout_subjects":sorted(set(data["group"][test])),
         "train_rows":len(train),"holdout_rows":len(test),
         "cv_folds":args.cv_folds,"seed":args.seed,
+        "fixed_decision_threshold":FIXED_DECISION_THRESHOLD,
         "objectives":[{"name":"confidence_weighted_silver_f1","direction":"maximize"},
                       {"name":"export_plus_static_model_bytes","direction":"minimize"}],
         "note":"No target event timestamps are independently verified physical ground truth."}
@@ -536,6 +542,9 @@ def run(args):
         study_name="tap_swipe_student_v6",
         storage="sqlite:///"+str((output/"optuna_study.sqlite3").resolve()),
         load_if_exists=True)
+    # Never resume/export legacy threshold-tuned studies as a fixed-0.85 study.
+    if any("decision_threshold" in t.params for t in study.trials):
+        raise ValueError("Existing Optuna study tuned decision_threshold. Use a fresh output directory for the fixed-0.85 study.")
     # Optional, backwards-compatible named baselines for comparative studies.
     # The original V6 CLI defines no initial_feature_sets and is unchanged.
     for feature_set in getattr(args, "initial_feature_sets", ()):
@@ -562,13 +571,14 @@ def run(args):
             "f1":x["objective_values"][0] if x["objective_values"] else None,
             "static_bytes":x["objective_values"][1] if x["objective_values"] else None,
             **x["params"]} for x in all_trials]).to_csv(f,index=False)
-    summary={"status":"success","selected_models":len(ranks),"top_k":args.top_k,
+    summary={"status":"success","fixed_decision_threshold":FIXED_DECISION_THRESHOLD,
+        "threshold_optimized_by_optuna":False,"selected_models":len(ranks),"top_k":args.top_k,
         "complete_trials":len([t for t in study.trials if t.state==optuna.trial.TrialState.COMPLETE]),
         "pareto_front_trials":[t.number for t in study.best_trials],
         "ranking":ranks,
         "total_elapsed_s":round(time.monotonic()-t0,1),
         "dataset_manifest":ds,
-        "note":"Two objectives are group-CV SILVER weighted F1 and exact export_plus static-array bytes. Holdout reports are subject-disjoint and pre-refit."}
+        "note":"Two objectives are group-CV SILVER weighted F1 at the fixed 0.85 threshold and exact export_plus static-array bytes. Holdout reports are subject-disjoint and pre-refit."}
     save_json(output/"summary.json",summary)
     print("TRAIN_END",json.dumps({k:summary[k] for k in
           ("status","selected_models","complete_trials","ranking","total_elapsed_s")}),flush=True)
