@@ -504,10 +504,20 @@ def uppercase_alias(header: Path, stem: str) -> None:
         raise ValueError(f"Header {header} lacks native prediction function or expected guard")
     if "V6_RANK" in source or "v6_rank" in source:
         raise ValueError("Trial ID leaked into C firmware API")
-    if f"#define {stem}_predict" not in source:
-        source=source.replace(final,
-            f"#ifndef {stem}_predict\n#define {stem}_predict {native}\n#endif\n\n"+final)
-        header.write_text(source,encoding="utf-8",newline="\n")
+    # Use the value API for firmware 10-prediction probability smoothing.
+    # For LGBM the exporter returns a [0, 1] Q20-quantized float (0.05 steps).
+    aliases = {
+        f"{stem}_predict": native,
+        f"{stem}_predict_value": stem.lower()+"_predict_value",
+        f"{stem}_probability_q20": stem.lower()+"_probability_q20",
+    }
+    for public, private in aliases.items():
+        if f"{private}(" not in source:
+            raise ValueError(f"Missing native C prediction API {private} in {header}")
+        if f"#define {public} " not in source:
+            source=source.replace(final,
+                f"#ifndef {public}\n#define {public} {private}\n#endif\n\n"+final)
+    header.write_text(source,encoding="utf-8",newline="\n")
 
 
 def check_header(header: Path, stem: str, output: Path) -> dict:
@@ -515,6 +525,21 @@ def check_header(header: Path, stem: str, output: Path) -> dict:
     check=previous_tap.compile_header_126(header,stem.lower(),output)
     if check["status"] != "passed":
         raise RuntimeError(f"C compiler not available / syntax failed: {check}")
+    # Prove the stable probability and Q20 aliases compile as well as the
+    # binary prediction API against the exact same synthetic t_core.
+    stub=output/"c_compiler_check"
+    src=stub/(stem.lower()+"_value_api.c")
+    src.write_text('#include "'+header.name+'"\n'
+        'float model_value_api(const t_core *p_core) { return '
+        +stem+'_predict_value(p_core) + '
+        +stem+'_probability_q20(p_core)*0.05f; }\n')
+    cc=shutil.which("cc") or shutil.which("gcc")
+    command=[cc,"-std=c11","-O2","-c",str(src),"-I",str(stub),
+             "-I",str(header.parent),"-o",str(stub/(stem.lower()+"_value_api.o"))]
+    result=subprocess.run(command,text=True,capture_output=True,timeout=90)
+    if result.returncode:
+        raise RuntimeError("Stable probability C API failed to compile: "+result.stderr[-2600:])
+    check["stable_probability_api"]="passed"
     return check
 
 
