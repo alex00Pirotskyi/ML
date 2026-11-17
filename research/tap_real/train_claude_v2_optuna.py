@@ -15,6 +15,7 @@ import hashlib
 import json
 import math
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -50,13 +51,108 @@ SOURCE = ROOT/'DATA'/'DATA_TAP'
 CLAUDE = ROOT/'claude_research_tap'/'results'
 ORIGINAL = ROOT/'DATA'/'DATA_TAP_LABELS_CLAUDE_V2_20261117'
 ADAPTED = ROOT/'research'/'tap_real'/'cache_claude_v2_v6_schema'
-OUTPUT = ROOT/'research'/'tap_real'/'results_claude_v2_optuna'
+OUTPUT = ROOT/'research'/'tap_real'/'results_claude_v2_optuna_126'
 POS = {'TAP', 'SWIPE'}
 NEG = {'FINGER', 'WRIST', 'ARM', 'BAND', 'NOTHING'}
 TRIALS = 40
 FOLDS = 3
 MAX_ROWS_PER_CLASS_PER_FILE = 45
 TOP_K = 10
+
+# Claude's 126 direct p_core CSV fields. No engineered derivatives.
+# EMG 45 (instant/oldest/mean) + ACC 72 (instant/oldest/mean/rate)
+# + WL 9 (full/head/tail) = 126.
+def _psd(group, channels, n_zones):
+    return tuple(f"p_core->{group}[{ch}][{zone}]"
+                 for ch in channels for zone in range(n_zones))
+
+EMG_CURRENT = _psd('emg_psd[0]', ('CH1','CH2','CH3'), 5)
+EMG_OLDEST = _psd('emg_psd[EMG_PSD_HISTORY_SIZE - 1]', ('CH1','CH2','CH3'), 5)
+EMG_MEAN = _psd('emg_psd_mean', ('CH1','CH2','CH3'), 5)
+ACC_CURRENT = _psd('acc_psd[0]', ('X','Y','Z'), 6)
+ACC_OLDEST = _psd('acc_psd[ACC_PSD_HISTORY_SIZE - 1]', ('X','Y','Z'), 6)
+ACC_MEAN = _psd('acc_psd_mean', ('X','Y','Z'), 6)
+ACC_RATE = _psd('acc_rate', ('X','Y','Z'), 6)
+WL_FULL = tuple(f'p_core->wl[CH{x}]' for x in (1,2,3))
+WL_HEAD = tuple(f'p_core->wl_head[CH{x}]' for x in (1,2,3))
+WL_TAIL = tuple(f'p_core->wl_tail[CH{x}]' for x in (1,2,3))
+EMG_ALL = EMG_CURRENT + EMG_OLDEST + EMG_MEAN
+ACC_ALL = ACC_CURRENT + ACC_OLDEST + ACC_MEAN + ACC_RATE
+WL_ALL = WL_FULL + WL_HEAD + WL_TAIL
+FULL_126 = ACC_ALL + EMG_ALL + WL_ALL
+INSTANT_36 = ACC_CURRENT + EMG_CURRENT + WL_FULL
+assert len(FULL_126)==126 and len(set(FULL_126))==126
+assert len(INSTANT_36)==36
+
+# Full model is an explicit Optuna starting trial, not a random hope.
+FEATURE_SETS = {
+    'full126': FULL_126,
+    'instant36': INSTANT_36,
+    'acc72': ACC_ALL,
+    'emg45': EMG_ALL,
+    'acc_emg117': ACC_ALL + EMG_ALL,
+    'acc_wl81': ACC_ALL + WL_ALL,
+    'emg_wl54': EMG_ALL + WL_ALL,
+    'acc_temporal_emg_current90': ACC_ALL + EMG_CURRENT + WL_FULL,
+    'acc_current_emg_temporal_wl72': ACC_CURRENT + EMG_ALL + WL_ALL,
+    'acc_current18': ACC_CURRENT,
+}
+
+def compile_header_126(header, name, output):
+    """C syntax smoke against a 126-field synthetic t_core, NOT real FW ABI."""
+    cc = shutil.which('cc') or shutil.which('gcc')
+    if not cc:
+        return {'status':'not_available','reason':'No C compiler'}
+    stub = output/'c_compiler_check'
+    stub.mkdir(parents=True,exist_ok=True)
+    (stub/'core_type_def.h').write_text("""#ifndef CORE_TYPE_DEF_H
+#define CORE_TYPE_DEF_H
+#include <stdint.h>
+#define X 0
+#define Y 1
+#define Z 2
+#define CH1 0
+#define CH2 1
+#define CH3 2
+#define ACC_PSD_HISTORY_SIZE 10
+#define EMG_PSD_HISTORY_SIZE 15
+typedef struct {
+    float emg_psd[EMG_PSD_HISTORY_SIZE][3][5];
+    float emg_psd_mean[3][5];
+    float acc_psd[ACC_PSD_HISTORY_SIZE][3][6];
+    float acc_psd_mean[3][6];
+    float acc_rate[3][6];
+    float wl[3], wl_head[3], wl_tail[3];
+} t_core;
+#endif
+""")
+    # The compiler probes all 126 expressions even when a small model
+    # does not use every feature. This verifies export grammar, not struct ABI.
+    probe = stub/'all126_feature_probe.c'
+    probe.write_text('#include "core_type_def.h"\n'
+        'float probe_all_126(const t_core *p_core) {\n'
+        '  return ' + ' +\n    '.join(f'(float)({v})' for v in FULL_126) + ';\n}\n')
+    unit = stub/(name+'.c')
+    unit.write_text('#include "'+header.name+'"\n'
+        'int model_compiles(void) { t_core data={0}; return '+name+'_predict(&data); }\n')
+    for src in (probe,unit):
+        cmd=[cc,'-std=c11','-O2','-c',str(src),
+             '-I',str(stub),'-I',str(header.parent),
+             '-o',str(stub/(src.stem+'.o'))]
+        p=subprocess.run(cmd,capture_output=True,text=True,timeout=90)
+        if p.returncode:
+            raise RuntimeError('126-field synthetic C compile failed: '+
+                               (p.stderr or p.stdout)[-3000:])
+    return {'status':'passed','compiler':cc,'scope':'synthetic 126-field t_core; not actual firmware ABI or ARM build',
+            'object_bytes':(stub/(name+'.o')).stat().st_size,
+            'all_feature_accessors_probed':len(FULL_126)}
+
+def enable_full_feature_schema():
+    # The V6 source is left unchanged; its module-level feature whitelist is
+    # extended only in this process. The source-hash verification stays intact.
+    v6.FULL_FEATURES = FULL_126
+    v6.export_plus.validate_feature_schema_accessors(FULL_126)
+    v6.compile_header = compile_header_126
 
 def source_sha(path):
     h = hashlib.sha256()
@@ -148,15 +244,18 @@ def main():
     if OUTPUT.exists() and any(OUTPUT.iterdir()):
         raise ValueError('Immutable previous study exists; archive/rename '+str(OUTPUT))
     prepare()
+    enable_full_feature_schema()
     base_load = v6.load_dataset
     base_params = v6.model_params
     def load(*a,**kw):
         data, info = base_load(*a,**kw)
-        # ACC is the strongest pattern found in Claude research; test it alone.
-        data['feature_sets']['acc'] = list(v6.ACC)
-        if set(v6.WL).issubset(data['columns']):
-            data['feature_sets']['acc_wl'] = list(v6.ACC+v6.WL)
+        if tuple(data['columns']) != FULL_126:
+            raise ValueError('Full 126-column p_core schema missing/inconsistent across recordings. '
+                             'Need all 126 raw fields for this experiment.')
+        data['feature_sets'] = {name:list(cols) for name,cols in FEATURE_SETS.items()}
         info['feature_sets'] = data['feature_sets']
+        info['full_raw_p_core_columns'] = len(FULL_126)
+        info['feature_schema'] = 'Exactly Claude 126 logged p_core fields, no derived columns'
         info['input_provenance'] = 'Claude V2 strong-only sensor-timed onset SILVER labels, not V5'
         info['positive_bag_background'] = 'UNKNOWN not negative'
         v6.save_json(a[2]/'dataset_manifest.json',info)
@@ -171,7 +270,8 @@ def main():
                            trials=TRIALS, cv_folds=FOLDS, top_k=TOP_K,
                            max_per_class=MAX_ROWS_PER_CLASS_PER_FILE,
                            sample_files=None, seed=20261117, test_fraction=0.22,
-                           timeout_minutes=0, verify_hash=True)
+                           timeout_minutes=0, verify_hash=True,
+                           initial_feature_sets=('full126','instant36'))
     v6.run(args)
     provenance={'label_source':'Claude V2 sensor-timed 0-80ms, strong events only',
                 'unknown_excluded':True,'target_bag_background_as_negative':False,
@@ -179,8 +279,10 @@ def main():
                               'export_plus compact static C model bytes (minimize)'],
                 'cpu_fraction':CPU_FRACTION,'cpu_threads':CPU_THREADS,
                 'warning':'V6 exporter filenames and some inherited comments say V5: actual input labels are Claude V2.',
+                'raw_features_available':len(FULL_126),
+                'compared_feature_sets':{k:len(v) for k,v in FEATURE_SETS.items()},
                 'limitations':['Silver-label agreement is NOT measured physical tap recall or false events/hour',
-                               'Only 36 directly addressable firmware EMG/ACC/WL features are used; Claude 126 features need separate firmware validation',
+                               '126 logged p_core fields assumed available at runtime; actual firmware declarations and memory/CPU costs must be checked',
                                'Stub C compilation is not an nRF52832 firmware build']}
     v6.save_json(OUTPUT/'CLAUDE_V2_PROVENANCE.json',provenance)
     for p in (OUTPUT/'models').glob('*.json'):
@@ -190,7 +292,7 @@ def main():
             report['limitations']=[str(x).replace('V5 inferred','Claude V2 inferred').replace('V5 ','Claude V2 ')
                                    for x in report.get('limitations',[])]
             v6.save_json(p,report)
-    print('CLAUDE_V2_TRAINING_FINISHED',OUTPUT,flush=True)
+    print('CLAUDE_V2_TRAINING_FINISHED',OUTPUT,'raw_features',len(FULL_126),flush=True)
 
 if __name__=='__main__':
     main()
