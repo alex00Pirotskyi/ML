@@ -6,6 +6,7 @@ on:
       - '.github/workflows/tap-claude-v2-trainer-smoke.yml'
       - 'research/tap_real/train_claude_v2_optuna.py'
       - 'research/tap_real/publish_tap_swipe_headers.py'
+      - 'research/tap_real/train_optuna_student_v6.py'
   workflow_dispatch:
 permissions:
   contents: read
@@ -102,6 +103,36 @@ jobs:
           check=module.compile_header_126(header,name,out)
           assert check['status']=='passed' and check['all_feature_accessors_probed']==126
           assert int(report['total_static_data_bytes'])==int(size['total_static_data_bytes'])
+          # Regression: the actual training exporter must NEVER emit a
+          # rank/trial-prefixed .h, not even before final publishing.
+          from types import SimpleNamespace
+          import hashlib
+          yi=np.asarray(data['y'],dtype=np.int8)
+          positives=np.flatnonzero(yi==1)
+          negatives=np.flatnonzero(yi==0)
+          hold=np.concatenate([positives[:min(10,len(positives)//3)],
+                               negatives[:min(10,len(negatives)//3)]])
+          train=np.setdiff1d(np.arange(len(yi)),hold)
+          assert set(yi[hold])=={0,1} and set(yi[train])=={0,1}
+          trial=SimpleNamespace(number=15,params={'positive_weight':1.0},
+              user_attrs={'training_params':model.get_params(),
+                          'selected_features':list(data['columns']),
+                          'cv':{'f1':0.9},'folds':[]},
+              values=(0.9,size['total_static_data_bytes']))
+          fresh=out/'direct_training_export'
+          ranked=module.v6.export_selected(
+              data,train,hold,None,[trial],fresh,20261117,
+              stable_headers=True,
+              header_postprocess=module._add_uppercase_predict_alias)
+          assert ranked[0]['header']=='candidates/rank_01/TAP_SWIPE.h'
+          direct_header=fresh/'models'/ranked[0]['header']
+          text_header=direct_header.read_text()
+          assert '#ifndef TAP_SWIPE_MODEL_H' in text_header
+          assert '#define TAP_SWIPE_predict tap_swipe_predict' in text_header
+          assert '#define TAP_SWIPE_THRESHOLD 0.850000024f' in text_header
+          assert 'V6_RANK' not in text_header and 'v6_rank' not in text_header
+          assert not list((fresh/'models').glob('*rank*.h'))
+          print('TRAINER_DIRECT_STABLE_HEADER_OK',ranked[0]['header'],flush=True)
           # Simulate existing completed Optuna study. Re-publish saved
           # .pkl as stable TAP_SWIPE.h without running Optuna again.
           from publish_tap_swipe_headers import _select_default
@@ -117,8 +148,12 @@ jobs:
           joblib.dump({'model':model,'preprocessing':'none',
                        'indices':list(range(126)),'feature_names':data['columns']},
                        bundle/'models'/(tag+'.pkl'),compress=3)
+          legacy_header=bundle/'models'/(tag+'.h')
+          legacy_header.write_text('/* generated old V6_RANK07_TRIAL033 model */\n')
+          old_sha=hashlib.sha256(legacy_header.read_bytes()).hexdigest()
           (bundle/'models'/(tag+'.json')).write_text(json.dumps({
               'rank':7,'optuna_trial':33,
+              'files':{'header':legacy_header.name,'header_sha256':old_sha},
               'final_model':{'features':data['columns'],
                              'params':model.get_params(),
                              'decision_threshold':module.v6.FIXED_DECISION_THRESHOLD}}))
@@ -142,6 +177,13 @@ jobs:
           assert (bundle/'models'/'candidates'/'rank_07'/'TAP_SWIPE.h').is_file()
           assert (bundle/'models'/'TAP_SWIPE_feature_schema.json').is_file()
           assert (bundle/'models'/'TAP_SWIPE_VARIANTS.json').is_file()
+          assert not legacy_header.exists(), 'Previous versioned .h was not cleaned'
+          new_summary=json.loads((bundle/'summary.json').read_text())
+          assert new_summary['ranking'][0]['header']=='candidates/rank_07/TAP_SWIPE.h'
+          stable2=module.publish_stable_headers(bundle,compile_header=module.compile_header_126)
+          assert stable2['selected_rank']==7 and not legacy_header.exists()
+          assert not list((bundle/'models').glob('*rank*.h'))
+          print('LEGACY_RANK_HEADER_REMOVAL_OK',flush=True)
           print('STABLE_TAP_SWIPE_HEADER_SMOKE_OK',{'model_bytes':size['total_static_data_bytes'],
               'file':'TAP_SWIPE.h','guard':'TAP_SWIPE_MODEL_H','default_rank':7},flush=True)
           print('CLAUDE_V2_126_EXPORT_SMOKE_OK',{'sources':info['source_files'],
