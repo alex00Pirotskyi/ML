@@ -3,6 +3,7 @@
 import json
 import sys
 from pathlib import Path
+import numpy as np
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "research" / "gesture"))
@@ -32,6 +33,23 @@ def put_sample(orig, staging):
 
 
 def main():
+    # A model that NEVER releases must score ZERO, not 0.7.
+    yy=np.array([0]*8+[1]*8,dtype=np.int8)
+    pp=np.array([0.1]*16,dtype=float)
+    score=g.metrics("lp",yy,pp)
+    assert score["hold_safety"]==1.0
+    assert score["release_recall"]==0.0
+    assert score["objective_score"]==0.0
+    # Positive weight must actually change class weighting; the legacy V6
+    # helper canceled it during subsequent per-class normalization.
+    d={"y":yy,"w":np.ones(len(yy),dtype=np.float32),
+       "file":np.array(["one"]*8+["two"]*8,dtype=object),
+       "category":np.array(["SOFT_LONG_PRESS"]*16,dtype=object)}
+    ids=np.arange(len(yy))
+    a=g.weights_for_task(d,ids,"lp",1.)
+    b=g.weights_for_task(d,ids,"lp",6.)
+    assert np.allclose(a[yy==0],b[yy==0])
+    assert np.allclose(b[yy==1],6*a[yy==1])
     sample_root=ROOT/"research"/"gesture"/"_smoke_input"
     tap_root=sample_root/"DATA_TAP"
     lp_root=sample_root/"DATA_LONG_PRESS"
