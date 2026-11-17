@@ -40,6 +40,10 @@ jobs:
           s.loader.exec_module(module)
           assert module.CPU_THREADS == max(1,int(module.cpu_count()*0.8))
           module.prepare()
+          module.enable_full_feature_schema()
+          assert module.CPU_THREADS == max(1,int(module.cpu_count()*0.8))
+          assert len(module.FULL_126) == 126
+          assert len(module.FEATURE_SETS['instant36']) == 36
           assert (module.ADAPTED/'manifest.jsonl').is_file()
           count=sum(1 for _ in module.ADAPTED.rglob('*.labels.csv.gz'))
           assert 2500 < count <= 2790, f'Adapted labels missing: {count}'
@@ -48,8 +52,9 @@ jobs:
           data,info=module.v6.load_dataset(module.SOURCE,module.ADAPTED,out,
                                             max_per_class=6,sample_files=6,verify_hash=True)
           assert len(data['X']) and len(data['y']) and set(data['y'])=={0,1}
-          cols=[data['columns'].index(v) for v in data['feature_sets']['emg_acc']]
-          X=data['X'][:,cols]
+          assert len(data['columns']) == 126, f'Found {len(data["columns"])} columns'
+          assert tuple(data['columns']) == module.FULL_126
+          X=data['X']
           import lightgbm as lgb
           model=lgb.LGBMClassifier(objective='binary',n_estimators=12,
                num_leaves=7,max_depth=4,min_child_samples=3,
@@ -59,7 +64,23 @@ jobs:
           assert np.isfinite(prob).all()
           size=module.v6.export_plus._estimate_compact_tree_payload_legacy(model)
           assert size['total_static_data_bytes']>0
-          print('CLAUDE_V2_TRAINER_SMOKE_OK',{'sources':info['source_files'],
-                'samples':len(data['y']),'model_bytes':size['total_static_data_bytes'],
-                'cpu_threads':module.CPU_THREADS},flush=True)
+          import json
+          name='claude126_smoke'
+          schema=out/'schema.json'
+          schema.write_text(json.dumps({'feature_map':{str(i):c for i,c in enumerate(data['columns'])},
+                                         'positive_class_id':1}))
+          header=out/(name+'.h')
+          report=module.v6.export_plus.export_to_c_header(
+              {'model':model,'preprocessing':'none','indices':list(range(126))},
+              {'group_name':name,'selected_indices':list(range(126)),
+               'decision_threshold':0.5,'target_class_id':1,
+               'preprocessing':'none','params':model.get_params()},
+              header,schema,validate=True)
+          check=module.compile_header_126(header,name,out)
+          assert check['status']=='passed' and check['all_feature_accessors_probed']==126
+          assert int(report['total_static_data_bytes'])==int(size['total_static_data_bytes'])
+          print('CLAUDE_V2_126_EXPORT_SMOKE_OK',{'sources':info['source_files'],
+                'samples':len(data['y']),'features':len(data['columns']),
+                'model_bytes':size['total_static_data_bytes'],
+                'cpu_threads':module.CPU_THREADS,'c_status':check['status']},flush=True)
           PY
