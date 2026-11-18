@@ -210,7 +210,6 @@ def common_columns(rows):
 
 def schema_for(features, windows):
     names, meta, index, groups = [], [], {}, [[] for _ in features]
-    model_idx, model_base, model_names = [], [], []
     for j, feature in enumerate(features):
         stats = list(GLOBAL_STATS)
         for w in windows:
@@ -221,19 +220,12 @@ def schema_for(features, windows):
             meta.append({"index": k, "feature_index": j, "feature": feature, "stat": stat})
             index[(j, stat)] = k
             groups[j].append(k)
-        for stat in MODEL_GLOBAL:
-            model_idx.append(index[(j, stat)])
-            model_base.append(j)
-            model_names.append(f"{feature}::{stat}")
-        for w in windows:
-            for stat in MODEL_WINDOW:
-                key = f"w{w}_{stat}"
-                model_idx.append(index[(j, key)])
-                model_base.append(j)
-                model_names.append(f"{feature}::{key}")
+    # The exploratory classifier receives every descriptor derived from every available p_core field.
+    model_idx = np.arange(len(names), dtype=np.int32)
+    model_base = np.asarray([x["feature_index"] for x in meta], dtype=np.int32)
+    model_names = list(names)
     return {"names": names, "meta": meta, "index": index, "groups": groups,
-            "model_indices": np.asarray(model_idx, np.int32), "model_base": np.asarray(model_base, np.int32),
-            "model_names": model_names}
+            "model_indices": model_idx, "model_base": model_base, "model_names": model_names}
 
 
 def q(x, quantiles, axis=0):
@@ -430,9 +422,9 @@ def family(name):
 
 
 def model_stats(windows):
-    names = list(MODEL_GLOBAL)
+    names = list(GLOBAL_STATS)
     for w in windows:
-        names += [f"w{w}_median_p90", f"w{w}_std_p90", f"w{w}_range_p90"]
+        names += [f"w{w}_{stat}" for stat in WINDOW_STATS]
     return names
 
 
@@ -475,9 +467,9 @@ def feature_effects(X, meta, features, schema, windows):
 def subtype_effects(X, meta, features, schema, windows):
     """Within-folder subtype contrasts (e.g. SoftTap vs MidTap), still recording-level only."""
     ix = schema["index"]
-    stats = list(MODEL_GLOBAL)
+    stats = list(GLOBAL_STATS)
     for w in windows:
-        stats += [f"w{w}_median_p90", f"w{w}_std_p90", f"w{w}_range_p90"]
+        stats += [f"w{w}_{stat}" for stat in WINDOW_STATS]
     rows = []
     m = meta.reset_index(drop=True)
     for cls in sorted(m["class"].unique()):
@@ -521,9 +513,9 @@ def subtype_effects(X, meta, features, schema, windows):
 def paired_effects(X, meta, features, schema, windows, min_pairs=5):
     """Paired participant contrasts, with participant medians aggregated once per class."""
     ix = schema["index"]
-    stats = list(PAIR_BASE)
+    stats = list(GLOBAL_STATS)
     for w in windows:
-        stats += [f"w{w}_median_p90", f"w{w}_std_p90", f"w{w}_range_p90"]
+        stats += [f"w{w}_{stat}" for stat in WINDOW_STATS]
     descriptors = [(j, stat, ix[(j, stat)]) for j in range(len(features)) for stat in stats]
     columns = [f"{j}:{stat}" for j, stat, _ in descriptors]
     m = meta.reset_index(drop=True)
