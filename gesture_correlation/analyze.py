@@ -17,6 +17,7 @@ Run from repository root:
 from __future__ import annotations
 
 import argparse
+import gzip
 import hashlib
 import importlib.util
 import itertools
@@ -103,8 +104,10 @@ def subtype(p):
 
 
 def sha256(path):
+    """Hash the uncompressed CSV payload so .csv and .csv.gz copies deduplicate."""
     h = hashlib.sha256()
-    with path.open("rb") as f:
+    opener = gzip.open if path.name.endswith(".gz") else open
+    with opener(path, "rb") as f:
         for block in iter(lambda: f.read(1 << 20), b""):
             h.update(block)
     return h.hexdigest()
