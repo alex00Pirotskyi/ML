@@ -158,7 +158,11 @@ def prepare_features(rows, roots, mode, parity_files):
     generated, parity = False, "not run"
     if missing:
         gp = ROOT / "research" / "gesture" / "generate_lean8_features.py"
-        can = gp.is_file() and all(r["raw"].name.endswith(".csv.gz") for r in rows)
+        supported_sources = all(
+            r["raw"].name.endswith(".csv.gz") or r["raw"].name.endswith(".csv")
+            for r in rows
+        )
+        can = gp.is_file() and supported_sources
         if can:
             spec = importlib.util.spec_from_file_location("mudra_lean8_generator", gp)
             module = importlib.util.module_from_spec(spec)
