@@ -60,6 +60,7 @@ from sklearn.model_selection import GroupKFold, GroupShuffleSplit
 
 import replay as R
 import generate_lean8_features as lean8
+import feature_selection as FS
 
 v6 = previous_tap.v6
 export_plus = v6.export_plus
@@ -79,9 +80,33 @@ USE_LEAN8 = os.environ.get("MUDRA_USE_LEAN8", "1").strip().lower() not in ("0", 
 # for rows with >= LEAN8_STEADY_FRAMES (fully warm history), whatever this setting is.
 LEAN8_MIN_FRAMES = int(os.environ.get("MUDRA_LEAN8_MIN_FRAMES", 50))
 LEAN8_STEADY_FRAMES = lean8.HISTORY_10S
+
+# Experiment. v3 (default) = FEATURE_SELECTION_RESEARCH_AND_EXECUTION_PLAN.md: fold-local learned feature ranking,
+# integer K over all available fields, firmware-gated evaluation, CV-only candidate choice, TAP false-event
+# budget anchored on the previous TAP model. v2 = the earlier feature-set menu (its studies stay resumable).
+EXPERIMENT = os.environ.get("MUDRA_EXPERIMENT", "v3").strip().lower()
+if EXPERIMENT not in ("v2", "v3"):
+    raise ValueError("MUDRA_EXPERIMENT must be v2 or v3")
+FEATURE_SELECTION = EXPERIMENT == "v3"
+# Frame gates (Lean-8 handler calls since the stream started). EVAL = rows the firmware runs the models on:
+# the firmware returns from model_execution() until lean_8_features_ready() (500 frames, ~10.8 s), so v3
+# scores, selects and ranks on those rows only. TRAIN = rows used as training examples (see the research
+# report for why earlier rows are kept as examples). v2 used one gate for both.
+if FEATURE_SELECTION:
+    TRAIN_MIN_FRAMES = int(os.environ.get("MUDRA_TRAIN_MIN_FRAMES", LEAN8_MIN_FRAMES))
+    EVAL_MIN_FRAMES = int(os.environ.get("MUDRA_EVAL_MIN_FRAMES", LEAN8_STEADY_FRAMES))
+else:
+    TRAIN_MIN_FRAMES = EVAL_MIN_FRAMES = LEAN8_MIN_FRAMES
+# TAP score = recall * min(1, target / false events per minute). v2 used target 1.0, which made the search
+# give up ~25% of taps (see research report). v3 default "baseline": the target is the false-event rate of
+# the previous production TAP header replayed on the development people (a number fixes it explicitly).
+TAP_TARGET_SETTING = os.environ.get("MUDRA_TAP_FALSE_PER_MIN_TARGET", "baseline" if FEATURE_SELECTION else "1.0")
+TAP_TARGET_BASELINE = "previous_tap_thr085"
+TAP_TARGET_FALLBACK = 1.0
 LABEL_TAP = ROOT / "DATA" / "LABELS" / "DATA_TAP"
 LABEL_LP = ROOT / "DATA" / "LABELS" / "DATA_LONG_PRESS"
-OUTPUT = ROOT / "research" / "gesture" / "results_unified_v2"
+OUTPUT = ROOT / "research" / "gesture" / ("results_unified_v3_feature_selection" if FEATURE_SELECTION
+                                          else "results_unified_v2")
 PREVIOUS_UNIFIED = ROOT / "research" / "gesture" / "results_unified_20261117"
 CLAUDE_LABELER = ROOT / "claude_labeling" / "label_gestures.py"
 TRIALS_PER_MODEL = 40
@@ -180,7 +205,16 @@ def task_threshold(task: str) -> float:
 
 
 def study_name(task: str) -> str:
-    """The TAP name is exactly what earlier runs used (resumable). LP carries a non-default release threshold."""
+    """v2: the TAP name is exactly what earlier runs used (resumable); LP carries a non-default release
+    threshold. v3: every setting that changes the objective or the data is part of the name."""
+    if FEATURE_SELECTION:
+        name = (f"unified_v3_{task}_fs{FS.RANKER_VERSION}_lean8{int(USE_LEAN8)}"
+                f"_train{TRAIN_MIN_FRAMES}_eval{EVAL_MIN_FRAMES}")
+        if task == "tap":
+            name += f"_fpm{R.TAP_FALSE_PER_MIN_TARGET:.3f}"
+        else:
+            name += f"_rel{LP_RELEASE_THRESHOLD:.2f}"
+        return name
     name = f"unified_v2_{task}_lean8{int(USE_LEAN8)}_min{LEAN8_MIN_FRAMES}"
     if task == "lp" and LP_RELEASE_THRESHOLD != 0.85:
         name += f"_rel{LP_RELEASE_THRESHOLD:.2f}"
@@ -649,20 +683,21 @@ def load_cache(cache: Path, columns):
                 if n else np.zeros((0, ncol), np.float32))
     windows = pd.read_csv(cache / "lp_windows.csv")
     onsets = pd.read_csv(cache / "tap_onsets.csv")
-    gate = m["frames"] >= LEAN8_MIN_FRAMES
-    gate_info = dict(min_frames=LEAN8_MIN_FRAMES, steady_frames=LEAN8_STEADY_FRAMES, lean8=USE_LEAN8,
+    gate = m["frames"] >= TRAIN_MIN_FRAMES
+    gate_info = dict(min_frames=TRAIN_MIN_FRAMES, eval_min_frames=EVAL_MIN_FRAMES,
+                     steady_frames=LEAN8_STEADY_FRAMES, lean8=USE_LEAN8,
                      train_rows_built=int(len(gate)), train_rows_used=int(gate.sum()),
                      positives_built=int((m["y"] == 1).sum()), positives_used=int(((m["y"] == 1) & gate).sum()))
     if not gate.all():
         X = X[gate]
     rec = m["rec"][gate]
-    data = dict(X=X, y=m["y"][gate].astype(np.int8), kind=m["kind"][gate], t=m["t"][gate],
+    data = dict(X=X, y=m["y"][gate].astype(np.int8), kind=m["kind"][gate], t=m["t"][gate], frames=m["frames"][gate],
                 group=recs.group.to_numpy(object)[rec], file=recs.file.to_numpy(object)[rec],
                 category=recs.folder.to_numpy(object)[rec], rec=rec,
                 w=np.ones(len(rec), np.float32), columns=list(columns), feature_sets=feature_sets(list(columns)))
     fr = rp["frames"]
     rpl = dict(X=replay_X, t=rp["t"], label=rp["label"], frames=fr,
-               ready=fr >= LEAN8_MIN_FRAMES, steady=fr >= LEAN8_STEADY_FRAMES, recs=recs, windows=windows,
+               ready=fr >= EVAL_MIN_FRAMES, steady=fr >= LEAN8_STEADY_FRAMES, recs=recs, windows=windows,
                onsets={int(k): g.t_on.to_numpy(float) for k, g in onsets.groupby("rec")} if len(onsets) else {})
     info_all = json.loads((cache / "info.json").read_text())
     if "content_sha256" not in info_all:            # first use of this cache (or a cache from older code)
@@ -1070,6 +1105,29 @@ def prepared_folds(data, rpl, train_ids, task):
     return folds
 
 
+_RANKINGS = {}
+FS_CACHE_DIR = None                 # set per task: rankings are cached on disk by their full key
+
+
+def fold_rankings(data, rpl, train_ids, task):
+    """v3: one feature ranking per CV fold, fitted on that fold's TRAINING people only (feature_selection.py)."""
+    key = (task, id(data), id(rpl), hashlib.sha256(np.ascontiguousarray(train_ids).tobytes()).hexdigest(),
+           R.TAP_FALSE_PER_MIN_TARGET)
+    if key in _RANKINGS:
+        return _RANKINGS[key]
+    me = sys.modules[__name__]
+    out = []
+    for fold, pf in enumerate(prepared_folds(data, rpl, train_ids, task)):
+        r = FS.fit_fold_ranker(me, R, data, rpl, pf["tr"], task, seed=fold, cache_dir=FS_CACHE_DIR,
+                               tap_target=R.TAP_FALSE_PER_MIN_TARGET, log=lambda *a: notice(*a))
+        FS.validate_fold_local(r, pf["val_groups"])
+        out.append(r)
+        notice("UNIFIED_FS_FOLD_RANKING", task, fold, r["seconds"], "s", r["ordered_features"][:8])
+    _RANKINGS.clear()
+    _RANKINGS[key] = out
+    return out
+
+
 def fold_weights(fold, positive_weight):
     w = fold["base_w"].copy()
     w[fold["positive"]] *= float(positive_weight)
@@ -1087,8 +1145,14 @@ def model_prob_fn(model, ks, task):
 def objective(trial, data, rpl, train_ids, task, budgets):
     t_start = time.perf_counter()
     CLOCK.reset()
-    name = trial.suggest_categorical("feature_set", list(data["feature_sets"]))
-    selected = [data["columns"].index(x) for x in data["feature_sets"][name]]
+    n_all = len(data["columns"])
+    if FEATURE_SELECTION:
+        n_features = trial.suggest_int("n_features", 1, n_all)
+        name = None
+        selected = list(range(n_all))
+    else:
+        name = trial.suggest_categorical("feature_set", list(data["feature_sets"]))
+        selected = [data["columns"].index(x) for x in data["feature_sets"][name]]
     lo, hi = POSITIVE_WEIGHT[task]
     positive_weight = trial.suggest_float("positive_weight", lo, hi, log=True)
     params = suggest_params(trial, task)
@@ -1099,10 +1163,19 @@ def objective(trial, data, rpl, train_ids, task, budgets):
     t0 = time.monotonic()
     with CLOCK("fold_prepare"):
         prepared = prepared_folds(data, rpl, train_ids, task)
+    rankings = None
+    if FEATURE_SELECTION and n_features < n_all:
+        with CLOCK("feature_ranking"):
+            rankings = fold_rankings(data, rpl, train_ids, task)
     sel_index = np.asarray(selected, dtype=np.intp)
+    selected_by_fold = []
     for fold, pf in enumerate(prepared):
         before = dict(CLOCK.seconds)
         tr = pf["tr"]; val_groups = pf["val_groups"]
+        if rankings is not None:
+            selected = FS.select_top_k(rankings[fold], n_features)
+            sel_index = np.asarray(selected, dtype=np.intp)
+        selected_by_fold.append([data["columns"][j] for j in selected])
         if pf["classes"] != {0, 1}:
             raise optuna.TrialPruned("Missing class in person-grouped fold")
         with CLOCK("fold_prepare"):
@@ -1143,7 +1216,12 @@ def objective(trial, data, rpl, train_ids, task, budgets):
         pooled["objective_score"] = float(np.mean(per_fold)) if per_fold else 0.0
         reports[str(bud)] = pooled
     trial.set_user_attr("training_params", params)
-    trial.set_user_attr("selected_features", list(data["feature_sets"][name]))
+    if FEATURE_SELECTION:
+        trial.set_user_attr("n_features", n_features)
+        trial.set_user_attr("selected_features_by_fold", selected_by_fold)
+        trial.set_user_attr("feature_ranker", FS.RANKER_VERSION)
+    else:
+        trial.set_user_attr("selected_features", list(data["feature_sets"][name]))
     trial.set_user_attr("folds", folds)
     trial.set_user_attr("cv", reports)
     trial.set_user_attr("seconds", round(time.monotonic() - t0, 1))
@@ -1309,20 +1387,21 @@ def pick_trials(study, budgets):
 
 
 def promote(out: Path, stem: str, candidates, budgets):
-    """Default header = best CV candidate inside the primary budget whose held-out C replay is not a failure
-    (it detects taps / releases at all). A candidate that fails is skipped and the reason recorded."""
+    """Default header = best CV candidate inside the primary budget that did not fail on any CV fold
+    (fold score 0: never fires / never releases for those people). The held-out people never influence the
+    choice; their C replay is an audit reported once (FEATURE_SELECTION plan, section 5.2)."""
     model_dir = out / "models"
     primary = [c for c in candidates if c["role"].startswith("rank_")]
     chosen, skipped = None, []
     for c in primary:
-        h = c.get("holdout_c_header") or {}
-        if h.get("objective_score", 0) > 0:
+        folds = (c.get("cv") or {}).get("fold_scores") or []
+        if folds and min(folds) > 0:
             chosen = c; break
-        skipped.append(dict(role=c["role"], trial=c["trial"], reason="held-out C replay score is 0 "
-                            "(never fires / never releases on unseen people)"))
+        skipped.append(dict(role=c["role"], trial=c["trial"],
+                            reason="a CV fold scored 0 (never fires / never releases for those people)"))
     if chosen is None:
         chosen = primary[0]
-        skipped.append(dict(role=chosen["role"], reason="no candidate passed; using the CV best anyway"))
+        skipped.append(dict(role=chosen["role"], reason="every candidate failed a CV fold; using the CV best"))
     def copy_to(c, dst: Path):
         dst.mkdir(parents=True, exist_ok=True)
         src = out / c["header"]
@@ -1336,27 +1415,54 @@ def promote(out: Path, stem: str, candidates, budgets):
 
 
 def export_candidates(data, rpl, task, stem, tr, te, picks, out: Path):
+    """Phase 1: each candidate is trained WITHOUT the held-out people, exported and replayed as C on them;
+    the held-out report is then frozen (written) before anything is fitted on the held-out people.
+    Phase 2: final model on everyone, trimmed to the budget, exported with the stable API.
+    v3: the feature subset of phase 1 comes from a ranking fitted on the development people only; phase 2
+    re-fits the ranking on everyone at the same (locked) K."""
     model_dir = out / "models"; model_dir.mkdir(parents=True, exist_ok=True)
     y = data["y"]; cols = data["columns"]
-    train_groups = set(data["group"][tr]); held = set(data["group"][te])
+    held = set(data["group"][te])
     every = np.arange(len(y))
-    rows = []
-    for role, budget, trial in picks:
-        params = trial.user_attrs["training_params"]; subset = trial.user_attrs["selected_features"]
-        ix = [cols.index(x) for x in subset]; pw = float(trial.params["positive_weight"])
-        folder = model_dir / "candidates" / role
-        # 1) honest held-out replay: trained without the held-out people, exported, replayed as C
-        pre = fit_model(data["X"][tr][:, ix], y[tr], weights_for_task(data, tr, task, pw), params, budget)
+    me = sys.modules[__name__]
+    ranking_dev = ranking_all = None
+    if FEATURE_SELECTION and any(t.params["n_features"] < len(cols) for _, _, t in picks):
+        ranking_dev = FS.fit_fold_ranker(me, R, data, rpl, tr, task, seed=101, cache_dir=FS_CACHE_DIR,
+                                         tap_target=R.TAP_FALSE_PER_MIN_TARGET, log=lambda *a: notice(*a))
+        FS.validate_fold_local(ranking_dev, held)
+
+    def subset_for(trial, ranking):
+        if not FEATURE_SELECTION:
+            return list(trial.user_attrs["selected_features"])
+        k = int(trial.params["n_features"])
+        return list(cols) if (k >= len(cols) or ranking is None) else [cols[j] for j in FS.select_top_k(ranking, k)]
+
+    pre_reports = []
+    for role, budget, trial in picks:                         # ---- phase 1: held-out audit
+        params = trial.user_attrs["training_params"]; pw = float(trial.params["positive_weight"])
+        subset = subset_for(trial, ranking_dev); ix = [cols.index(x) for x in subset]
+        pre = fit_model(data["X"][np.ix_(tr, np.asarray(ix, np.intp))], y[tr], weights_for_task(data, tr, task, pw),
+                        params, budget)
         k_pre, _ = trees_within(pre, budget); pre = truncated(pre, k_pre)
-        tmp = out / "_holdout_headers" / role
-        h_pre, b_pre, _ = write_header(pre, subset, stem, tmp, task, out)
+        h_pre, b_pre, _ = write_header(pre, subset, stem, out / "_holdout_headers" / role, task, out)
         hm = R.HeaderModel(h_pre, subset, out / "_replay_build", prefer=stem.lower())
-        sel = [cols.index(c) for c in subset]
-        rpl_sub = dict(rpl, X=_ColumnView(rpl["X"], sel))
-        holdout_c = header_replay(hm, rpl_sub, held, task)
-        holdout_steady = header_replay(hm, rpl_sub, held, task, steady=True) if USE_LEAN8 else None
-        par = parity(hm, pre, rpl, held, sel, task, k_pre)
-        # 2) final model on every person, trimmed to the budget, exported with the stable API
+        rpl_sub = dict(rpl, X=_ColumnView(rpl["X"], ix))
+        pre_reports.append(dict(role=role, trial=trial.number, features_development=subset,
+                                holdout_c_header=header_replay(hm, rpl_sub, held, task),
+                                holdout_c_header_steady_state=(header_replay(hm, rpl_sub, held, task, steady=True)
+                                                               if USE_LEAN8 else None),
+                                holdout_model_bytes=b_pre, c_vs_python_parity=parity(hm, pre, rpl, held, ix, task, k_pre)))
+    write_json(out / "holdout_report.json", dict(
+        note="Frozen before any model or feature ranking was fitted on the held-out people; never used to choose.",
+        heldout_people=sorted(held), candidates=pre_reports))
+    if ranking_dev is not None:
+        ranking_all = FS.fit_fold_ranker(me, R, data, rpl, every, task, seed=202, cache_dir=FS_CACHE_DIR,
+                                         tap_target=R.TAP_FALSE_PER_MIN_TARGET, log=lambda *a: notice(*a))
+    rows = []
+    for (role, budget, trial), pre_rep in zip(picks, pre_reports):    # ---- phase 2: production models
+        params = trial.user_attrs["training_params"]; pw = float(trial.params["positive_weight"])
+        subset = subset_for(trial, ranking_all); ix = [cols.index(x) for x in subset]
+        folder = model_dir / "candidates" / role
         final = fit_model(data["X"][:, ix], y, weights_for_task(data, every, task, pw), params, budget)
         k_fin, _ = trees_within(final, budget); final = truncated(final, k_fin)
         header, size, checked = write_header(final, subset, stem, folder, task, out)
@@ -1366,19 +1472,24 @@ def export_candidates(data, rpl, task, stem, tr, te, picks, out: Path):
         joblib.dump(dict(model=final, preprocessing="none", indices=list(range(len(subset))), feature_names=subset),
                     model_dir / (tag + ".pkl"), compress=3)
         report = dict(role=role, trial=trial.number, budget_bytes=budget, static_bytes=size, trees=k_fin,
-                      params=params, positive_weight=pw, features=subset, header=str(header.relative_to(out)),
-                      cv=trial.user_attrs["cv"].get(str(budget)), holdout_c_header=holdout_c,
-                      holdout_c_header_steady_state=holdout_steady,
+                      params=params, positive_weight=pw, features=subset, n_features=len(subset),
+                      header=str(header.relative_to(out)), cv=trial.user_attrs["cv"].get(str(budget)),
+                      holdout_c_header=pre_rep["holdout_c_header"],
+                      holdout_c_header_steady_state=pre_rep["holdout_c_header_steady_state"],
+                      features_holdout_candidate=pre_rep["features_development"],
                       lean8_features_used=[c for c in subset if "cload_lean_8" in c],
-                      holdout_model_bytes=b_pre, c_vs_python_parity=par, c_stub=checked,
+                      holdout_model_bytes=pre_rep["holdout_model_bytes"],
+                      c_vs_python_parity=pre_rep["c_vs_python_parity"], c_stub=checked,
                       limitations=["Silver labels from an offline teacher, not physical event truth",
                                    "Replay timing rules are documented assumptions about the firmware",
                                    "C replay uses a synthetic all-float t_core, not the nRF52832 ABI"])
         write_json(model_dir / (tag + ".json"), report)
         rows.append(report)
         notice("UNIFIED_MODEL_EXPORT", json.dumps(dict(task=task, role=role, trial=trial.number, bytes=size,
-               trees=k_fin, cv=(report["cv"] or {}).get("objective_score"),
-               holdout=(holdout_c or {}).get("objective_score"), parity=par)))
+               trees=k_fin, features=len(subset), cv=(report["cv"] or {}).get("objective_score"),
+               holdout=(report["holdout_c_header"] or {}).get("objective_score"),
+               parity=report["c_vs_python_parity"])))
+    export_candidates.rankings = (ranking_dev, ranking_all)
     return rows
 
 
@@ -1446,12 +1557,109 @@ def _comparison_rows(task, candidates, baselines, ckey, bkey):
     for c in candidates:
         h = c.get(ckey) or {}
         mark = " **default**" if c.get("default") else ""
-        lines.append(f"| new {c['role']} (trial {c['trial']}){mark} | {c['static_bytes']} | " + " | ".join(fmt(h.get(k)) for k in key) + " |")
+        kk = f", K={c['n_features']}" if FEATURE_SELECTION and c.get("n_features") else ""
+        lines.append(f"| new {c['role']} (trial {c['trial']}{kk}){mark} | {c['static_bytes']} | " + " | ".join(fmt(h.get(k)) for k in key) + " |")
     for b in baselines:
         h = b.get(bkey) or {}
         at = f", release {b['release_threshold']}" if b.get("release_threshold") else ""
         lines.append(f"| baseline {b['name']} ({b['status']}{at}) | - | " + " | ".join(fmt(h.get(k)) for k in key) + " |")
     return head + "\n".join(lines) + "\n"
+
+
+# ============================================================================ v3: TAP target + reports
+def resolve_tap_target(data, rpl, tr, out: Path):
+    """TAP false-event budget for the score recall * min(1, target / false per min).
+    'baseline': the previous production TAP header replayed on the DEVELOPMENT people (same gate, same rules)."""
+    setting = TAP_TARGET_SETTING.strip().lower()
+    info = dict(setting=setting)
+    if setting != "baseline":
+        v = float(setting)
+        info.update(value=v, source="configured")
+        return v, info
+    path = next((p for n, p in BASELINES["tap"] if n == TAP_TARGET_BASELINE), "")
+    p = Path(path) if path else None
+    if p is not None and p.is_file():
+        try:
+            digest = sha256(p)
+            hm = R.HeaderModel(p, data["columns"], out / "_replay_build", prefer="tap_swipe")
+            rep_ = header_replay(hm, rpl, set(data["group"][tr]), "tap")
+            if sha256(p) != digest:
+                raise AssertionError("baseline header changed during replay")
+            fpm = float(rep_["false_per_min"])
+            if np.isfinite(fpm) and fpm > 0:
+                v = round(fpm, 3)
+                info.update(value=v, source=f"{TAP_TARGET_BASELINE} replayed on the development people",
+                            baseline=str(p), baseline_sha256=digest, baseline_development_recall=rep_["recall"],
+                            baseline_development_false_per_min=fpm, per_folder=rep_.get("per_folder"))
+                return v, info
+            info["error"] = f"baseline false rate not usable: {fpm}"
+        except Exception as exc:
+            info["error"] = repr(exc)[:400]
+    info.update(value=TAP_TARGET_FALLBACK, source="FALLBACK (previous TAP header not available): set "
+                "MUDRA_TAP_BASELINE_HEADER, or MUDRA_TAP_FALSE_PER_MIN_TARGET to a number")
+    notice("UNIFIED_TAP_TARGET_FALLBACK", info["source"], info.get("error", ""))
+    return TAP_TARGET_FALLBACK, info
+
+
+def _family(name: str) -> str:
+    return ("Lean-8" if "cload_lean_8" in name else "ACC" if "acc_" in name else
+            "EMG" if "emg_psd" in name else "WL" if ".wl" in name or "->wl" in name else "other")
+
+
+def write_fs_reports(out: Path, task, data, study, candidates, default):
+    """feature_selection/: fold rankings (all features, ranks, importances, clusters), stability, per-trial
+    subsets, final features and a short report. Families are reporting labels only."""
+    d = out / "feature_selection"; d.mkdir(parents=True, exist_ok=True)
+    cols = list(data["columns"])
+    folds = next(iter(_RANKINGS.values()), None)
+    ranking_dev, ranking_all = getattr(export_candidates, "rankings", (None, None))
+
+    def table(r):
+        pos = {j: i + 1 for i, j in enumerate(r["order"])}
+        gain = np.mean([x["gain"] for x in r["inner"]], axis=0) if r["inner"] else np.zeros(len(cols))
+        return pd.DataFrame(dict(
+            feature=cols, family=[_family(c) for c in cols], rank=[pos[j] for j in range(len(cols))],
+            mean_importance=r["mean_importance"], cluster=r["cluster_of"],
+            cluster_size=[len(r["clusters"][c]) for c in r["cluster_of"]],
+            cluster_importance=[r["mean_group_importance"][c] for c in r["cluster_of"]],
+            cluster_importance_se=[r["group_se"][c] for c in r["cluster_of"]], lightgbm_gain_share=gain,
+        )).sort_values("rank")
+
+    files = {}
+    for name, r in ([(f"fold_{i}", x) for i, x in enumerate(folds or [])]
+                    + [("development", ranking_dev), ("final", ranking_all)]):
+        if r is not None:
+            table(r).to_csv(d / f"{name}_ranking.csv", index=False)
+            files[name] = dict(csv=f"{name}_ranking.csv", seconds=r["seconds"], cluster_cut=r["cluster_cut"],
+                               silhouette=r["silhouette"], clusters=[[cols[j] for j in c] for c in r["clusters"]],
+                               inner=[{k: v for k, v in x.items() if k in ("split", "people", "threshold", "baseline_score")}
+                                      for x in r["inner"]])
+    write_json(d / "correlation_clusters.json", files)
+    stability = FS.report_stability(folds) if folds else None
+    write_json(d / "selection_stability.json", stability)
+    trials = {t.number: dict(n_features=t.user_attrs.get("n_features"), value=t.value,
+                             by_fold=t.user_attrs.get("selected_features_by_fold"))
+              for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE}
+    write_json(d / "selected_features_by_trial.json", trials)
+    final = dict(role=default["role"], trial=default["trial"], n_features=default["n_features"],
+                 features=default["features"], features_holdout_candidate=default["features_holdout_candidate"],
+                 families={f: sum(_family(c) == f for c in default["features"]) for f in ("ACC", "EMG", "WL", "Lean-8")})
+    write_json(d / "final_selected_features.json", final)
+    ks = sorted({v["n_features"] for v in trials.values() if v["n_features"] is not None})
+    lines = [f"# {task}: learned feature selection ({FS.RANKER_VERSION})", "",
+             f"- Candidate pool: {len(cols)} firmware fields (no family rules).",
+             f"- Fold rankings: {len(folds or [])} (each from its fold's training people only); "
+             f"method: {(folds or [ranking_all or {}])[0].get('method', 'n/a') if (folds or ranking_all) else 'n/a'}.",
+             f"- K tried by Optuna: {ks}.",
+             f"- Default model: trial {default['trial']}, K = {default['n_features']}, families {final['families']}.",
+             f"- CV objective {(default.get('cv') or {}).get('objective_score')}; held-out (reported once, never used "
+             f"to choose): {(default.get('holdout_c_header') or {}).get('objective_score')}.", ""]
+    if stability:
+        lines.append("Stability (Nogueira) of top-K across the outer-fold rankings: " + ", ".join(
+            f"K={k}: {v['outer_folds']:.2f}" for k, v in stability.items() if k.isdigit()))
+    (d / "report.md").write_text("\n".join(lines) + "\n")
+    return dict(directory=str(d.relative_to(out)), default_k=default["n_features"], trial_ks=ks,
+                stability=stability, families=final["families"])
 
 
 # ============================================================================ study safety + reproducibility
@@ -1531,6 +1739,10 @@ def write_run_manifest(out: Path, task, data, budgets, study):
                     data_content=data.get("content_sha256")),
         study=dict(name=study.study_name, trials=len(study.trials), requested=TRIALS_PER_MODEL, folds=CV_FOLDS),
         feature_sets=list(data["feature_sets"]), budgets_bytes=budgets, threshold=task_threshold(task),
+        experiment=EXPERIMENT, frame_gates=dict(train=TRAIN_MIN_FRAMES, eval=EVAL_MIN_FRAMES, steady=LEAN8_STEADY_FRAMES),
+        tap_false_per_min_target=R.TAP_FALSE_PER_MIN_TARGET if task == "tap" else None,
+        feature_ranker=dict(version=FS.RANKER_VERSION, inner_folds=FS.INNER_FOLDS, screen=FS.SCREEN_PARAMS,
+                            repeats=[FS.REPEATS_FEATURE, FS.REPEATS_GROUP]) if FEATURE_SELECTION else None,
         lean8=lean8_setting(), search=dict(n_estimators=N_ESTIMATORS, max_depth=MAX_DEPTH, num_leaves=NUM_LEAVES,
                                            learning_rate=LEARNING_RATE, min_child_samples=MIN_CHILD_SAMPLES,
                                            positive_weight=POSITIVE_WEIGHT[task]),
@@ -1551,6 +1763,11 @@ def same_lean8_setting(saved) -> bool:
 
 
 def lean8_setting():
+    if FEATURE_SELECTION:
+        return dict(enabled=USE_LEAN8, train_min_frames=TRAIN_MIN_FRAMES if USE_LEAN8 else None,
+                    eval_min_frames=EVAL_MIN_FRAMES if USE_LEAN8 else None,
+                    steady_frames=LEAN8_STEADY_FRAMES if USE_LEAN8 else None,
+                    generator_sha256=lean8.GENERATOR_SHA if USE_LEAN8 else None)
     return dict(enabled=USE_LEAN8, min_frames=LEAN8_MIN_FRAMES if USE_LEAN8 else None,
                 steady_frames=LEAN8_STEADY_FRAMES if USE_LEAN8 else None,
                 generator_sha256=lean8.GENERATOR_SHA if USE_LEAN8 else None)
@@ -1568,6 +1785,9 @@ def train_task(task: str, tap_files, lp_files):
         saved = json.loads(summary_file.read_text())
         if (saved.get("status") == "success" and saved.get("fixed_threshold") == task_threshold(task)
                 and saved.get("budgets") == budgets and same_lean8_setting(saved.get("lean8"))
+                and saved.get("experiment", "v2") == EXPERIMENT
+                and (task != "tap" or not FEATURE_SELECTION
+                     or (saved.get("tap_target") or {}).get("setting") == TAP_TARGET_SETTING.strip().lower())
                 and (out / "models" / (stem + ".h")).is_file()):
             notice("UNIFIED_COMPLETE_REUSED", task, str(out))
             return saved
@@ -1582,6 +1802,12 @@ def train_task(task: str, tap_files, lp_files):
         "class_one": definition["class_one"], "fixed_threshold": task_threshold(task)}))
     write_json(out / "split.json", dict(train_groups=sorted(set(data["group"][tr])),
                                          heldout_groups=sorted(set(data["group"][te])), seed=SEED + int(task == "lp")))
+    global FS_CACHE_DIR
+    FS_CACHE_DIR = out / "feature_selection" / "cache"
+    target_info = None
+    if task == "tap":
+        R.TAP_FALSE_PER_MIN_TARGET, target_info = resolve_tap_target(data, rpl, tr, out)
+        notice("UNIFIED_TAP_TARGET", json.dumps({k: v for k, v in target_info.items() if k != "per_folder"}))
     db = out / "optuna_study.sqlite3"
     backup = backup_study_db(db, out)
     global TIMING_LOG
@@ -1598,10 +1824,12 @@ def train_task(task: str, tap_files, lp_files):
         # A known-good anchor (the research student) and a deep-tree anchor, inside the budget.
         # LP anchors start at a release weight that puts the replay optimum near the release threshold.
         pw0 = LP_ANCHOR_POSITIVE_WEIGHT if task == "lp" else 1.0
-        study.enqueue_trial(dict(feature_set="all_available", positive_weight=pw0, max_depth=6, num_leaves=15,
+        # v3: both anchors are the all-feature control (K = every available field).
+        fsel = dict(n_features=len(data["columns"])) if FEATURE_SELECTION else dict(feature_set="all_available")
+        study.enqueue_trial(dict(**fsel, positive_weight=pw0, max_depth=6, num_leaves=15,
                                  n_estimators=160, learning_rate=0.1, min_child_samples=100, reg_lambda=1.0,
                                  reg_alpha=1e-3, colsample_bytree=0.8, subsample=0.8))
-        study.enqueue_trial(dict(feature_set="all_available", positive_weight=pw0, max_depth=10, num_leaves=63,
+        study.enqueue_trial(dict(**fsel, positive_weight=pw0, max_depth=10, num_leaves=63,
                                  n_estimators=200, learning_rate=0.2, min_child_samples=50, reg_lambda=1.0,
                                  reg_alpha=1e-3, colsample_bytree=0.7, subsample=0.8))
     optuna.logging.set_verbosity(optuna.logging.WARNING)
@@ -1617,6 +1845,7 @@ def train_task(task: str, tap_files, lp_files):
                        "tap_released": c["tap_released"]}),
                    "bytes": trial.user_attrs[f"max_bytes_{budgets[0]}"], "seconds": trial.user_attrs["seconds"],
                    "leaves": trial.user_attrs["training_params"]["num_leaves"],
+                   **({"K": trial.user_attrs["n_features"]} if FEATURE_SELECTION else {}),
                    "depth": trial.user_attrs["training_params"]["max_depth"]}))
             return z
         study.optimize(fn, n_trials=1, n_jobs=1, show_progress_bar=False, catch=())
@@ -1626,19 +1855,20 @@ def train_task(task: str, tap_files, lp_files):
     for c in candidates:
         c["default"] = c is default
     baselines = replay_baselines(task, data, rpl, te, out)
+    fs_report = write_fs_reports(out, task, data, study, candidates, default) if FEATURE_SELECTION else None
     table = comparison_table(task, candidates, baselines)
     (out / "COMPARISON.md").write_text(f"# {task}: held-out people, replayed through the C headers\n\n" + table)
     notice(table)
     write_json(out / "models" / (stem + "_model_info.json"),
                dict(selected=default, skipped=skipped, fixed_threshold=task_threshold(task), stable_header=stem + ".h",
                     api=stem + "_predict(&m_feat_core)", budgets_bytes=budgets,
-                    rationale="Best grouped-CV replay score inside the primary model-data budget, "
-                              "skipping candidates that never fire / never release on held-out people"))
+                    rationale="Best grouped-CV replay score inside the primary model-data budget, skipping "
+                              "candidates that fail a CV fold; the held-out people are reported, never used to choose"))
     done = [t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE]
     summary = dict(status="success", task=task, model_header=stem + ".h", class_one=definition["class_one"],
                    class_zero=definition["class_zero"], fixed_threshold=task_threshold(task), threshold_tuned=False,
                    budgets=budgets, lean8=lean8_setting(), selected=default, skipped=skipped, candidates=candidates,
-                   baselines=baselines,
+                   baselines=baselines, experiment=EXPERIMENT, tap_target=target_info, feature_selection=fs_report,
                    trials=len(done), pruned=len([t for t in study.trials if t.state == optuna.trial.TrialState.PRUNED]),
                    dataset=dict(train_rows=int(len(data["y"])), replay_rows=int(len(rpl["X"])),
                                 recordings=int(len(rpl["recs"])), subjects=len(set(data["group"])), counts=info),

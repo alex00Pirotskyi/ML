@@ -1,0 +1,815 @@
+{
+ "task": "lp",
+ "config": {
+  "objective": "binary",
+  "n_estimators": 400,
+  "learning_rate": 0.1,
+  "num_leaves": 31,
+  "max_depth": 8,
+  "min_child_samples": 100,
+  "reg_lambda": 1.0,
+  "reg_alpha": 0.001,
+  "colsample_bytree": 0.7,
+  "subsample": 0.8,
+  "subsample_freq": 1,
+  "max_bin": 127,
+  "verbosity": -1,
+  "deterministic": true
+ },
+ "positive_weight": 0.02,
+ "folds": 3,
+ "results": {
+  "raw126": {
+   "50": [
+    {
+     "train_rows": 414557,
+     "positives": 219024,
+     "trees": 88,
+     "bytes": 32724,
+     "usable_rows": {
+      "at_firmware_threshold": {
+       "holds": 202,
+       "hold_kept": 0.8118811881188119,
+       "timely_release": 0.42574257425742573,
+       "stuck": 69,
+       "release_latency_ms_median": 39.0,
+       "release_latency_ms_p90": 398.2000000000014,
+       "held_fraction_median": 0.9995468962392388,
+       "taps": 1686,
+       "tap_released": 0.6168446026097272,
+       "tap_release_latency_ms_median": 26.0,
+       "objective_score": 0.6080004626523002
+      },
+      "best_threshold": 0.4,
+      "best": {
+       "holds": 202,
+       "hold_kept": 0.7574257425742574,
+       "timely_release": 0.49504950495049505,
+       "stuck": 47,
+       "release_latency_ms_median": 34.0,
+       "release_latency_ms_p90": 366.5,
+       "held_fraction_median": 0.9966979492526937,
+       "taps": 1686,
+       "tap_released": 0.6720047449584816,
+       "tap_release_latency_ms_median": 14.5,
+       "objective_score": 0.6394893641145952
+      }
+     },
+     "steady_rows": {
+      "at_firmware_threshold": {
+       "holds": 166,
+       "hold_kept": 0.8012048192771084,
+       "timely_release": 0.43373493975903615,
+       "stuck": 57,
+       "release_latency_ms_median": 39.0,
+       "release_latency_ms_p90": 250.5,
+       "held_fraction_median": 0.9986149584487535,
+       "taps": 280,
+       "tap_released": 0.4785714285714286,
+       "tap_release_latency_ms_median": 11.0,
+       "objective_score": 0.5768219340354178
+      },
+      "best_threshold": 0.4,
+      "best": {
+       "holds": 166,
+       "hold_kept": 0.7469879518072289,
+       "timely_release": 0.5060240963855421,
+       "stuck": 37,
+       "release_latency_ms_median": 36.0,
+       "release_latency_ms_p90": 315.6000000000004,
+       "held_fraction_median": 0.9967682363804248,
+       "taps": 280,
+       "tap_released": 0.5571428571428572,
+       "tap_release_latency_ms_median": 0.0,
+       "objective_score": 0.6168322388320785
+      }
+     },
+     "seconds": 30.3
+    },
+    {
+     "train_rows": 414534,
+     "positives": 225675,
+     "trees": 88,
+     "bytes": 32724,
+     "usable_rows": {
+      "at_firmware_threshold": {
+       "holds": 279,
+       "hold_kept": 0.27956989247311825,
+       "timely_release": 0.26881720430107525,
+       "stuck": 3,
+       "release_latency_ms_median": 43.0,
+       "release_latency_ms_p90": 183.80000000000007,
+       "held_fraction_median": 0.06127488020397519,
+       "taps": 1445,
+       "tap_released": 0.8470588235294118,
+       "tap_release_latency_ms_median": -21.0,
+       "objective_score": 0.31841326776378637
+      },
+      "best_threshold": 0.9,
+      "best": {
+       "holds": 279,
+       "hold_kept": 0.48028673835125446,
+       "timely_release": 0.3010752688172043,
+       "stuck": 43,
+       "release_latency_ms_median": 96.0,
+       "release_latency_ms_p90": 330.0,
+       "held_fraction_median": 0.1495535870323534,
+       "taps": 1445,
+       "tap_released": 0.613840830449827,
+       "tap_release_latency_ms_median": 38.0,
+       "objective_score": 0.4231388021815191
+      }
+     },
+     "steady_rows": {
+      "at_firmware_threshold": {
+       "holds": 221,
+       "hold_kept": 0.27149321266968324,
+       "timely_release": 0.2579185520361991,
+       "stuck": 3,
+       "release_latency_ms_median": 44.0,
+       "release_latency_ms_p90": 182.2,
+       "held_fraction_median": 0.05304018514622344,
+       "taps": 218,
+       "tap_released": 0.8577981651376146,
+       "tap_release_latency_ms_median": -38.0,
+       "objective_score": 0.30883455446943053
+      },
+      "best_threshold": 0.9,
+      "best": {
+       "holds": 221,
+       "hold_kept": 0.4751131221719457,
+       "timely_release": 0.29411764705882354,
+       "stuck": 34,
+       "release_latency_ms_median": 103.0,
+       "release_latency_ms_p90": 440.0,
+       "held_fraction_median": 0.13183856502242153,
+       "taps": 218,
+       "tap_released": 0.5229357798165137,
+       "tap_release_latency_ms_median": 13.0,
+       "objective_score": 0.40735900681994525
+      }
+     },
+     "seconds": 30.4
+    },
+    {
+     "train_rows": 414611,
+     "positives": 226327,
+     "trees": 88,
+     "bytes": 32724,
+     "usable_rows": {
+      "at_firmware_threshold": {
+       "holds": 366,
+       "hold_kept": 0.5710382513661202,
+       "timely_release": 0.546448087431694,
+       "stuck": 4,
+       "release_latency_ms_median": 0.0,
+       "release_latency_ms_p90": 120.0,
+       "held_fraction_median": 0.9664679671795736,
+       "taps": 1321,
+       "tap_released": 0.7676003028009084,
+       "tap_release_latency_ms_median": 0.0,
+       "objective_score": 0.5934188586836576
+      },
+      "best_threshold": 0.7,
+      "best": {
+       "holds": 366,
+       "hold_kept": 0.6857923497267759,
+       "timely_release": 0.592896174863388,
+       "stuck": 22,
+       "release_latency_ms_median": 28.0,
+       "release_latency_ms_p90": 346.80000000000024,
+       "held_fraction_median": 0.9886859836074495,
+       "taps": 1321,
+       "tap_released": 0.6873580620741863,
+       "tap_release_latency_ms_median": 24.0,
+       "objective_score": 0.6552892671638182
+      }
+     },
+     "steady_rows": {
+      "at_firmware_threshold": {
+       "holds": 260,
+       "hold_kept": 0.5615384615384615,
+       "timely_release": 0.5384615384615384,
+       "stuck": 2,
+       "release_latency_ms_median": 7.5,
+       "release_latency_ms_p90": 119.10000000000005,
+       "held_fraction_median": 0.9652219534728299,
+       "taps": 218,
+       "tap_released": 0.6100917431192661,
+       "tap_release_latency_ms_median": 0.5,
+       "objective_score": 0.563261801579152
+      },
+      "best_threshold": 0.7,
+      "best": {
+       "holds": 260,
+       "hold_kept": 0.6653846153846154,
+       "timely_release": 0.5692307692307692,
+       "stuck": 13,
+       "release_latency_ms_median": 38.5,
+       "release_latency_ms_p90": 385.2999999999997,
+       "held_fraction_median": 0.9881217520415738,
+       "taps": 218,
+       "tap_released": 0.5321100917431193,
+       "tap_release_latency_ms_median": 13.0,
+       "objective_score": 0.6044727905998325
+      }
+     },
+     "seconds": 34.6
+    }
+   ],
+   "500": [
+    {
+     "train_rows": 215078,
+     "positives": 62487,
+     "trees": 88,
+     "bytes": 32724,
+     "usable_rows": {
+      "at_firmware_threshold": {
+       "holds": 202,
+       "hold_kept": 0.8564356435643564,
+       "timely_release": 0.49504950495049505,
+       "stuck": 64,
+       "release_latency_ms_median": 53.0,
+       "release_latency_ms_p90": 444.6000000000001,
+       "held_fraction_median": 1.0,
+       "taps": 1686,
+       "tap_released": 0.566429418742586,
+       "tap_release_latency_ms_median": 42.0,
+       "objective_score": 0.6481284499065536
+      },
+      "best_threshold": 0.4,
+      "best": {
+       "holds": 202,
+       "hold_kept": 0.806930693069307,
+       "timely_release": 0.5445544554455446,
+       "stuck": 47,
+       "release_latency_ms_median": 40.0,
+       "release_latency_ms_p90": 358.5,
+       "held_fraction_median": 1.0,
+       "taps": 1686,
+       "tap_released": 0.638196915776987,
+       "tap_release_latency_ms_median": 26.0,
+       "objective_score": 0.6738890081469094
+      }
+     },
+     "steady_rows": {
+      "at_firmware_threshold": {
+       "holds": 166,
+       "hold_kept": 0.8554216867469879,
+       "timely_release": 0.5120481927710844,
+       "stuck": 52,
+       "release_latency_ms_median": 51.5,
+       "release_latency_ms_p90": 327.2000000000001,
+       "held_fraction_median": 1.0,
+       "taps": 280,
+       "tap_released": 0.4642857142857143,
+       "tap_release_latency_ms_median": 44.0,
+       "objective_score": 0.624547739233507
+      },
+      "best_threshold": 0.4,
+      "best": {
+       "holds": 166,
+       "hold_kept": 0.8012048192771084,
+       "timely_release": 0.5542168674698795,
+       "stuck": 38,
+       "release_latency_ms_median": 42.0,
+       "release_latency_ms_p90": 333.20000000000005,
+       "held_fraction_median": 1.0,
+       "taps": 280,
+       "tap_released": 0.525,
+       "tap_release_latency_ms_median": 25.0,
+       "objective_score": 0.6466979785843396
+      }
+     },
+     "seconds": 15.0
+    },
+    {
+     "train_rows": 216404,
+     "positives": 66992,
+     "trees": 88,
+     "bytes": 32724,
+     "usable_rows": {
+      "at_firmware_threshold": {
+       "holds": 279,
+       "hold_kept": 0.3010752688172043,
+       "timely_release": 0.2939068100358423,
+       "stuck": 2,
+       "release_latency_ms_median": 50.5,
+       "release_latency_ms_p90": 154.60000000000002,
+       "held_fraction_median": 0.06994818652849741,
+       "taps": 1445,
+       "tap_released": 0.7847750865051903,
+       "tap_release_latency_ms_median": 0.0,
+       "objective_score": 0.34056511071808815
+      },
+      "best_threshold": 0.85,
+      "best": {
+       "holds": 279,
+       "hold_kept": 0.46953405017921146,
+       "timely_release": 0.3333333333333333,
+       "stuck": 32,
+       "release_latency_ms_median": 86.0,
+       "release_latency_ms_p90": 372.40000000000003,
+       "held_fraction_median": 0.13280089153046062,
+       "taps": 1445,
+       "tap_released": 0.5847750865051903,
+       "tap_release_latency_ms_median": 46.0,
+       "objective_score": 0.43348266382625444
+      }
+     },
+     "steady_rows": {
+      "at_firmware_threshold": {
+       "holds": 221,
+       "hold_kept": 0.2895927601809955,
+       "timely_release": 0.28054298642533937,
+       "stuck": 2,
+       "release_latency_ms_median": 53.5,
+       "release_latency_ms_p90": 154.6,
+       "held_fraction_median": 0.05945788399883416,
+       "taps": 218,
+       "tap_released": 0.7568807339449541,
+       "tap_release_latency_ms_median": -38.0,
+       "objective_score": 0.32678032438257776
+      },
+      "best_threshold": 0.85,
+      "best": {
+       "holds": 221,
+       "hold_kept": 0.45701357466063347,
+       "timely_release": 0.3167420814479638,
+       "stuck": 26,
+       "release_latency_ms_median": 85.0,
+       "release_latency_ms_p90": 375.20000000000005,
+       "held_fraction_median": 0.1091077207582062,
+       "taps": 218,
+       "tap_released": 0.5458715596330275,
+       "tap_release_latency_ms_median": -6.0,
+       "objective_score": 0.4153533164160113
+      }
+     },
+     "seconds": 15.1
+    },
+    {
+     "train_rows": 217760,
+     "positives": 58813,
+     "trees": 88,
+     "bytes": 32724,
+     "usable_rows": {
+      "at_firmware_threshold": {
+       "holds": 366,
+       "hold_kept": 0.6120218579234973,
+       "timely_release": 0.5655737704918032,
+       "stuck": 11,
+       "release_latency_ms_median": 0.0,
+       "release_latency_ms_p90": 160.60000000000002,
+       "held_fraction_median": 0.9755011135857461,
+       "taps": 1321,
+       "tap_released": 0.7305071915215746,
+       "tap_release_latency_ms_median": 13.0,
+       "objective_score": 0.616834098937575
+      },
+      "best_threshold": 0.8,
+      "best": {
+       "holds": 366,
+       "hold_kept": 0.7459016393442623,
+       "timely_release": 0.6092896174863388,
+       "stuck": 35,
+       "release_latency_ms_median": 59.5,
+       "release_latency_ms_p90": 422.6,
+       "held_fraction_median": 1.0,
+       "taps": 1321,
+       "tap_released": 0.5821347464042392,
+       "tap_release_latency_ms_median": 60.0,
+       "objective_score": 0.6638918550347621
+      }
+     },
+     "steady_rows": {
+      "at_firmware_threshold": {
+       "holds": 260,
+       "hold_kept": 0.5884615384615385,
+       "timely_release": 0.5576923076923077,
+       "stuck": 4,
+       "release_latency_ms_median": 9.0,
+       "release_latency_ms_p90": 149.0,
+       "held_fraction_median": 0.9729912098333151,
+       "taps": 218,
+       "tap_released": 0.6100917431192661,
+       "tap_release_latency_ms_median": -8.0,
+       "objective_score": 0.582946329751945
+      },
+      "best_threshold": 0.7,
+      "best": {
+       "holds": 260,
+       "hold_kept": 0.6653846153846154,
+       "timely_release": 0.5846153846153846,
+       "stuck": 11,
+       "release_latency_ms_median": 39.5,
+       "release_latency_ms_p90": 357.8000000000002,
+       "held_fraction_median": 0.9915611814345991,
+       "taps": 218,
+       "tap_released": 0.518348623853211,
+       "tap_release_latency_ms_median": 17.5,
+       "objective_score": 0.6058976785566745
+      }
+     },
+     "seconds": 15.1
+    }
+   ]
+  },
+  "all_available": {
+   "50": [
+    {
+     "train_rows": 414557,
+     "positives": 219024,
+     "trees": 88,
+     "bytes": 32724,
+     "usable_rows": {
+      "at_firmware_threshold": {
+       "holds": 202,
+       "hold_kept": 0.6089108910891089,
+       "timely_release": 0.5396039603960396,
+       "stuck": 10,
+       "release_latency_ms_median": 22.0,
+       "release_latency_ms_p90": 225.99999999999991,
+       "held_fraction_median": 0.9884147791581278,
+       "taps": 1686,
+       "tap_released": 0.7544483985765125,
+       "tap_release_latency_ms_median": -14.0,
+       "objective_score": 0.6089407653247813
+      },
+      "best_threshold": 0.7,
+      "best": {
+       "holds": 202,
+       "hold_kept": 0.7425742574257426,
+       "timely_release": 0.6138613861386139,
+       "stuck": 20,
+       "release_latency_ms_median": 42.0,
+       "release_latency_ms_p90": 309.9000000000003,
+       "held_fraction_median": 1.0,
+       "taps": 1686,
+       "tap_released": 0.6648873072360617,
+       "tap_release_latency_ms_median": 10.0,
+       "objective_score": 0.6835990200258915
+      }
+     },
+     "steady_rows": {
+      "at_firmware_threshold": {
+       "holds": 166,
+       "hold_kept": 0.608433734939759,
+       "timely_release": 0.5301204819277109,
+       "stuck": 10,
+       "release_latency_ms_median": 29.0,
+       "release_latency_ms_p90": 232.0,
+       "held_fraction_median": 0.9926497927599828,
+       "taps": 280,
+       "tap_released": 0.6642857142857143,
+       "tap_release_latency_ms_median": -36.0,
+       "objective_score": 0.5921481611172776
+      },
+      "best_threshold": 0.7,
+      "best": {
+       "holds": 166,
+       "hold_kept": 0.7530120481927711,
+       "timely_release": 0.6144578313253012,
+       "stuck": 19,
+       "release_latency_ms_median": 53.5,
+       "release_latency_ms_p90": 285.5,
+       "held_fraction_median": 1.0,
+       "taps": 280,
+       "tap_released": 0.575,
+       "tap_release_latency_ms_median": -14.0,
+       "objective_score": 0.6666393873055493
+      }
+     },
+     "seconds": 36.7
+    },
+    {
+     "train_rows": 414534,
+     "positives": 225675,
+     "trees": 88,
+     "bytes": 32724,
+     "usable_rows": {
+      "at_firmware_threshold": {
+       "holds": 279,
+       "hold_kept": 0.1971326164874552,
+       "timely_release": 0.18996415770609318,
+       "stuck": 2,
+       "release_latency_ms_median": 38.0,
+       "release_latency_ms_p90": 175.20000000000022,
+       "held_fraction_median": 0.05131713992473486,
+       "taps": 1445,
+       "tap_released": 0.8622837370242215,
+       "tap_release_latency_ms_median": -45.0,
+       "objective_score": 0.230014545906365
+      },
+      "best_threshold": 1.0,
+      "best": {
+       "holds": 279,
+       "hold_kept": 0.5842293906810035,
+       "timely_release": 0.2939068100358423,
+       "stuck": 68,
+       "release_latency_ms_median": 111.0,
+       "release_latency_ms_p90": 677.4000000000002,
+       "held_fraction_median": 0.3929203539823009,
+       "taps": 1445,
+       "tap_released": 0.4463667820069204,
+       "tap_release_latency_ms_median": 69.5,
+       "objective_score": 0.4301774758337752
+      }
+     },
+     "steady_rows": {
+      "at_firmware_threshold": {
+       "holds": 221,
+       "hold_kept": 0.18099547511312217,
+       "timely_release": 0.17194570135746606,
+       "stuck": 2,
+       "release_latency_ms_median": 44.5,
+       "release_latency_ms_p90": 186.60000000000002,
+       "held_fraction_median": 0.04453125,
+       "taps": 218,
+       "tap_released": 0.8394495412844036,
+       "tap_release_latency_ms_median": -52.5,
+       "objective_score": 0.21072647452092982
+      },
+      "best_threshold": 1.0,
+      "best": {
+       "holds": 221,
+       "hold_kept": 0.5746606334841629,
+       "timely_release": 0.29411764705882354,
+       "stuck": 52,
+       "release_latency_ms_median": 105.0,
+       "release_latency_ms_p90": 613.000000000001,
+       "held_fraction_median": 0.3755511022044088,
+       "taps": 218,
+       "tap_released": 0.3669724770642202,
+       "tap_release_latency_ms_median": 28.0,
+       "objective_score": 0.41066433849088935
+      }
+     },
+     "seconds": 37.2
+    },
+    {
+     "train_rows": 414611,
+     "positives": 226327,
+     "trees": 88,
+     "bytes": 32724,
+     "usable_rows": {
+      "at_firmware_threshold": {
+       "holds": 366,
+       "hold_kept": 0.505464480874317,
+       "timely_release": 0.4344262295081967,
+       "stuck": 18,
+       "release_latency_ms_median": -8.0,
+       "release_latency_ms_p90": 218.40000000000006,
+       "held_fraction_median": 0.7803120037165657,
+       "taps": 1321,
+       "tap_released": 0.8168054504163512,
+       "tap_release_latency_ms_median": -67.0,
+       "objective_score": 0.5195853609029266
+      },
+      "best_threshold": 0.9,
+      "best": {
+       "holds": 366,
+       "hold_kept": 0.7650273224043715,
+       "timely_release": 0.49453551912568305,
+       "stuck": 83,
+       "release_latency_ms_median": 53.0,
+       "release_latency_ms_p90": 474.6,
+       "held_fraction_median": 0.9961832061068703,
+       "taps": 1321,
+       "tap_released": 0.5987887963663892,
+       "tap_release_latency_ms_median": 21.0,
+       "objective_score": 0.6272703862820775
+      }
+     },
+     "steady_rows": {
+      "at_firmware_threshold": {
+       "holds": 260,
+       "hold_kept": 0.5192307692307693,
+       "timely_release": 0.4346153846153846,
+       "stuck": 15,
+       "release_latency_ms_median": 3.5,
+       "release_latency_ms_p90": 265.10000000000036,
+       "held_fraction_median": 0.8552787663107948,
+       "taps": 218,
+       "tap_released": 0.7018348623853211,
+       "tap_release_latency_ms_median": -83.5,
+       "objective_score": 0.5159437532080487
+      },
+      "best_threshold": 0.7,
+      "best": {
+       "holds": 260,
+       "hold_kept": 0.676923076923077,
+       "timely_release": 0.5192307692307693,
+       "stuck": 31,
+       "release_latency_ms_median": 20.0,
+       "release_latency_ms_p90": 397.79999999999984,
+       "held_fraction_median": 0.9823143001515917,
+       "taps": 218,
+       "tap_released": 0.5963302752293578,
+       "tap_release_latency_ms_median": -35.0,
+       "objective_score": 0.6054006251572889
+      }
+     },
+     "seconds": 37.3
+    }
+   ],
+   "500": [
+    {
+     "train_rows": 215078,
+     "positives": 62487,
+     "trees": 88,
+     "bytes": 32724,
+     "usable_rows": {
+      "at_firmware_threshold": {
+       "holds": 202,
+       "hold_kept": 0.6336633663366337,
+       "timely_release": 0.5742574257425742,
+       "stuck": 10,
+       "release_latency_ms_median": 36.0,
+       "release_latency_ms_p90": 238.89999999999998,
+       "held_fraction_median": 0.988927750854681,
+       "taps": 1686,
+       "tap_released": 0.693950177935943,
+       "tap_release_latency_ms_median": -13.0,
+       "objective_score": 0.6251244695846857
+      },
+      "best_threshold": 0.8,
+      "best": {
+       "holds": 202,
+       "hold_kept": 0.806930693069307,
+       "timely_release": 0.5891089108910891,
+       "stuck": 38,
+       "release_latency_ms_median": 110.0,
+       "release_latency_ms_p90": 357.00000000000006,
+       "held_fraction_median": 1.0,
+       "taps": 1686,
+       "tap_released": 0.5397390272835113,
+       "tap_release_latency_ms_median": 25.0,
+       "objective_score": 0.6669222980417804
+      }
+     },
+     "steady_rows": {
+      "at_firmware_threshold": {
+       "holds": 166,
+       "hold_kept": 0.6325301204819277,
+       "timely_release": 0.572289156626506,
+       "stuck": 10,
+       "release_latency_ms_median": 40.0,
+       "release_latency_ms_p90": 239.2000000000002,
+       "held_fraction_median": 0.9903528211149553,
+       "taps": 280,
+       "tap_released": 0.6392857142857142,
+       "tap_release_latency_ms_median": -42.0,
+       "objective_score": 0.6144257788868984
+      },
+      "best_threshold": 0.7,
+      "best": {
+       "holds": 166,
+       "hold_kept": 0.7409638554216867,
+       "timely_release": 0.5843373493975904,
+       "stuck": 23,
+       "release_latency_ms_median": 96.0,
+       "release_latency_ms_p90": 296.40000000000003,
+       "held_fraction_median": 1.0,
+       "taps": 280,
+       "tap_released": 0.5107142857142857,
+       "tap_release_latency_ms_median": -12.0,
+       "objective_score": 0.632988632469741
+      }
+     },
+     "seconds": 21.4
+    },
+    {
+     "train_rows": 216404,
+     "positives": 66992,
+     "trees": 88,
+     "bytes": 32724,
+     "usable_rows": {
+      "at_firmware_threshold": {
+       "holds": 279,
+       "hold_kept": 0.23297491039426524,
+       "timely_release": 0.21863799283154123,
+       "stuck": 2,
+       "release_latency_ms_median": 51.0,
+       "release_latency_ms_p90": 222.60000000000002,
+       "held_fraction_median": 0.04741980474198047,
+       "taps": 1445,
+       "tap_released": 0.8076124567474049,
+       "tap_release_latency_ms_median": -28.0,
+       "objective_score": 0.2655387625114523
+      },
+      "best_threshold": 0.95,
+      "best": {
+       "holds": 279,
+       "hold_kept": 0.5017921146953405,
+       "timely_release": 0.34050179211469533,
+       "stuck": 38,
+       "release_latency_ms_median": 128.5,
+       "release_latency_ms_p90": 382.1,
+       "held_fraction_median": 0.3129432624113475,
+       "taps": 1445,
+       "tap_released": 0.5204152249134948,
+       "tap_release_latency_ms_median": 52.0,
+       "objective_score": 0.4421277512965974
+      }
+     },
+     "steady_rows": {
+      "at_firmware_threshold": {
+       "holds": 221,
+       "hold_kept": 0.22171945701357465,
+       "timely_release": 0.20361990950226244,
+       "stuck": 2,
+       "release_latency_ms_median": 52.0,
+       "release_latency_ms_p90": 239.79999999999993,
+       "held_fraction_median": 0.03890329751759911,
+       "taps": 218,
+       "tap_released": 0.8440366972477065,
+       "tap_release_latency_ms_median": -62.0,
+       "objective_score": 0.25218188422606413
+      },
+      "best_threshold": 0.95,
+      "best": {
+       "holds": 221,
+       "hold_kept": 0.4841628959276018,
+       "timely_release": 0.34841628959276016,
+       "stuck": 27,
+       "release_latency_ms_median": 104.5,
+       "release_latency_ms_p90": 321.0000000000002,
+       "held_fraction_median": 0.2852226577047901,
+       "taps": 218,
+       "tap_released": 0.5091743119266054,
+       "tap_release_latency_ms_median": 0.0,
+       "objective_score": 0.4373416211206589
+      }
+     },
+     "seconds": 20.9
+    },
+    {
+     "train_rows": 217760,
+     "positives": 58813,
+     "trees": 88,
+     "bytes": 32724,
+     "usable_rows": {
+      "at_firmware_threshold": {
+       "holds": 366,
+       "hold_kept": 0.46994535519125685,
+       "timely_release": 0.41530054644808745,
+       "stuck": 15,
+       "release_latency_ms_median": 13.0,
+       "release_latency_ms_p90": 365.4,
+       "held_fraction_median": 0.4747307373653687,
+       "taps": 1321,
+       "tap_released": 0.7721423164269493,
+       "tap_release_latency_ms_median": -44.0,
+       "objective_score": 0.4889159055138067
+      },
+      "best_threshold": 0.85,
+      "best": {
+       "holds": 366,
+       "hold_kept": 0.6857923497267759,
+       "timely_release": 0.4972677595628415,
+       "stuck": 53,
+       "release_latency_ms_median": 69.0,
+       "release_latency_ms_p90": 450.4000000000001,
+       "held_fraction_median": 0.9943625325238509,
+       "taps": 1321,
+       "tap_released": 0.5677517032551098,
+       "tap_release_latency_ms_median": 24.0,
+       "objective_score": 0.5935961534047546
+      }
+     },
+     "steady_rows": {
+      "at_firmware_threshold": {
+       "holds": 260,
+       "hold_kept": 0.4461538461538462,
+       "timely_release": 0.38461538461538464,
+       "stuck": 11,
+       "release_latency_ms_median": 22.0,
+       "release_latency_ms_p90": 389.6,
+       "held_fraction_median": 0.4386540828887977,
+       "taps": 218,
+       "tap_released": 0.6880733944954128,
+       "tap_release_latency_ms_median": -82.0,
+       "objective_score": 0.4563383827787337
+      },
+      "best_threshold": 0.85,
+      "best": {
+       "holds": 260,
+       "hold_kept": 0.6807692307692308,
+       "timely_release": 0.48846153846153845,
+       "stuck": 38,
+       "release_latency_ms_median": 69.0,
+       "release_latency_ms_p90": 457.20000000000005,
+       "held_fraction_median": 0.9948324700199994,
+       "taps": 218,
+       "tap_released": 0.46788990825688076,
+       "tap_release_latency_ms_median": -25.5,
+       "objective_score": 0.5630353280015276
+      }
+     },
+     "seconds": 21.2
+    }
+   ]
+  }
+ }
+}

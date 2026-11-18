@@ -8,6 +8,32 @@
 
 ---
 
+## 0. Implementation status (2026-11-18)
+
+Implemented as the trainer's default **v3** experiment (`feature_selection.py`, `train_unified.py`), with the
+evidence in **`FEATURE_SELECTION_RESULTS.md`**. Short version:
+
+- **Implemented as planned:**
+  - all 150 fields
+  - fold-local nested ranking with correlation groups and block permutation on firmware replay
+  - integer K 1–150
+  - the holdout is an audit only
+  - final ranking refit on everyone at the locked K
+  - stability (Nogueira)
+  - new outputs and studies
+  - K = 150 reproduces the all-feature model exactly (TAP and LP)
+  - leakage test passes
+- **Deviations, each justified by measurements in the results document:**
+  - **TAP false-event budget** anchored on the previous production header instead of 1 per minute. The
+    1/min budget is why the latest TAP model is insensitive.
+  - **Readiness gate:** evaluation at the firmware's 500 frames, training from frame 50 (better on the
+    firmware-gated rows).
+  - **Correlation clusters:** complete linkage at strong correlation.
+  - **No conditional sampler, no floating add/drop/swap.**
+- **Findings:**
+  - TAP gains nothing from feature selection (K = 150 is best in every fold).
+  - LP subsets give at most small, noisy gains, which Optuna's K search can pick up.
+
 ## 1. Executive recommendation
 
 Replace the current hand-written feature_set menu with a **task-specific, group-aware, nested feature-selection pipeline that starts with every available firmware feature and learns the subset from data**.

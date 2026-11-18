@@ -1,0 +1,1903 @@
+{
+ "task": "tap",
+ "config": {
+  "objective": "binary",
+  "n_estimators": 400,
+  "learning_rate": 0.1,
+  "num_leaves": 31,
+  "max_depth": 8,
+  "min_child_samples": 100,
+  "reg_lambda": 1.0,
+  "reg_alpha": 0.001,
+  "colsample_bytree": 0.7,
+  "subsample": 0.8,
+  "subsample_freq": 1,
+  "max_bin": 127,
+  "verbosity": -1,
+  "deterministic": true
+ },
+ "positive_weight": 1.0,
+ "folds": 3,
+ "results": {
+  "raw126": {
+   "50": [
+    {
+     "train_rows": 489637,
+     "positives": 82139,
+     "trees": 88,
+     "bytes": 32724,
+     "usable_rows": {
+      "at_firmware_threshold": {
+       "onsets": 3129,
+       "hits": 3094,
+       "recall": 0.9888143176733781,
+       "false_events": 580,
+       "negative_minutes": 89.35586666666667,
+       "false_per_min": 6.490900056552899,
+       "latency_ms_median": -9.0,
+       "latency_ms_p90": 5.0,
+       "objective_score": 0.15233855228985063,
+       "false_per_min_target": 1.0
+      },
+      "best_threshold": 0.99,
+      "best": {
+       "onsets": 3129,
+       "hits": 2675,
+       "recall": 0.8549057206775328,
+       "false_events": 76,
+       "negative_minutes": 89.35586666666667,
+       "false_per_min": 0.8505317315483109,
+       "latency_ms_median": 4.0,
+       "latency_ms_p90": 29.0,
+       "objective_score": 0.8549057206775328,
+       "false_per_min_target": 1.0
+      },
+      "recall_at_fpm_1": 0.8549057206775328,
+      "recall_at_fpm_2": 0.9373601789709173,
+      "recall_at_fpm_3": 0.9712368168744008,
+      "recall_at_fpm_5": 0.9840204538191115,
+      "per_folder_at_firmware": {
+       "ARM": {
+        "fpm": 1.651,
+        "recall": null
+       },
+       "BAND": {
+        "fpm": 20.303,
+        "recall": null
+       },
+       "DRAG_AND_DROP": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "FINGER": {
+        "fpm": 10.716,
+        "recall": null
+       },
+       "LONG_PRESS": {
+        "fpm": 1.752,
+        "recall": null
+       },
+       "MID_LONG_PRESS": {
+        "fpm": 1.379,
+        "recall": null
+       },
+       "NOTHING": {
+        "fpm": 0.582,
+        "recall": null
+       },
+       "SOFT_LONG_PRESS": {
+        "fpm": 1.913,
+        "recall": null
+       },
+       "STRONG_LONG_PRESS": {
+        "fpm": 0.289,
+        "recall": null
+       },
+       "SWIPE": {
+        "fpm": 6.929,
+        "recall": 0.9951923076923077
+       },
+       "TAP": {
+        "fpm": 2.111,
+        "recall": 0.9856390617520344
+       },
+       "WRIST": {
+        "fpm": 8.7,
+        "recall": null
+       }
+      }
+     },
+     "steady_rows": {
+      "at_firmware_threshold": {
+       "onsets": 458,
+       "hits": 449,
+       "recall": 0.980349344978166,
+       "false_events": 273,
+       "negative_minutes": 49.071425,
+       "false_per_min": 5.563319182192081,
+       "latency_ms_median": -8.0,
+       "latency_ms_p90": 8.199999999999989,
+       "objective_score": 0.17621662767727175,
+       "false_per_min_target": 1.0
+      },
+      "best_threshold": 0.98,
+      "best": {
+       "onsets": 458,
+       "hits": 416,
+       "recall": 0.9082969432314411,
+       "false_events": 42,
+       "negative_minutes": 49.071425,
+       "false_per_min": 0.8558952587987816,
+       "latency_ms_median": 1.0,
+       "latency_ms_p90": 23.0,
+       "objective_score": 0.9082969432314411,
+       "false_per_min_target": 1.0
+      },
+      "recall_at_fpm_1": 0.9082969432314411,
+      "recall_at_fpm_2": 0.9410480349344978,
+      "recall_at_fpm_3": 0.9475982532751092,
+      "recall_at_fpm_5": 0.962882096069869,
+      "per_folder_at_firmware": {
+       "ARM": {
+        "fpm": 1.359,
+        "recall": null
+       },
+       "BAND": {
+        "fpm": 19.0,
+        "recall": null
+       },
+       "DRAG_AND_DROP": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "FINGER": {
+        "fpm": 8.167,
+        "recall": null
+       },
+       "LONG_PRESS": {
+        "fpm": 2.235,
+        "recall": null
+       },
+       "MID_LONG_PRESS": {
+        "fpm": 1.722,
+        "recall": null
+       },
+       "NOTHING": {
+        "fpm": 0.933,
+        "recall": null
+       },
+       "SOFT_LONG_PRESS": {
+        "fpm": 1.576,
+        "recall": null
+       },
+       "STRONG_LONG_PRESS": {
+        "fpm": 0.352,
+        "recall": null
+       },
+       "SWIPE": {
+        "fpm": 0.0,
+        "recall": 1.0
+       },
+       "TAP": {
+        "fpm": 0.896,
+        "recall": 0.9758064516129032
+       },
+       "WRIST": {
+        "fpm": 8.751,
+        "recall": null
+       }
+      }
+     },
+     "seconds": 35.8
+    },
+    {
+     "train_rows": 490210,
+     "positives": 55392,
+     "trees": 88,
+     "bytes": 32724,
+     "usable_rows": {
+      "at_firmware_threshold": {
+       "onsets": 6894,
+       "hits": 6803,
+       "recall": 0.9868001160429359,
+       "false_events": 394,
+       "negative_minutes": 78.082625,
+       "false_per_min": 5.045936916183338,
+       "latency_ms_median": -10.0,
+       "latency_ms_p90": 4.0,
+       "objective_score": 0.19556330814958642,
+       "false_per_min_target": 1.0
+      },
+      "best_threshold": 0.995,
+      "best": {
+       "onsets": 6894,
+       "hits": 4905,
+       "recall": 0.7114882506527415,
+       "false_events": 102,
+       "negative_minutes": 78.082625,
+       "false_per_min": 1.306308541753047,
+       "latency_ms_median": 7.0,
+       "latency_ms_p90": 38.0,
+       "objective_score": 0.544655590859059,
+       "false_per_min_target": 1.0
+      },
+      "recall_at_fpm_1": 0.5394545982013345,
+      "recall_at_fpm_2": 0.8590078328981723,
+      "recall_at_fpm_3": 0.9680881926312735,
+      "recall_at_fpm_5": 0.9824485059472005,
+      "per_folder_at_firmware": {
+       "ARM": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "BAND": {
+        "fpm": 6.58,
+        "recall": null
+       },
+       "DRAG_AND_DROP": {
+        "fpm": 5.053,
+        "recall": null
+       },
+       "FINGER": {
+        "fpm": 15.569,
+        "recall": null
+       },
+       "MID_LONG_PRESS": {
+        "fpm": 2.584,
+        "recall": null
+       },
+       "NOTHING": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "SOFT_LONG_PRESS": {
+        "fpm": 0.251,
+        "recall": null
+       },
+       "STRONG_LONG_PRESS": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "SWIPE": {
+        "fpm": 6.599,
+        "recall": 0.9797838968281631
+       },
+       "TAP": {
+        "fpm": 2.115,
+        "recall": 0.9918012422360248
+       },
+       "WRIST": {
+        "fpm": 13.183,
+        "recall": null
+       }
+      }
+     },
+     "steady_rows": {
+      "at_firmware_threshold": {
+       "onsets": 912,
+       "hits": 898,
+       "recall": 0.9846491228070176,
+       "false_events": 58,
+       "negative_minutes": 21.874291666666668,
+       "false_per_min": 2.651514429991066,
+       "latency_ms_median": -9.0,
+       "latency_ms_p90": 5.0,
+       "objective_score": 0.371353484510486,
+       "false_per_min_target": 1.0
+      },
+      "best_threshold": 0.99,
+      "best": {
+       "onsets": 912,
+       "hits": 767,
+       "recall": 0.8410087719298246,
+       "false_events": 27,
+       "negative_minutes": 21.874291666666668,
+       "false_per_min": 1.2343256829268756,
+       "latency_ms_median": 3.0,
+       "latency_ms_p90": 30.399999999999977,
+       "objective_score": 0.6813507841265974,
+       "false_per_min_target": 1.0
+      },
+      "recall_at_fpm_1": 0.5131578947368421,
+      "recall_at_fpm_2": 0.9660087719298246,
+      "recall_at_fpm_3": 0.9857456140350878,
+      "recall_at_fpm_5": 0.9890350877192983,
+      "per_folder_at_firmware": {
+       "DRAG_AND_DROP": {
+        "fpm": 3.726,
+        "recall": null
+       },
+       "MID_LONG_PRESS": {
+        "fpm": 1.974,
+        "recall": null
+       },
+       "NOTHING": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "SOFT_LONG_PRESS": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "STRONG_LONG_PRESS": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "SWIPE": {
+        "fpm": 9.446,
+        "recall": 0.9748743718592965
+       },
+       "TAP": {
+        "fpm": 2.749,
+        "recall": 0.9873772791023843
+       }
+      }
+     },
+     "seconds": 33.4
+    },
+    {
+     "train_rows": 490351,
+     "positives": 74649,
+     "trees": 88,
+     "bytes": 32724,
+     "usable_rows": {
+      "at_firmware_threshold": {
+       "onsets": 4352,
+       "hits": 4164,
+       "recall": 0.9568014705882353,
+       "false_events": 959,
+       "negative_minutes": 88.57218333333333,
+       "false_per_min": 10.827327089712703,
+       "latency_ms_median": -11.0,
+       "latency_ms_p90": 4.0,
+       "objective_score": 0.08836912957929521,
+       "false_per_min_target": 1.0
+      },
+      "best_threshold": 0.998,
+      "best": {
+       "onsets": 4352,
+       "hits": 1917,
+       "recall": 0.4404871323529412,
+       "false_events": 73,
+       "negative_minutes": 88.57218333333333,
+       "false_per_min": 0.8241865250771923,
+       "latency_ms_median": 8.0,
+       "latency_ms_p90": 34.0,
+       "objective_score": 0.4404871323529412,
+       "false_per_min_target": 1.0
+      },
+      "recall_at_fpm_1": 0.4404871323529412,
+      "recall_at_fpm_2": 0.6955422794117647,
+      "recall_at_fpm_3": 0.6955422794117647,
+      "recall_at_fpm_5": 0.8687959558823529,
+      "per_folder_at_firmware": {
+       "ARM": {
+        "fpm": 10.818,
+        "recall": null
+       },
+       "BAND": {
+        "fpm": 6.507,
+        "recall": null
+       },
+       "DRAG_AND_DROP": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "FINGER": {
+        "fpm": 24.36,
+        "recall": null
+       },
+       "MID_LONG_PRESS": {
+        "fpm": 2.116,
+        "recall": null
+       },
+       "SOFT_LONG_PRESS": {
+        "fpm": 5.33,
+        "recall": null
+       },
+       "STRONG_LONG_PRESS": {
+        "fpm": 2.968,
+        "recall": null
+       },
+       "SWIPE": {
+        "fpm": 4.856,
+        "recall": 0.9439318665720369
+       },
+       "TAP": {
+        "fpm": 2.047,
+        "recall": 0.9629629629629629
+       },
+       "WRIST": {
+        "fpm": 16.643,
+        "recall": null
+       }
+      }
+     },
+     "steady_rows": {
+      "at_firmware_threshold": {
+       "onsets": 656,
+       "hits": 630,
+       "recall": 0.9603658536585366,
+       "false_events": 223,
+       "negative_minutes": 27.962216666666666,
+       "false_per_min": 7.975047281063197,
+       "latency_ms_median": -13.0,
+       "latency_ms_p90": 2.0,
+       "objective_score": 0.12042133667833313,
+       "false_per_min_target": 1.0
+      },
+      "best_threshold": 0.998,
+      "best": {
+       "onsets": 656,
+       "hits": 364,
+       "recall": 0.5548780487804879,
+       "false_events": 35,
+       "negative_minutes": 27.962216666666666,
+       "false_per_min": 1.2516890351444478,
+       "latency_ms_median": 9.0,
+       "latency_ms_p90": 33.0,
+       "objective_score": 0.44330343495934965,
+       "false_per_min_target": 1.0
+      },
+      "recall_at_fpm_1": 0.24390243902439024,
+      "recall_at_fpm_2": 0.7942073170731707,
+      "recall_at_fpm_3": 0.8658536585365854,
+      "recall_at_fpm_5": 0.926829268292683,
+      "per_folder_at_firmware": {
+       "ARM": {
+        "fpm": 0.608,
+        "recall": null
+       },
+       "BAND": {
+        "fpm": 7.946,
+        "recall": null
+       },
+       "DRAG_AND_DROP": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "FINGER": {
+        "fpm": 26.484,
+        "recall": null
+       },
+       "MID_LONG_PRESS": {
+        "fpm": 2.122,
+        "recall": null
+       },
+       "SOFT_LONG_PRESS": {
+        "fpm": 6.166,
+        "recall": null
+       },
+       "STRONG_LONG_PRESS": {
+        "fpm": 3.237,
+        "recall": null
+       },
+       "SWIPE": {
+        "fpm": 8.869,
+        "recall": 0.9911504424778761
+       },
+       "TAP": {
+        "fpm": 3.171,
+        "recall": 0.9539594843462247
+       },
+       "WRIST": {
+        "fpm": 14.406,
+        "recall": null
+       }
+      }
+     },
+     "seconds": 30.5
+    }
+   ],
+   "500": [
+    {
+     "train_rows": 134519,
+     "positives": 11686,
+     "trees": 88,
+     "bytes": 32724,
+     "usable_rows": {
+      "at_firmware_threshold": {
+       "onsets": 3129,
+       "hits": 3017,
+       "recall": 0.9642058165548099,
+       "false_events": 523,
+       "negative_minutes": 89.35586666666667,
+       "false_per_min": 5.853001257891666,
+       "latency_ms_median": -10.0,
+       "latency_ms_p90": 7.0,
+       "objective_score": 0.1647369911726502,
+       "false_per_min_target": 1.0
+      },
+      "best_threshold": 0.99,
+      "best": {
+       "onsets": 3129,
+       "hits": 2648,
+       "recall": 0.846276765739853,
+       "false_events": 87,
+       "negative_minutes": 89.35586666666667,
+       "false_per_min": 0.9736350084829348,
+       "latency_ms_median": 1.0,
+       "latency_ms_p90": 22.0,
+       "objective_score": 0.846276765739853,
+       "false_per_min_target": 1.0
+      },
+      "recall_at_fpm_1": 0.846276765739853,
+      "recall_at_fpm_2": 0.9105145413870246,
+      "recall_at_fpm_3": 0.9280920421860019,
+      "recall_at_fpm_5": 0.9488654522211569,
+      "per_folder_at_firmware": {
+       "ARM": {
+        "fpm": 1.179,
+        "recall": null
+       },
+       "BAND": {
+        "fpm": 16.733,
+        "recall": null
+       },
+       "DRAG_AND_DROP": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "FINGER": {
+        "fpm": 10.716,
+        "recall": null
+       },
+       "LONG_PRESS": {
+        "fpm": 0.876,
+        "recall": null
+       },
+       "MID_LONG_PRESS": {
+        "fpm": 1.035,
+        "recall": null
+       },
+       "NOTHING": {
+        "fpm": 0.582,
+        "recall": null
+       },
+       "SOFT_LONG_PRESS": {
+        "fpm": 1.913,
+        "recall": null
+       },
+       "STRONG_LONG_PRESS": {
+        "fpm": 0.289,
+        "recall": null
+       },
+       "SWIPE": {
+        "fpm": 4.891,
+        "recall": 0.9663461538461539
+       },
+       "TAP": {
+        "fpm": 1.855,
+        "recall": 0.9631402584968884
+       },
+       "WRIST": {
+        "fpm": 7.239,
+        "recall": null
+       }
+      }
+     },
+     "steady_rows": {
+      "at_firmware_threshold": {
+       "onsets": 458,
+       "hits": 444,
+       "recall": 0.9694323144104804,
+       "false_events": 232,
+       "negative_minutes": 49.071425,
+       "false_per_min": 4.727802381936127,
+       "latency_ms_median": -11.0,
+       "latency_ms_p90": 8.0,
+       "objective_score": 0.20504924616021686,
+       "false_per_min_target": 1.0
+      },
+      "best_threshold": 0.98,
+      "best": {
+       "onsets": 458,
+       "hits": 414,
+       "recall": 0.9039301310043668,
+       "false_events": 44,
+       "negative_minutes": 49.071425,
+       "false_per_min": 0.8966521758844379,
+       "latency_ms_median": -3.5,
+       "latency_ms_p90": 17.0,
+       "objective_score": 0.9039301310043668,
+       "false_per_min_target": 1.0
+      },
+      "recall_at_fpm_1": 0.9039301310043668,
+      "recall_at_fpm_2": 0.9301310043668122,
+      "recall_at_fpm_3": 0.9475982532751092,
+      "recall_at_fpm_5": 0.9694323144104804,
+      "per_folder_at_firmware": {
+       "ARM": {
+        "fpm": 0.793,
+        "recall": null
+       },
+       "BAND": {
+        "fpm": 15.397,
+        "recall": null
+       },
+       "DRAG_AND_DROP": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "FINGER": {
+        "fpm": 7.221,
+        "recall": null
+       },
+       "LONG_PRESS": {
+        "fpm": 1.118,
+        "recall": null
+       },
+       "MID_LONG_PRESS": {
+        "fpm": 1.291,
+        "recall": null
+       },
+       "NOTHING": {
+        "fpm": 0.933,
+        "recall": null
+       },
+       "SOFT_LONG_PRESS": {
+        "fpm": 1.576,
+        "recall": null
+       },
+       "STRONG_LONG_PRESS": {
+        "fpm": 0.352,
+        "recall": null
+       },
+       "SWIPE": {
+        "fpm": 0.0,
+        "recall": 0.9883720930232558
+       },
+       "TAP": {
+        "fpm": 0.896,
+        "recall": 0.9650537634408602
+       },
+       "WRIST": {
+        "fpm": 7.609,
+        "recall": null
+       }
+      }
+     },
+     "seconds": 15.7
+    },
+    {
+     "train_rows": 193865,
+     "positives": 8414,
+     "trees": 88,
+     "bytes": 32724,
+     "usable_rows": {
+      "at_firmware_threshold": {
+       "onsets": 6894,
+       "hits": 6713,
+       "recall": 0.9737452857557296,
+       "false_events": 406,
+       "negative_minutes": 78.082625,
+       "false_per_min": 5.199620274036638,
+       "latency_ms_median": -9.0,
+       "latency_ms_p90": 8.0,
+       "objective_score": 0.18727238421966125,
+       "false_per_min_target": 1.0
+      },
+      "best_threshold": 0.995,
+      "best": {
+       "onsets": 6894,
+       "hits": 4910,
+       "recall": 0.7122135190020308,
+       "false_events": 99,
+       "negative_minutes": 78.082625,
+       "false_per_min": 1.2678877022897221,
+       "latency_ms_median": 6.0,
+       "latency_ms_p90": 38.0,
+       "objective_score": 0.5617323345875347,
+       "false_per_min_target": 1.0
+      },
+      "recall_at_fpm_1": 0.4556135770234987,
+      "recall_at_fpm_2": 0.8284015085581665,
+      "recall_at_fpm_3": 0.9209457499274731,
+      "recall_at_fpm_5": 0.9682332463011314,
+      "per_folder_at_firmware": {
+       "ARM": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "BAND": {
+        "fpm": 2.632,
+        "recall": null
+       },
+       "DRAG_AND_DROP": {
+        "fpm": 5.053,
+        "recall": null
+       },
+       "FINGER": {
+        "fpm": 19.327,
+        "recall": null
+       },
+       "MID_LONG_PRESS": {
+        "fpm": 2.769,
+        "recall": null
+       },
+       "NOTHING": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "SOFT_LONG_PRESS": {
+        "fpm": 0.754,
+        "recall": null
+       },
+       "STRONG_LONG_PRESS": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "SWIPE": {
+        "fpm": 6.701,
+        "recall": 0.9672359707215058
+       },
+       "TAP": {
+        "fpm": 2.26,
+        "recall": 0.9783850931677018
+       },
+       "WRIST": {
+        "fpm": 4.653,
+        "recall": null
+       }
+      }
+     },
+     "steady_rows": {
+      "at_firmware_threshold": {
+       "onsets": 912,
+       "hits": 888,
+       "recall": 0.9736842105263158,
+       "false_events": 56,
+       "negative_minutes": 21.874291666666668,
+       "false_per_min": 2.560082897922409,
+       "latency_ms_median": -11.0,
+       "latency_ms_p90": 10.0,
+       "objective_score": 0.38033307879072686,
+       "false_per_min_target": 1.0
+      },
+      "best_threshold": 0.97,
+      "best": {
+       "onsets": 912,
+       "hits": 840,
+       "recall": 0.9210526315789473,
+       "false_events": 28,
+       "negative_minutes": 21.874291666666668,
+       "false_per_min": 1.2800414489612044,
+       "latency_ms_median": -4.0,
+       "latency_ms_p90": 19.100000000000023,
+       "objective_score": 0.7195490679824562,
+       "false_per_min_target": 1.0
+      },
+      "recall_at_fpm_1": 0.5953947368421053,
+      "recall_at_fpm_2": 0.9396929824561403,
+      "recall_at_fpm_3": 0.9736842105263158,
+      "recall_at_fpm_5": 0.9780701754385965,
+      "per_folder_at_firmware": {
+       "DRAG_AND_DROP": {
+        "fpm": 3.726,
+        "recall": null
+       },
+       "MID_LONG_PRESS": {
+        "fpm": 2.221,
+        "recall": null
+       },
+       "NOTHING": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "SOFT_LONG_PRESS": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "STRONG_LONG_PRESS": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "SWIPE": {
+        "fpm": 7.224,
+        "recall": 0.9597989949748744
+       },
+       "TAP": {
+        "fpm": 2.84,
+        "recall": 0.9775596072931276
+       }
+      }
+     },
+     "seconds": 21.3
+    },
+    {
+     "train_rows": 181978,
+     "positives": 10364,
+     "trees": 88,
+     "bytes": 32724,
+     "usable_rows": {
+      "at_firmware_threshold": {
+       "onsets": 4352,
+       "hits": 3993,
+       "recall": 0.9175091911764706,
+       "false_events": 1150,
+       "negative_minutes": 88.57218333333333,
+       "false_per_min": 12.983760326558508,
+       "latency_ms_median": -9.0,
+       "latency_ms_p90": 13.0,
+       "objective_score": 0.07066590633991368,
+       "false_per_min_target": 1.0
+      },
+      "best_threshold": 0.999,
+      "best": {
+       "onsets": 4352,
+       "hits": 1335,
+       "recall": 0.30675551470588236,
+       "false_events": 77,
+       "negative_minutes": 88.57218333333333,
+       "false_per_min": 0.869347430560874,
+       "latency_ms_median": 10.0,
+       "latency_ms_p90": 41.600000000000136,
+       "objective_score": 0.30675551470588236,
+       "false_per_min_target": 1.0
+      },
+      "recall_at_fpm_1": 0.30675551470588236,
+      "recall_at_fpm_2": 0.4579503676470588,
+      "recall_at_fpm_3": 0.5392922794117647,
+      "recall_at_fpm_5": 0.7150735294117647,
+      "per_folder_at_firmware": {
+       "ARM": {
+        "fpm": 10.669,
+        "recall": null
+       },
+       "BAND": {
+        "fpm": 5.822,
+        "recall": null
+       },
+       "DRAG_AND_DROP": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "FINGER": {
+        "fpm": 33.194,
+        "recall": null
+       },
+       "MID_LONG_PRESS": {
+        "fpm": 2.419,
+        "recall": null
+       },
+       "SOFT_LONG_PRESS": {
+        "fpm": 4.975,
+        "recall": null
+       },
+       "STRONG_LONG_PRESS": {
+        "fpm": 2.597,
+        "recall": null
+       },
+       "SWIPE": {
+        "fpm": 4.856,
+        "recall": 0.8836053938963804
+       },
+       "TAP": {
+        "fpm": 2.154,
+        "recall": 0.9337410805300713
+       },
+       "WRIST": {
+        "fpm": 15.789,
+        "recall": null
+       }
+      }
+     },
+     "steady_rows": {
+      "at_firmware_threshold": {
+       "onsets": 656,
+       "hits": 615,
+       "recall": 0.9375,
+       "false_events": 236,
+       "negative_minutes": 27.962216666666666,
+       "false_per_min": 8.439960351259705,
+       "latency_ms_median": -12.0,
+       "latency_ms_p90": 9.600000000000023,
+       "objective_score": 0.11107872086864408,
+       "false_per_min_target": 1.0
+      },
+      "best_threshold": 0.999,
+      "best": {
+       "onsets": 656,
+       "hits": 260,
+       "recall": 0.39634146341463417,
+       "false_events": 29,
+       "negative_minutes": 27.962216666666666,
+       "false_per_min": 1.0371137719768282,
+       "latency_ms_median": 11.0,
+       "latency_ms_p90": 40.099999999999994,
+       "objective_score": 0.38215813358564626,
+       "false_per_min_target": 1.0
+      },
+      "recall_at_fpm_1": 0.10060975609756098,
+      "recall_at_fpm_2": 0.5716463414634146,
+      "recall_at_fpm_3": 0.739329268292683,
+      "recall_at_fpm_5": 0.8887195121951219,
+      "per_folder_at_firmware": {
+       "ARM": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "BAND": {
+        "fpm": 1.135,
+        "recall": null
+       },
+       "DRAG_AND_DROP": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "FINGER": {
+        "fpm": 35.4,
+        "recall": null
+       },
+       "MID_LONG_PRESS": {
+        "fpm": 2.546,
+        "recall": null
+       },
+       "SOFT_LONG_PRESS": {
+        "fpm": 5.653,
+        "recall": null
+       },
+       "STRONG_LONG_PRESS": {
+        "fpm": 2.775,
+        "recall": null
+       },
+       "SWIPE": {
+        "fpm": 7.602,
+        "recall": 0.9911504424778761
+       },
+       "TAP": {
+        "fpm": 3.065,
+        "recall": 0.9263351749539595
+       },
+       "WRIST": {
+        "fpm": 11.416,
+        "recall": null
+       }
+      }
+     },
+     "seconds": 18.6
+    }
+   ]
+  },
+  "all_available": {
+   "50": [
+    {
+     "train_rows": 489637,
+     "positives": 82139,
+     "trees": 88,
+     "bytes": 32724,
+     "usable_rows": {
+      "at_firmware_threshold": {
+       "onsets": 3129,
+       "hits": 3080,
+       "recall": 0.9843400447427293,
+       "false_events": 593,
+       "negative_minutes": 89.35586666666667,
+       "false_per_min": 6.636385747475637,
+       "latency_ms_median": -9.5,
+       "latency_ms_p90": 4.0,
+       "objective_score": 0.1483247180315211,
+       "false_per_min_target": 1.0
+      },
+      "best_threshold": 0.99,
+      "best": {
+       "onsets": 3129,
+       "hits": 2709,
+       "recall": 0.8657718120805369,
+       "false_events": 83,
+       "negative_minutes": 89.35586666666667,
+       "false_per_min": 0.928870180506708,
+       "latency_ms_median": 2.0,
+       "latency_ms_p90": 25.0,
+       "objective_score": 0.8657718120805369,
+       "false_per_min_target": 1.0
+      },
+      "recall_at_fpm_1": 0.8657718120805369,
+      "recall_at_fpm_2": 0.9296899968040908,
+      "recall_at_fpm_3": 0.954298497922659,
+      "recall_at_fpm_5": 0.9705976350271652,
+      "per_folder_at_firmware": {
+       "ARM": {
+        "fpm": 1.887,
+        "recall": null
+       },
+       "BAND": {
+        "fpm": 17.18,
+        "recall": null
+       },
+       "DRAG_AND_DROP": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "FINGER": {
+        "fpm": 12.81,
+        "recall": null
+       },
+       "LONG_PRESS": {
+        "fpm": 1.752,
+        "recall": null
+       },
+       "MID_LONG_PRESS": {
+        "fpm": 1.379,
+        "recall": null
+       },
+       "NOTHING": {
+        "fpm": 0.582,
+        "recall": null
+       },
+       "SOFT_LONG_PRESS": {
+        "fpm": 1.913,
+        "recall": null
+       },
+       "STRONG_LONG_PRESS": {
+        "fpm": 0.289,
+        "recall": null
+       },
+       "SWIPE": {
+        "fpm": 6.929,
+        "recall": 0.9951923076923077
+       },
+       "TAP": {
+        "fpm": 2.175,
+        "recall": 0.9789372905696505
+       },
+       "WRIST": {
+        "fpm": 6.996,
+        "recall": null
+       }
+      }
+     },
+     "steady_rows": {
+      "at_firmware_threshold": {
+       "onsets": 458,
+       "hits": 443,
+       "recall": 0.9672489082969432,
+       "false_events": 276,
+       "negative_minutes": 49.071425,
+       "false_per_min": 5.624454557820565,
+       "latency_ms_median": -9.0,
+       "latency_ms_p90": 7.800000000000011,
+       "objective_score": 0.17197203717328016,
+       "false_per_min_target": 1.0
+      },
+      "best_threshold": 0.98,
+      "best": {
+       "onsets": 458,
+       "hits": 416,
+       "recall": 0.9082969432314411,
+       "false_events": 45,
+       "negative_minutes": 49.071425,
+       "false_per_min": 0.917030634427266,
+       "latency_ms_median": -1.0,
+       "latency_ms_p90": 17.0,
+       "objective_score": 0.9082969432314411,
+       "false_per_min_target": 1.0
+      },
+      "recall_at_fpm_1": 0.9082969432314411,
+      "recall_at_fpm_2": 0.9344978165938864,
+      "recall_at_fpm_3": 0.9475982532751092,
+      "recall_at_fpm_5": 0.9650655021834061,
+      "per_folder_at_firmware": {
+       "ARM": {
+        "fpm": 1.359,
+        "recall": null
+       },
+       "BAND": {
+        "fpm": 18.018,
+        "recall": null
+       },
+       "DRAG_AND_DROP": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "FINGER": {
+        "fpm": 9.542,
+        "recall": null
+       },
+       "LONG_PRESS": {
+        "fpm": 2.235,
+        "recall": null
+       },
+       "MID_LONG_PRESS": {
+        "fpm": 1.722,
+        "recall": null
+       },
+       "NOTHING": {
+        "fpm": 0.933,
+        "recall": null
+       },
+       "SOFT_LONG_PRESS": {
+        "fpm": 1.576,
+        "recall": null
+       },
+       "STRONG_LONG_PRESS": {
+        "fpm": 0.352,
+        "recall": null
+       },
+       "SWIPE": {
+        "fpm": 0.0,
+        "recall": 1.0
+       },
+       "TAP": {
+        "fpm": 1.121,
+        "recall": 0.9596774193548387
+       },
+       "WRIST": {
+        "fpm": 7.704,
+        "recall": null
+       }
+      }
+     },
+     "seconds": 33.5
+    },
+    {
+     "train_rows": 490210,
+     "positives": 55392,
+     "trees": 88,
+     "bytes": 32724,
+     "usable_rows": {
+      "at_firmware_threshold": {
+       "onsets": 6894,
+       "hits": 6793,
+       "recall": 0.9853495793443574,
+       "false_events": 343,
+       "negative_minutes": 78.082625,
+       "false_per_min": 4.392782645306815,
+       "latency_ms_median": -10.0,
+       "latency_ms_p90": 4.0,
+       "objective_score": 0.2243110253581726,
+       "false_per_min_target": 1.0
+      },
+      "best_threshold": 0.995,
+      "best": {
+       "onsets": 6894,
+       "hits": 4658,
+       "recall": 0.6756599941978532,
+       "false_events": 87,
+       "negative_minutes": 78.082625,
+       "false_per_min": 1.1142043444364225,
+       "latency_ms_median": 7.0,
+       "latency_ms_p90": 36.0,
+       "objective_score": 0.6064058155684269,
+       "false_per_min_target": 1.0
+      },
+      "recall_at_fpm_1": 0.5033362344067305,
+      "recall_at_fpm_2": 0.9107919930374239,
+      "recall_at_fpm_3": 0.9611256164780969,
+      "recall_at_fpm_5": 0.9853495793443574,
+      "per_folder_at_firmware": {
+       "ARM": {
+        "fpm": 0.638,
+        "recall": null
+       },
+       "BAND": {
+        "fpm": 7.896,
+        "recall": null
+       },
+       "DRAG_AND_DROP": {
+        "fpm": 5.053,
+        "recall": null
+       },
+       "FINGER": {
+        "fpm": 14.316,
+        "recall": null
+       },
+       "MID_LONG_PRESS": {
+        "fpm": 2.954,
+        "recall": null
+       },
+       "NOTHING": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "SOFT_LONG_PRESS": {
+        "fpm": 0.754,
+        "recall": null
+       },
+       "STRONG_LONG_PRESS": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "SWIPE": {
+        "fpm": 7.006,
+        "recall": 0.9804810038340885
+       },
+       "TAP": {
+        "fpm": 1.478,
+        "recall": 0.9888198757763975
+       },
+       "WRIST": {
+        "fpm": 5.945,
+        "recall": null
+       }
+      }
+     },
+     "steady_rows": {
+      "at_firmware_threshold": {
+       "onsets": 912,
+       "hits": 897,
+       "recall": 0.9835526315789473,
+       "false_events": 45,
+       "negative_minutes": 21.874291666666668,
+       "false_per_min": 2.057209471544793,
+       "latency_ms_median": -9.0,
+       "latency_ms_p90": 6.0,
+       "objective_score": 0.4781003807261208,
+       "false_per_min_target": 1.0
+      },
+      "best_threshold": 0.99,
+      "best": {
+       "onsets": 912,
+       "hits": 728,
+       "recall": 0.7982456140350878,
+       "false_events": 20,
+       "negative_minutes": 21.874291666666668,
+       "false_per_min": 0.9143153206865745,
+       "latency_ms_median": 2.0,
+       "latency_ms_p90": 28.0,
+       "objective_score": 0.7982456140350878,
+       "false_per_min_target": 1.0
+      },
+      "recall_at_fpm_1": 0.7982456140350878,
+      "recall_at_fpm_2": 0.9791666666666666,
+      "recall_at_fpm_3": 0.9879385964912281,
+      "recall_at_fpm_5": 0.9879385964912281,
+      "per_folder_at_firmware": {
+       "DRAG_AND_DROP": {
+        "fpm": 3.726,
+        "recall": null
+       },
+       "MID_LONG_PRESS": {
+        "fpm": 2.221,
+        "recall": null
+       },
+       "NOTHING": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "SOFT_LONG_PRESS": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "STRONG_LONG_PRESS": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "SWIPE": {
+        "fpm": 8.891,
+        "recall": 0.9748743718592965
+       },
+       "TAP": {
+        "fpm": 1.558,
+        "recall": 0.9859747545582047
+       }
+      }
+     },
+     "seconds": 37.2
+    },
+    {
+     "train_rows": 490351,
+     "positives": 74649,
+     "trees": 88,
+     "bytes": 32724,
+     "usable_rows": {
+      "at_firmware_threshold": {
+       "onsets": 4352,
+       "hits": 4093,
+       "recall": 0.9404871323529411,
+       "false_events": 799,
+       "negative_minutes": 88.57218333333333,
+       "false_per_min": 9.020890870365433,
+       "latency_ms_median": -9.0,
+       "latency_ms_p90": 5.0,
+       "objective_score": 0.1042565690981297,
+       "false_per_min_target": 1.0
+      },
+      "best_threshold": 0.997,
+      "best": {
+       "onsets": 4352,
+       "hits": 2255,
+       "recall": 0.5181525735294118,
+       "false_events": 82,
+       "negative_minutes": 88.57218333333333,
+       "false_per_min": 0.9257985624154762,
+       "latency_ms_median": 5.0,
+       "latency_ms_p90": 33.0,
+       "objective_score": 0.5181525735294118,
+       "false_per_min_target": 1.0
+      },
+      "recall_at_fpm_1": 0.5181525735294118,
+      "recall_at_fpm_2": 0.6321231617647058,
+      "recall_at_fpm_3": 0.7444852941176471,
+      "recall_at_fpm_5": 0.8596047794117647,
+      "per_folder_at_firmware": {
+       "ARM": {
+        "fpm": 7.706,
+        "recall": null
+       },
+       "BAND": {
+        "fpm": 6.849,
+        "recall": null
+       },
+       "DRAG_AND_DROP": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "FINGER": {
+        "fpm": 20.599,
+        "recall": null
+       },
+       "MID_LONG_PRESS": {
+        "fpm": 2.419,
+        "recall": null
+       },
+       "SOFT_LONG_PRESS": {
+        "fpm": 4.264,
+        "recall": null
+       },
+       "STRONG_LONG_PRESS": {
+        "fpm": 2.597,
+        "recall": null
+       },
+       "SWIPE": {
+        "fpm": 5.029,
+        "recall": 0.9254790631653655
+       },
+       "TAP": {
+        "fpm": 1.759,
+        "recall": 0.9476724430852871
+       },
+       "WRIST": {
+        "fpm": 12.887,
+        "recall": null
+       }
+      }
+     },
+     "steady_rows": {
+      "at_firmware_threshold": {
+       "onsets": 656,
+       "hits": 628,
+       "recall": 0.9573170731707317,
+       "false_events": 191,
+       "negative_minutes": 27.962216666666666,
+       "false_per_min": 6.830645877502558,
+       "latency_ms_median": -10.0,
+       "latency_ms_p90": 3.0,
+       "objective_score": 0.1401503006214617,
+       "false_per_min_target": 1.0
+      },
+      "best_threshold": 0.997,
+      "best": {
+       "onsets": 656,
+       "hits": 401,
+       "recall": 0.6112804878048781,
+       "false_events": 29,
+       "negative_minutes": 27.962216666666666,
+       "false_per_min": 1.0371137719768282,
+       "latency_ms_median": 7.0,
+       "latency_ms_p90": 36.0,
+       "objective_score": 0.5894054291070929,
+       "false_per_min_target": 1.0
+      },
+      "recall_at_fpm_1": 0.46646341463414637,
+      "recall_at_fpm_2": 0.8246951219512195,
+      "recall_at_fpm_3": 0.8871951219512195,
+      "recall_at_fpm_5": 0.9314024390243902,
+      "per_folder_at_firmware": {
+       "ARM": {
+        "fpm": 0.608,
+        "recall": null
+       },
+       "BAND": {
+        "fpm": 5.676,
+        "recall": null
+       },
+       "DRAG_AND_DROP": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "FINGER": {
+        "fpm": 27.009,
+        "recall": null
+       },
+       "MID_LONG_PRESS": {
+        "fpm": 2.122,
+        "recall": null
+       },
+       "SOFT_LONG_PRESS": {
+        "fpm": 5.139,
+        "recall": null
+       },
+       "STRONG_LONG_PRESS": {
+        "fpm": 2.775,
+        "recall": null
+       },
+       "SWIPE": {
+        "fpm": 7.602,
+        "recall": 1.0
+       },
+       "TAP": {
+        "fpm": 2.431,
+        "recall": 0.9484346224677717
+       },
+       "WRIST": {
+        "fpm": 8.698,
+        "recall": null
+       }
+      }
+     },
+     "seconds": 36.7
+    }
+   ],
+   "500": [
+    {
+     "train_rows": 134519,
+     "positives": 11686,
+     "trees": 88,
+     "bytes": 32724,
+     "usable_rows": {
+      "at_firmware_threshold": {
+       "onsets": 3129,
+       "hits": 2997,
+       "recall": 0.9578139980824545,
+       "false_events": 655,
+       "negative_minutes": 89.35586666666667,
+       "false_per_min": 7.330240581107153,
+       "latency_ms_median": -12.0,
+       "latency_ms_p90": 4.0,
+       "objective_score": 0.13066610672385148,
+       "false_per_min_target": 1.0
+      },
+      "best_threshold": 0.99,
+      "best": {
+       "onsets": 3129,
+       "hits": 2614,
+       "recall": 0.8354106743368488,
+       "false_events": 88,
+       "negative_minutes": 89.35586666666667,
+       "false_per_min": 0.9848262154769916,
+       "latency_ms_median": -3.0,
+       "latency_ms_p90": 16.0,
+       "objective_score": 0.8354106743368488,
+       "false_per_min_target": 1.0
+      },
+      "recall_at_fpm_1": 0.8354106743368488,
+      "recall_at_fpm_2": 0.8769574944071589,
+      "recall_at_fpm_3": 0.8951741770533717,
+      "recall_at_fpm_5": 0.9153084052412912,
+      "per_folder_at_firmware": {
+       "ARM": {
+        "fpm": 1.73,
+        "recall": null
+       },
+       "BAND": {
+        "fpm": 11.602,
+        "recall": null
+       },
+       "DRAG_AND_DROP": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "FINGER": {
+        "fpm": 17.572,
+        "recall": null
+       },
+       "LONG_PRESS": {
+        "fpm": 1.752,
+        "recall": null
+       },
+       "MID_LONG_PRESS": {
+        "fpm": 0.345,
+        "recall": null
+       },
+       "NOTHING": {
+        "fpm": 0.582,
+        "recall": null
+       },
+       "SOFT_LONG_PRESS": {
+        "fpm": 2.232,
+        "recall": null
+       },
+       "STRONG_LONG_PRESS": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "SWIPE": {
+        "fpm": 5.298,
+        "recall": 0.9567307692307693
+       },
+       "TAP": {
+        "fpm": 1.919,
+        "recall": 0.9583532790809
+       },
+       "WRIST": {
+        "fpm": 6.023,
+        "recall": null
+       }
+      }
+     },
+     "steady_rows": {
+      "at_firmware_threshold": {
+       "onsets": 458,
+       "hits": 443,
+       "recall": 0.9672489082969432,
+       "false_events": 262,
+       "negative_minutes": 49.071425,
+       "false_per_min": 5.339156138220971,
+       "latency_ms_median": -15.0,
+       "latency_ms_p90": 5.0,
+       "objective_score": 0.18116138267108906,
+       "false_per_min_target": 1.0
+      },
+      "best_threshold": 0.98,
+      "best": {
+       "onsets": 458,
+       "hits": 419,
+       "recall": 0.9148471615720524,
+       "false_events": 38,
+       "negative_minutes": 49.071425,
+       "false_per_min": 0.7743814246274691,
+       "latency_ms_median": -7.0,
+       "latency_ms_p90": 12.0,
+       "objective_score": 0.9148471615720524,
+       "false_per_min_target": 1.0
+      },
+      "recall_at_fpm_1": 0.9148471615720524,
+      "recall_at_fpm_2": 0.9388646288209607,
+      "recall_at_fpm_3": 0.9388646288209607,
+      "recall_at_fpm_5": 0.9563318777292577,
+      "per_folder_at_firmware": {
+       "ARM": {
+        "fpm": 1.019,
+        "recall": null
+       },
+       "BAND": {
+        "fpm": 11.466,
+        "recall": null
+       },
+       "DRAG_AND_DROP": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "FINGER": {
+        "fpm": 12.121,
+        "recall": null
+       },
+       "LONG_PRESS": {
+        "fpm": 1.118,
+        "recall": null
+       },
+       "MID_LONG_PRESS": {
+        "fpm": 0.43,
+        "recall": null
+       },
+       "NOTHING": {
+        "fpm": 0.933,
+        "recall": null
+       },
+       "SOFT_LONG_PRESS": {
+        "fpm": 1.97,
+        "recall": null
+       },
+       "STRONG_LONG_PRESS": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "SWIPE": {
+        "fpm": 0.0,
+        "recall": 0.9651162790697675
+       },
+       "TAP": {
+        "fpm": 0.896,
+        "recall": 0.967741935483871
+       },
+       "WRIST": {
+        "fpm": 6.183,
+        "recall": null
+       }
+      }
+     },
+     "seconds": 18.0
+    },
+    {
+     "train_rows": 193865,
+     "positives": 8414,
+     "trees": 88,
+     "bytes": 32724,
+     "usable_rows": {
+      "at_firmware_threshold": {
+       "onsets": 6894,
+       "hits": 6669,
+       "recall": 0.9673629242819843,
+       "false_events": 355,
+       "negative_minutes": 78.082625,
+       "false_per_min": 4.5464660031601145,
+       "latency_ms_median": -10.0,
+       "latency_ms_p90": 7.0,
+       "objective_score": 0.2127724970580664,
+       "false_per_min_target": 1.0
+      },
+      "best_threshold": 0.997,
+      "best": {
+       "onsets": 6894,
+       "hits": 4067,
+       "recall": 0.5899332753118653,
+       "false_events": 75,
+       "negative_minutes": 78.082625,
+       "false_per_min": 0.9605209865831228,
+       "latency_ms_median": 6.0,
+       "latency_ms_p90": 36.0,
+       "objective_score": 0.5899332753118653,
+       "false_per_min_target": 1.0
+      },
+      "recall_at_fpm_1": 0.5899332753118653,
+      "recall_at_fpm_2": 0.8020017406440383,
+      "recall_at_fpm_3": 0.9023788801856687,
+      "recall_at_fpm_5": 0.9673629242819843,
+      "per_folder_at_firmware": {
+       "ARM": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "BAND": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "DRAG_AND_DROP": {
+        "fpm": 5.053,
+        "recall": null
+       },
+       "FINGER": {
+        "fpm": 17.717,
+        "recall": null
+       },
+       "MID_LONG_PRESS": {
+        "fpm": 1.661,
+        "recall": null
+       },
+       "NOTHING": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "SOFT_LONG_PRESS": {
+        "fpm": 0.754,
+        "recall": null
+       },
+       "STRONG_LONG_PRESS": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "SWIPE": {
+        "fpm": 6.193,
+        "recall": 0.9571279191355873
+       },
+       "TAP": {
+        "fpm": 1.768,
+        "recall": 0.9746583850931677
+       },
+       "WRIST": {
+        "fpm": 4.394,
+        "recall": null
+       }
+      }
+     },
+     "steady_rows": {
+      "at_firmware_threshold": {
+       "onsets": 912,
+       "hits": 885,
+       "recall": 0.9703947368421053,
+       "false_events": 37,
+       "negative_minutes": 21.874291666666668,
+       "false_per_min": 1.691483343270163,
+       "latency_ms_median": -12.0,
+       "latency_ms_p90": 7.0,
+       "objective_score": 0.5736945271752015,
+       "false_per_min_target": 1.0
+      },
+      "best_threshold": 0.97,
+      "best": {
+       "onsets": 912,
+       "hits": 821,
+       "recall": 0.9002192982456141,
+       "false_events": 25,
+       "negative_minutes": 21.874291666666668,
+       "false_per_min": 1.1428941508582182,
+       "latency_ms_median": -6.0,
+       "latency_ms_p90": 19.0,
+       "objective_score": 0.787666379751462,
+       "false_per_min_target": 1.0
+      },
+      "recall_at_fpm_1": 0.7138157894736842,
+      "recall_at_fpm_2": 0.9703947368421053,
+      "recall_at_fpm_3": 0.9769736842105263,
+      "recall_at_fpm_5": 0.9769736842105263,
+      "per_folder_at_firmware": {
+       "DRAG_AND_DROP": {
+        "fpm": 3.726,
+        "recall": null
+       },
+       "MID_LONG_PRESS": {
+        "fpm": 0.987,
+        "recall": null
+       },
+       "NOTHING": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "SOFT_LONG_PRESS": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "STRONG_LONG_PRESS": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "SWIPE": {
+        "fpm": 6.668,
+        "recall": 0.9396984924623115
+       },
+       "TAP": {
+        "fpm": 1.649,
+        "recall": 0.9789621318373072
+       }
+      }
+     },
+     "seconds": 23.0
+    },
+    {
+     "train_rows": 181978,
+     "positives": 10364,
+     "trees": 88,
+     "bytes": 32724,
+     "usable_rows": {
+      "at_firmware_threshold": {
+       "onsets": 4352,
+       "hits": 3777,
+       "recall": 0.8678768382352942,
+       "false_events": 1023,
+       "negative_minutes": 88.57218333333333,
+       "false_per_min": 11.549901577451612,
+       "latency_ms_median": -9.0,
+       "latency_ms_p90": 10.0,
+       "objective_score": 0.07514149210843611,
+       "false_per_min_target": 1.0
+      },
+      "best_threshold": 0.998,
+      "best": {
+       "onsets": 4352,
+       "hits": 1796,
+       "recall": 0.41268382352941174,
+       "false_events": 122,
+       "negative_minutes": 88.57218333333333,
+       "false_per_min": 1.377407617252294,
+       "latency_ms_median": 4.0,
+       "latency_ms_p90": 31.0,
+       "objective_score": 0.29960907603563963,
+       "false_per_min_target": 1.0
+      },
+      "recall_at_fpm_1": 0.27136948529411764,
+      "recall_at_fpm_2": 0.48046875,
+      "recall_at_fpm_3": 0.5659466911764706,
+      "recall_at_fpm_5": 0.6551011029411765,
+      "per_folder_at_firmware": {
+       "ARM": {
+        "fpm": 7.706,
+        "recall": null
+       },
+       "BAND": {
+        "fpm": 4.452,
+        "recall": null
+       },
+       "DRAG_AND_DROP": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "FINGER": {
+        "fpm": 31.27,
+        "recall": null
+       },
+       "MID_LONG_PRESS": {
+        "fpm": 2.419,
+        "recall": null
+       },
+       "SOFT_LONG_PRESS": {
+        "fpm": 3.909,
+        "recall": null
+       },
+       "STRONG_LONG_PRESS": {
+        "fpm": 1.855,
+        "recall": null
+       },
+       "SWIPE": {
+        "fpm": 4.336,
+        "recall": 0.8346344925479063
+       },
+       "TAP": {
+        "fpm": 1.867,
+        "recall": 0.8837920489296636
+       },
+       "WRIST": {
+        "fpm": 12.119,
+        "recall": null
+       }
+      }
+     },
+     "steady_rows": {
+      "at_firmware_threshold": {
+       "onsets": 656,
+       "hits": 609,
+       "recall": 0.9283536585365854,
+       "false_events": 212,
+       "negative_minutes": 27.962216666666666,
+       "false_per_min": 7.581659298589227,
+       "latency_ms_median": -9.0,
+       "latency_ms_p90": 10.0,
+       "objective_score": 0.12244729312873906,
+       "false_per_min_target": 1.0
+      },
+      "best_threshold": 0.998,
+      "best": {
+       "onsets": 656,
+       "hits": 338,
+       "recall": 0.5152439024390244,
+       "false_events": 38,
+       "negative_minutes": 27.962216666666666,
+       "false_per_min": 1.3589766667282577,
+       "latency_ms_median": 5.5,
+       "latency_ms_p90": 36.0,
+       "objective_score": 0.37914109568891746,
+       "false_per_min_target": 1.0
+      },
+      "recall_at_fpm_1": 0.34146341463414637,
+      "recall_at_fpm_2": 0.5884146341463414,
+      "recall_at_fpm_3": 0.7667682926829268,
+      "recall_at_fpm_5": 0.8353658536585366,
+      "per_folder_at_firmware": {
+       "ARM": {
+        "fpm": 1.824,
+        "recall": null
+       },
+       "BAND": {
+        "fpm": 2.27,
+        "recall": null
+       },
+       "DRAG_AND_DROP": {
+        "fpm": 0.0,
+        "recall": null
+       },
+       "FINGER": {
+        "fpm": 37.497,
+        "recall": null
+       },
+       "MID_LONG_PRESS": {
+        "fpm": 2.122,
+        "recall": null
+       },
+       "SOFT_LONG_PRESS": {
+        "fpm": 4.111,
+        "recall": null
+       },
+       "STRONG_LONG_PRESS": {
+        "fpm": 1.85,
+        "recall": null
+       },
+       "SWIPE": {
+        "fpm": 7.602,
+        "recall": 0.9823008849557522
+       },
+       "TAP": {
+        "fpm": 2.325,
+        "recall": 0.9171270718232044
+       },
+       "WRIST": {
+        "fpm": 5.164,
+        "recall": null
+       }
+      }
+     },
+     "seconds": 21.7
+    }
+   ]
+  }
+ }
+}

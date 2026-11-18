@@ -180,13 +180,13 @@ def unit_checks():
     Xt = rng.normal(size=(5000, 126)).astype(np.float32); p = mk.predict_proba(Xt)[:, 1]
     assert (hm.predict_bool(Xt).astype(bool) == (p >= 0.85)).all()
     assert (hm.value_q20(Xt) == R.q20(p)).all()
-    # Selection guard: a CV winner that never fires on held-out people is skipped, the next one is promoted.
+    # Selection guard uses CV only: a CV winner with a failed fold is skipped; the held-out score is ignored.
     tmp = Path(tempfile.mkdtemp()); cands = []
-    for role, score in (("rank_01", 0.0), ("rank_02", 0.4), ("budget_6kb", 0.3)):
+    for role, folds, held in (("rank_01", [0.5, 0.0], 0.9), ("rank_02", [0.4, 0.3], 0.0), ("budget_6kb", [0.3, 0.3], 0.1)):
         d_ = tmp / "models" / "candidates" / role; d_.mkdir(parents=True)
         (d_ / "X.h").write_text(role); (d_ / "X_feature_schema.json").write_text("{}")
         cands.append(dict(role=role, trial=len(cands), header=str((d_ / "X.h").relative_to(tmp)),
-                          holdout_c_header=dict(objective_score=score)))
+                          cv=dict(fold_scores=folds), holdout_c_header=dict(objective_score=held)))
     chosen, skipped = g.promote(tmp, "X", cands, [8192, 6144])
     assert chosen["role"] == "rank_02" and skipped[0]["role"] == "rank_01", (chosen, skipped)
     assert (tmp / "models" / "X.h").read_text() == "rank_02"
@@ -202,7 +202,31 @@ def unit_checks():
     hm8 = R.HeaderModel(h8, cols, out / "build8", prefer="long_press")
     p8 = m8.predict_proba(X8[:4000])[:, 1]
     assert (hm8.value_q20(X8[:4000]) == R.q20(p8)).all()
+    fs_unit_checks()
     print("UNIFIED_V2_UNIT_CHECKS_PASSED", flush=True)
+
+
+def fs_unit_checks():
+    import feature_selection as FS
+    d = 10
+    assert abs(FS.nogueira_stability([[0, 1, 2], [0, 1, 2], [0, 1, 2]], d) - 1.0) < 1e-12
+    assert abs(FS.nogueira_stability([[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]], d) + 1.0) < 1e-12
+    rng = np.random.default_rng(11); n = 4000
+    a, b, c = rng.normal(size=(3, n))
+    X = np.stack([a, a + 0.01 * rng.normal(size=n), a * 3 + 1, b, np.exp(b), c, rng.normal(size=n), rng.normal(size=n)], 1)
+    cl = FS.correlation_clusters(X, seed=0)["clusters"]
+    assert [0, 1, 2] in cl and [3, 4] in cl and [5] in cl, cl
+    imp = np.array([0.0, 0.3, 0.1, 0.2, -0.1, 0.05, 0.0, -0.2]); gimp = np.array([0.5, 0.25, 0.05, 0.0, -0.1])
+    clusters = [[0, 1, 2], [3, 4], [5], [6], [7]]
+    order = FS.group_aware_order(imp, gimp, np.zeros(5), clusters)
+    assert sorted(order) == list(range(8)) and order[:3] == [1, 3, 5], order      # best member of each strong group
+    r = dict(order=order)
+    assert FS.select_top_k(r, 3) == [1, 3, 5] and FS.select_top_k(r, 99) == list(range(8))
+    try:
+        FS.validate_fold_local(dict(outer_people=["a", "b"]), {"b"}); raise AssertionError("leak not detected")
+    except AssertionError as e:
+        assert "validation people" in str(e)
+    print("FS_UNIT_CHECKS_PASSED", flush=True)
 
 
 def select_originals(source, category, per_person):
@@ -252,6 +276,10 @@ def real_source_smoke():
     g.LABEL_LP = ROOT / "research" / "gesture" / "_smoke_labels" / "DATA_LONG_PRESS"
     g.OUTPUT = ROOT / "research" / "gesture" / "_smoke_results"
     g.TRIALS_PER_MODEL = 4; g.TOP_K_PER_MODEL = 3; g.CV_FOLDS = 2
+    import feature_selection as FS
+    FS.INNER_FOLDS = 2; FS.SCREEN_PARAMS["n_estimators"] = 20; FS.REPEATS_GROUP = 1     # small data, fast ranker
+    if g.FEATURE_SELECTION:
+        g.EVAL_MIN_FRAMES = 150          # short smoke recordings: enough events at this gate (default 500)
     g.MODEL_BUDGET_KB = 8; g.ALT_BUDGET_KB = 6           # small budgets keep the smoke fast
     g.REPLAY_LP_TAPS_PER_RECORDING = 2
     fake = Path(tempfile.mkdtemp())
@@ -264,7 +292,20 @@ def real_source_smoke():
         assert report["threshold_tuned"] is False and g.task_threshold("tap") == 0.85
         assert report["class_one"] == ("RELEASE/REST" if task == "lp" else "TAP/SWIPE onset")
         assert report["budgets"] == [8192, 6144]
-        assert report["lean8"]["enabled"] is True and report["lean8"]["min_frames"] == g.LEAN8_MIN_FRAMES
+        assert report["lean8"]["enabled"] is True
+        if g.FEATURE_SELECTION:
+            assert report["experiment"] == "v3" and report["lean8"]["eval_min_frames"] == g.EVAL_MIN_FRAMES
+            fs = report["feature_selection"]; assert fs and fs["default_k"] == len(report["selected"]["features"]), fs
+            for f in ("fold_0_ranking.csv", "fold_1_ranking.csv", "selection_stability.json", "final_selected_features.json",
+                      "correlation_clusters.json", "selected_features_by_trial.json", "report.md"):
+                assert (out / "feature_selection" / f).is_file(), f
+            held = json.loads((out / "holdout_report.json").read_text())
+            assert [c["features_development"] for c in held["candidates"]] == \
+                   [c["features_holdout_candidate"] for c in report["candidates"]]
+            if task == "tap":
+                assert report["tap_target"]["source"].startswith("FALLBACK") and report["tap_target"]["value"] == 1.0
+        else:
+            assert report["lean8"]["min_frames"] == g.LEAN8_MIN_FRAMES
         gate = report["dataset"]["counts"]["lean8_gate"]
         assert 0 < gate["train_rows_used"] <= gate["train_rows_built"], gate
         assert "Steady state only" in (out / "COMPARISON.md").read_text()
@@ -273,13 +314,12 @@ def real_source_smoke():
         assert roles[0] == "rank_01" and "budget_6kb" in roles, roles
         sel = report["selected"]; assert sel["role"].startswith("rank_") and sel.get("default") is True, sel
         assert all("reason" in s_ for s_ in report["skipped"]), report["skipped"]
-        if (sel.get("holdout_c_header") or {}).get("objective_score", 0) == 0:
-            assert any("no candidate passed" in s_["reason"] for s_ in report["skipped"]), report["skipped"]
+        assert all("CV fold" in s_["reason"] for s_ in report["skipped"]), report["skipped"]
         assert (out / "models" / "budget_6kb" / (stem + ".h")).is_file()
         assert (out / "models" / (stem + ".h")).read_bytes() == (out / sel["header"]).read_bytes()
         for c in report["candidates"]:
             assert c["static_bytes"] <= c["budget_bytes"], c
-            hold = c["holdout_c_header"]; assert hold and hold["objective_score"] >= 0
+            hold = c["holdout_c_header"]; assert hold is None or hold["objective_score"] >= 0
             par = c["c_vs_python_parity"]
             assert par is not None and par.get("decision_mismatch", par.get("q20_mismatch")) < 0.001, par
         h = out / "models" / (stem + ".h"); text = h.read_text()
@@ -311,7 +351,17 @@ def real_source_smoke():
         except RuntimeError:
             pass
         b = g.replay_baselines(task, data, rpl, te, out)[0]
-        assert b["status"] == "replayed" and b["holdout"]["objective_score"] >= 0, b
+        assert b["status"] == "replayed" and (b["holdout"] is None or b["holdout"]["objective_score"] >= 0), b
+        if task == "lp" and g.FEATURE_SELECTION:
+            # Leakage: changing the labels of the validation and held-out people must not change a fold's ranking.
+            pf = g.prepared_folds(data, rpl, tr, task)[0]
+            r1 = FS.fit_fold_ranker(g, g.R, data, rpl, pf["tr"], task, seed=0, cache_dir=None, log=lambda *a: None)
+            other = ~np.isin(np.arange(len(data["y"])), pf["tr"])
+            y2 = data["y"].copy(); y2[other & (y2 >= 0)] = 1 - y2[other & (y2 >= 0)]
+            r2 = FS.fit_fold_ranker(g, g.R, dict(data, y=y2), rpl, pf["tr"], task, seed=0, cache_dir=None, log=lambda *a: None)
+            assert r1["order"] == r2["order"] and r1["mean_importance"] == r2["mean_importance"]
+            FS.validate_fold_local(r1, pf["val_groups"]); FS.validate_fold_local(r1, set(data["group"][te]))
+            print("FS_LEAKAGE_CHECK_PASSED", flush=True)
         print("UNIFIED_V2_REAL_SOURCE_OK", task, json.dumps(report["dataset"]), report["selected"]["static_bytes"], flush=True)
     combined = g.OUTPUT / "both_models.c"
     combined.write_text('#include "TAP_SWIPE.h"\n#include "LONG_PRESS.h"\n'

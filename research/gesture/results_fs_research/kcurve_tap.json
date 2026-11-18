@@ -1,0 +1,6813 @@
+{
+ "task": "tap",
+ "config": {
+  "objective": "binary",
+  "n_estimators": 400,
+  "learning_rate": 0.1,
+  "num_leaves": 31,
+  "max_depth": 8,
+  "min_child_samples": 100,
+  "reg_lambda": 1.0,
+  "reg_alpha": 0.001,
+  "colsample_bytree": 0.7,
+  "subsample": 0.8,
+  "subsample_freq": 1,
+  "max_bin": 127,
+  "verbosity": -1,
+  "deterministic": true
+ },
+ "positive_weight": 1.0,
+ "results": {
+  "K5": [
+   {
+    "features": [
+     "p_core->acc_psd_mean[X][1]",
+     "p_core->acc_psd_mean[X][4]",
+     "p_core->acc_psd_mean[Y][4]",
+     "p_core->acc_psd_mean[Z][4]",
+     "p_core->wl_head[CH1]"
+    ],
+    "trees": 88,
+    "bytes": 32664,
+    "usable_rows": {
+     "at_firmware_threshold": {
+      "onsets": 3129,
+      "hits": 2590,
+      "recall": 0.8277404921700223,
+      "false_events": 4111,
+      "negative_minutes": 89.35586666666667,
+      "false_per_min": 46.00705195256719,
+      "latency_ms_median": 4.0,
+      "latency_ms_p90": 27.09999999999991,
+      "objective_score": 0.01799160035342874,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.99,
+     "best": {
+      "onsets": 3129,
+      "hits": 673,
+      "recall": 0.2150846915947587,
+      "false_events": 237,
+      "negative_minutes": 89.35586666666667,
+      "false_per_min": 2.652316057591443,
+      "latency_ms_median": 33.0,
+      "latency_ms_p90": 90.80000000000007,
+      "objective_score": 0.08109316043958811,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.01757750079897731,
+     "recall_at_fpm_2": 0.01757750079897731,
+     "recall_at_fpm_3": 0.2150846915947587,
+     "recall_at_fpm_5": 0.2150846915947587,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 27.909,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 80.544,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 67.455,
+       "recall": null
+      },
+      "LONG_PRESS": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 0.345,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 0.319,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 8.967,
+       "recall": 0.8067307692307693
+      },
+      "TAP": {
+       "fpm": 3.134,
+       "recall": 0.8382000957395883
+      },
+      "WRIST": {
+       "fpm": 102.143,
+       "recall": null
+      }
+     }
+    },
+    "steady_rows": {
+     "at_firmware_threshold": {
+      "onsets": 458,
+      "hits": 349,
+      "recall": 0.7620087336244541,
+      "false_events": 2263,
+      "negative_minutes": 49.071425,
+      "false_per_min": 46.11645168242006,
+      "latency_ms_median": 8.0,
+      "latency_ms_p90": 34.0,
+      "objective_score": 0.016523576854351473,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.98,
+     "best": {
+      "onsets": 458,
+      "hits": 163,
+      "recall": 0.3558951965065502,
+      "false_events": 266,
+      "negative_minutes": 49.071425,
+      "false_per_min": 5.420669972392283,
+      "latency_ms_median": 31.0,
+      "latency_ms_p90": 64.0,
+      "objective_score": 0.0656552046738024,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.013100436681222707,
+     "recall_at_fpm_2": 0.013100436681222707,
+     "recall_at_fpm_3": 0.14847161572052403,
+     "recall_at_fpm_5": 0.14847161572052403,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 23.675,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 83.536,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 68.516,
+       "recall": null
+      },
+      "LONG_PRESS": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 0.43,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 0.394,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 7.657,
+       "recall": 0.8488372093023255
+      },
+      "TAP": {
+       "fpm": 0.672,
+       "recall": 0.7419354838709677
+      },
+      "WRIST": {
+       "fpm": 94.64,
+       "recall": null
+      }
+     }
+    }
+   },
+   {
+    "features": [
+     "p_core->acc_psd[0][X][1]",
+     "p_core->acc_psd[0][Z][0]",
+     "p_core->acc_psd_mean[Z][4]",
+     "p_core->emg_psd[0][CH2][2]",
+     "p_core->wl_head[CH1]"
+    ],
+    "trees": 88,
+    "bytes": 32724,
+    "usable_rows": {
+     "at_firmware_threshold": {
+      "onsets": 6894,
+      "hits": 6571,
+      "recall": 0.9531476646359153,
+      "false_events": 1177,
+      "negative_minutes": 78.082625,
+      "false_per_min": 15.07377601611114,
+      "latency_ms_median": -7.0,
+      "latency_ms_p90": 12.0,
+      "objective_score": 0.06323217643788609,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.995,
+     "best": {
+      "onsets": 6894,
+      "hits": 2133,
+      "recall": 0.3093994778067885,
+      "false_events": 56,
+      "negative_minutes": 78.082625,
+      "false_per_min": 0.7171890033153984,
+      "latency_ms_median": 28.0,
+      "latency_ms_p90": 75.0,
+      "objective_score": 0.3093994778067885,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.3093994778067885,
+     "recall_at_fpm_2": 0.3093994778067885,
+     "recall_at_fpm_3": 0.6357702349869452,
+     "recall_at_fpm_5": 0.7950391644908616,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 16.37,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 21.715,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 6.737,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 43.128,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 2.031,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 1.256,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 14.925,
+       "recall": 0.9459742070407807
+      },
+      "TAP": {
+       "fpm": 4.752,
+       "recall": 0.9582608695652174
+      },
+      "WRIST": {
+       "fpm": 64.621,
+       "recall": null
+      }
+     }
+    },
+    "steady_rows": {
+     "at_firmware_threshold": {
+      "onsets": 912,
+      "hits": 863,
+      "recall": 0.9462719298245614,
+      "false_events": 113,
+      "negative_minutes": 21.874291666666668,
+      "false_per_min": 5.1658815618791465,
+      "latency_ms_median": -5.0,
+      "latency_ms_p90": 15.0,
+      "objective_score": 0.1831772406102831,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.99,
+     "best": {
+      "onsets": 912,
+      "hits": 520,
+      "recall": 0.5701754385964912,
+      "false_events": 25,
+      "negative_minutes": 21.874291666666668,
+      "false_per_min": 1.1428941508582182,
+      "latency_ms_median": 20.0,
+      "latency_ms_p90": 69.10000000000002,
+      "objective_score": 0.4988873538011696,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.29385964912280704,
+     "recall_at_fpm_2": 0.7631578947368421,
+     "recall_at_fpm_3": 0.8728070175438597,
+     "recall_at_fpm_5": 0.9243421052631579,
+     "per_folder_at_firmware": {
+      "DRAG_AND_DROP": {
+       "fpm": 4.968,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 1.727,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 0.696,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 19.448,
+       "recall": 0.9597989949748744
+      },
+      "TAP": {
+       "fpm": 5.956,
+       "recall": 0.9424964936886395
+      }
+     }
+    }
+   },
+   {
+    "features": [
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][0]",
+     "p_core->acc_psd_mean[X][1]",
+     "p_core->acc_psd_mean[Y][4]",
+     "p_core->acc_psd_mean[Z][4]",
+     "p_core->emg_psd[0][CH1][4]"
+    ],
+    "trees": 88,
+    "bytes": 32724,
+    "usable_rows": {
+     "at_firmware_threshold": {
+      "onsets": 4352,
+      "hits": 4095,
+      "recall": 0.9409466911764706,
+      "false_events": 2661,
+      "negative_minutes": 88.57218333333333,
+      "false_per_min": 30.043292373019295,
+      "latency_ms_median": -7.0,
+      "latency_ms_p90": 14.0,
+      "objective_score": 0.03131969291160305,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.995,
+     "best": {
+      "onsets": 4352,
+      "hits": 1525,
+      "recall": 0.35041360294117646,
+      "false_events": 186,
+      "negative_minutes": 88.57218333333333,
+      "false_per_min": 2.099982104991202,
+      "latency_ms_median": 14.0,
+      "latency_ms_p90": 47.600000000000136,
+      "objective_score": 0.16686504237741803,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.12683823529411764,
+     "recall_at_fpm_2": 0.12683823529411764,
+     "recall_at_fpm_3": 0.35041360294117646,
+     "recall_at_fpm_5": 0.5932904411764706,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 25.784,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 51.714,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 5.294,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 58.997,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 3.628,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 7.463,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 6.307,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 12.14,
+       "recall": 0.9297374024130589
+      },
+      "TAP": {
+       "fpm": 7.684,
+       "recall": 0.946313285762827
+      },
+      "WRIST": {
+       "fpm": 54.878,
+       "recall": null
+      }
+     }
+    },
+    "steady_rows": {
+     "at_firmware_threshold": {
+      "onsets": 656,
+      "hits": 629,
+      "recall": 0.9588414634146342,
+      "false_events": 626,
+      "negative_minutes": 27.962216666666666,
+      "false_per_min": 22.387352457154982,
+      "latency_ms_median": -7.0,
+      "latency_ms_p90": 20.200000000000045,
+      "objective_score": 0.042829605030325464,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.995,
+     "best": {
+      "onsets": 656,
+      "hits": 261,
+      "recall": 0.3978658536585366,
+      "false_events": 59,
+      "negative_minutes": 27.962216666666666,
+      "false_per_min": 2.1099900878149263,
+      "latency_ms_median": 17.0,
+      "latency_ms_p90": 48.0,
+      "objective_score": 0.18856290176725923,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.16310975609756098,
+     "recall_at_fpm_2": 0.16310975609756098,
+     "recall_at_fpm_3": 0.3978658536585366,
+     "recall_at_fpm_5": 0.6204268292682927,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 9.726,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 94.22,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 6.514,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 60.835,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 3.819,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 9.25,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 6.012,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 13.936,
+       "recall": 0.9734513274336283
+      },
+      "TAP": {
+       "fpm": 9.724,
+       "recall": 0.9558011049723757
+      },
+      "WRIST": {
+       "fpm": 39.14,
+       "recall": null
+      }
+     }
+    }
+   }
+  ],
+  "K10": [
+   {
+    "features": [
+     "p_core->acc_psd[0][Y][0]",
+     "p_core->acc_psd[0][Z][0]",
+     "p_core->acc_psd_mean[X][1]",
+     "p_core->acc_psd_mean[X][4]",
+     "p_core->acc_psd_mean[Y][2]",
+     "p_core->acc_psd_mean[Y][4]",
+     "p_core->acc_psd_mean[Z][4]",
+     "p_core->emg_psd[0][CH2][4]",
+     "p_core->wl_head[CH1]",
+     "p_core->cload_lean_8.rise10[CH3]"
+    ],
+    "trees": 88,
+    "bytes": 32724,
+    "usable_rows": {
+     "at_firmware_threshold": {
+      "onsets": 3129,
+      "hits": 3052,
+      "recall": 0.9753914988814317,
+      "false_events": 1906,
+      "negative_minutes": 89.35586666666667,
+      "false_per_min": 21.330440530672114,
+      "latency_ms_median": -2.0,
+      "latency_ms_p90": 21.0,
+      "objective_score": 0.0457276771887982,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.995,
+     "best": {
+      "onsets": 3129,
+      "hits": 1529,
+      "recall": 0.4886545222115692,
+      "false_events": 98,
+      "negative_minutes": 89.35586666666667,
+      "false_per_min": 1.096738285417559,
+      "latency_ms_median": 24.0,
+      "latency_ms_p90": 62.0,
+      "objective_score": 0.4455525340081702,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.26558005752636626,
+     "recall_at_fpm_2": 0.4886545222115692,
+     "recall_at_fpm_3": 0.7344199424736337,
+     "recall_at_fpm_5": 0.8581016299137104,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 7.154,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 91.253,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 35.431,
+       "recall": null
+      },
+      "LONG_PRESS": {
+       "fpm": 1.752,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 1.379,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.582,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 1.913,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.577,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 10.189,
+       "recall": 0.9788461538461538
+      },
+      "TAP": {
+       "fpm": 3.006,
+       "recall": 0.9736716132120632
+      },
+      "WRIST": {
+       "fpm": 27.741,
+       "recall": null
+      }
+     }
+    },
+    "steady_rows": {
+     "at_firmware_threshold": {
+      "onsets": 458,
+      "hits": 436,
+      "recall": 0.9519650655021834,
+      "false_events": 870,
+      "negative_minutes": 49.071425,
+      "false_per_min": 17.729258932260475,
+      "latency_ms_median": 0.0,
+      "latency_ms_p90": 25.0,
+      "objective_score": 0.05369457737288561,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.995,
+     "best": {
+      "onsets": 458,
+      "hits": 201,
+      "recall": 0.4388646288209607,
+      "false_events": 30,
+      "negative_minutes": 49.071425,
+      "false_per_min": 0.611353756284844,
+      "latency_ms_median": 26.0,
+      "latency_ms_p90": 73.0,
+      "objective_score": 0.4388646288209607,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.4388646288209607,
+     "recall_at_fpm_2": 0.6855895196506551,
+     "recall_at_fpm_3": 0.6855895196506551,
+     "recall_at_fpm_5": 0.8122270742358079,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 5.89,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 80.588,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 26.22,
+       "recall": null
+      },
+      "LONG_PRESS": {
+       "fpm": 1.118,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 1.722,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.933,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 1.576,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.703,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 3.829,
+       "recall": 1.0
+      },
+      "TAP": {
+       "fpm": 0.896,
+       "recall": 0.9408602150537635
+      },
+      "WRIST": {
+       "fpm": 23.779,
+       "recall": null
+      }
+     }
+    }
+   },
+   {
+    "features": [
+     "p_core->acc_psd[0][X][1]",
+     "p_core->acc_psd[0][Z][0]",
+     "p_core->acc_psd[0][Z][2]",
+     "p_core->acc_psd_mean[Z][4]",
+     "p_core->acc_rate[Z][0]",
+     "p_core->acc_rate[Z][5]",
+     "p_core->emg_psd[0][CH2][2]",
+     "p_core->emg_psd_mean[CH2][0]",
+     "p_core->wl_head[CH1]",
+     "p_core->cload_lean_8.rise10[CH2]"
+    ],
+    "trees": 88,
+    "bytes": 32724,
+    "usable_rows": {
+     "at_firmware_threshold": {
+      "onsets": 6894,
+      "hits": 6695,
+      "recall": 0.9711343196982883,
+      "false_events": 759,
+      "negative_minutes": 78.082625,
+      "false_per_min": 9.720472384221203,
+      "latency_ms_median": -9.0,
+      "latency_ms_p90": 7.0,
+      "objective_score": 0.09990608288489004,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.995,
+     "best": {
+      "onsets": 6894,
+      "hits": 4387,
+      "recall": 0.6363504496663765,
+      "false_events": 98,
+      "negative_minutes": 78.082625,
+      "false_per_min": 1.255080755801947,
+      "latency_ms_median": 14.0,
+      "latency_ms_p90": 41.0,
+      "objective_score": 0.5070195258151128,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.4351610095735422,
+     "recall_at_fpm_2": 0.8043225993617639,
+     "recall_at_fpm_3": 0.8899042645778938,
+     "recall_at_fpm_5": 0.9499564838990426,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 2.551,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 7.896,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 6.737,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 31.317,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 2.215,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 1.508,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 10.051,
+       "recall": 0.9567793656326246
+      },
+      "TAP": {
+       "fpm": 4.347,
+       "recall": 0.9813664596273292
+      },
+      "WRIST": {
+       "fpm": 28.433,
+       "recall": null
+      }
+     }
+    },
+    "steady_rows": {
+     "at_firmware_threshold": {
+      "onsets": 912,
+      "hits": 886,
+      "recall": 0.9714912280701754,
+      "false_events": 101,
+      "negative_minutes": 21.874291666666668,
+      "false_per_min": 4.617292369467202,
+      "latency_ms_median": -9.0,
+      "latency_ms_p90": 8.0,
+      "objective_score": 0.21040279677638815,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.995,
+     "best": {
+      "onsets": 912,
+      "hits": 548,
+      "recall": 0.6008771929824561,
+      "false_events": 19,
+      "negative_minutes": 21.874291666666668,
+      "false_per_min": 0.8685995546522458,
+      "latency_ms_median": 14.0,
+      "latency_ms_p90": 39.30000000000001,
+      "objective_score": 0.6008771929824561,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.6008771929824561,
+     "recall_at_fpm_2": 0.8969298245614035,
+     "recall_at_fpm_3": 0.9407894736842105,
+     "recall_at_fpm_5": 0.9714912280701754,
+     "per_folder_at_firmware": {
+      "DRAG_AND_DROP": {
+       "fpm": 4.968,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 1.974,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 1.044,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 14.447,
+       "recall": 0.949748743718593
+      },
+      "TAP": {
+       "fpm": 5.498,
+       "recall": 0.9775596072931276
+      }
+     }
+    }
+   },
+   {
+    "features": [
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][0]",
+     "p_core->acc_psd_mean[X][1]",
+     "p_core->acc_psd_mean[X][4]",
+     "p_core->acc_psd_mean[Y][0]",
+     "p_core->acc_psd_mean[Y][4]",
+     "p_core->acc_psd_mean[Z][4]",
+     "p_core->emg_psd[0][CH1][4]",
+     "p_core->emg_psd[0][CH2][2]",
+     "p_core->cload_lean_8.rise10[CH1]",
+     "p_core->cload_lean_8.rise10[CH3]"
+    ],
+    "trees": 88,
+    "bytes": 32724,
+    "usable_rows": {
+     "at_firmware_threshold": {
+      "onsets": 4352,
+      "hits": 3967,
+      "recall": 0.9115349264705882,
+      "false_events": 1518,
+      "negative_minutes": 88.57218333333333,
+      "false_per_min": 17.13856363105723,
+      "latency_ms_median": -5.0,
+      "latency_ms_p90": 17.0,
+      "objective_score": 0.05318619145065181,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.995,
+     "best": {
+      "onsets": 4352,
+      "hits": 1648,
+      "recall": 0.3786764705882353,
+      "false_events": 75,
+      "negative_minutes": 88.57218333333333,
+      "false_per_min": 0.8467669778190332,
+      "latency_ms_median": 13.0,
+      "latency_ms_p90": 42.0,
+      "objective_score": 0.3786764705882353,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.3786764705882353,
+     "recall_at_fpm_2": 0.3786764705882353,
+     "recall_at_fpm_3": 0.5762867647058824,
+     "recall_at_fpm_5": 0.5762867647058824,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 19.709,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 50.686,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 3.706,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 27.596,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 2.721,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 5.686,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 5.194,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 9.539,
+       "recall": 0.8821859474804826
+      },
+      "TAP": {
+       "fpm": 4.417,
+       "recall": 0.9255861365953109
+      },
+      "WRIST": {
+       "fpm": 32.602,
+       "recall": null
+      }
+     }
+    },
+    "steady_rows": {
+     "at_firmware_threshold": {
+      "onsets": 656,
+      "hits": 619,
+      "recall": 0.9435975609756098,
+      "false_events": 412,
+      "negative_minutes": 27.962216666666666,
+      "false_per_min": 14.734168070843216,
+      "latency_ms_median": -4.0,
+      "latency_ms_p90": 16.0,
+      "objective_score": 0.06404145496635488,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.995,
+     "best": {
+      "onsets": 656,
+      "hits": 252,
+      "recall": 0.38414634146341464,
+      "false_events": 30,
+      "negative_minutes": 27.962216666666666,
+      "false_per_min": 1.0728763158380983,
+      "latency_ms_median": 16.0,
+      "latency_ms_p90": 39.900000000000006,
+      "objective_score": 0.3580527743902439,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.20579268292682926,
+     "recall_at_fpm_2": 0.38414634146341464,
+     "recall_at_fpm_3": 0.6173780487804879,
+     "recall_at_fpm_5": 0.6173780487804879,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 7.902,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 94.22,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 4.886,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 33.04,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 2.122,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 6.68,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 5.087,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 13.936,
+       "recall": 0.9734513274336283
+      },
+      "TAP": {
+       "fpm": 4.756,
+       "recall": 0.9373848987108656
+      },
+      "WRIST": {
+       "fpm": 26.909,
+       "recall": null
+      }
+     }
+    }
+   }
+  ],
+  "K20": [
+   {
+    "features": [
+     "p_core->acc_psd[0][X][1]",
+     "p_core->acc_psd[0][Y][0]",
+     "p_core->acc_psd[0][Z][0]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][5]",
+     "p_core->acc_psd_mean[X][1]",
+     "p_core->acc_psd_mean[X][4]",
+     "p_core->acc_psd_mean[Y][2]",
+     "p_core->acc_psd_mean[Y][4]",
+     "p_core->acc_psd_mean[Z][4]",
+     "p_core->acc_rate[X][1]",
+     "p_core->acc_rate[X][2]",
+     "p_core->acc_rate[X][4]",
+     "p_core->acc_rate[Y][0]",
+     "p_core->acc_rate[Y][2]",
+     "p_core->acc_rate[Z][2]",
+     "p_core->emg_psd[0][CH2][4]",
+     "p_core->wl_head[CH1]",
+     "p_core->cload_lean_8.r01[CH1]",
+     "p_core->cload_lean_8.r01[CH3]",
+     "p_core->cload_lean_8.rise10[CH3]"
+    ],
+    "trees": 88,
+    "bytes": 32724,
+    "usable_rows": {
+     "at_firmware_threshold": {
+      "onsets": 3129,
+      "hits": 3066,
+      "recall": 0.9798657718120806,
+      "false_events": 1191,
+      "negative_minutes": 89.35586666666667,
+      "false_per_min": 13.328727529921556,
+      "latency_ms_median": -7.0,
+      "latency_ms_p90": 9.0,
+      "objective_score": 0.07351532767193174,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.995,
+     "best": {
+      "onsets": 3129,
+      "hits": 1904,
+      "recall": 0.6085011185682326,
+      "false_events": 61,
+      "negative_minutes": 89.35586666666667,
+      "false_per_min": 0.68266362663746,
+      "latency_ms_median": 11.0,
+      "latency_ms_p90": 41.700000000000045,
+      "objective_score": 0.6085011185682326,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.6085011185682326,
+     "recall_at_fpm_2": 0.8040907638223075,
+     "recall_at_fpm_3": 0.9050814956855225,
+     "recall_at_fpm_5": 0.9351230425055929,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 1.494,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 34.583,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 27.179,
+       "recall": null
+      },
+      "LONG_PRESS": {
+       "fpm": 1.752,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 1.724,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.582,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 1.913,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.866,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 8.559,
+       "recall": 0.9865384615384616
+      },
+      "TAP": {
+       "fpm": 3.454,
+       "recall": 0.9765438008616563
+      },
+      "WRIST": {
+       "fpm": 16.0,
+       "recall": null
+      }
+     }
+    },
+    "steady_rows": {
+     "at_firmware_threshold": {
+      "onsets": 458,
+      "hits": 443,
+      "recall": 0.9672489082969432,
+      "false_events": 486,
+      "negative_minutes": 49.071425,
+      "false_per_min": 9.903930851814472,
+      "latency_ms_median": -5.0,
+      "latency_ms_p90": 15.0,
+      "objective_score": 0.09766313222186282,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.99,
+     "best": {
+      "onsets": 458,
+      "hits": 347,
+      "recall": 0.75764192139738,
+      "false_events": 32,
+      "negative_minutes": 49.071425,
+      "false_per_min": 0.6521106733705003,
+      "latency_ms_median": 10.0,
+      "latency_ms_p90": 37.80000000000007,
+      "objective_score": 0.75764192139738,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.75764192139738,
+     "recall_at_fpm_2": 0.851528384279476,
+     "recall_at_fpm_3": 0.8995633187772926,
+     "recall_at_fpm_5": 0.925764192139738,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 1.359,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 32.104,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 18.225,
+       "recall": null
+      },
+      "LONG_PRESS": {
+       "fpm": 1.118,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 2.152,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.933,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 1.576,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 1.055,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 3.829,
+       "recall": 1.0
+      },
+      "TAP": {
+       "fpm": 2.017,
+       "recall": 0.9596774193548387
+      },
+      "WRIST": {
+       "fpm": 13.316,
+       "recall": null
+      }
+     }
+    }
+   },
+   {
+    "features": [
+     "p_core->acc_psd[0][X][1]",
+     "p_core->acc_psd[0][Z][0]",
+     "p_core->acc_psd[0][Z][2]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][4]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][4]",
+     "p_core->acc_psd_mean[Z][4]",
+     "p_core->acc_rate[X][5]",
+     "p_core->acc_rate[Y][0]",
+     "p_core->acc_rate[Z][0]",
+     "p_core->acc_rate[Z][2]",
+     "p_core->acc_rate[Z][4]",
+     "p_core->acc_rate[Z][5]",
+     "p_core->emg_psd[0][CH2][2]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][0]",
+     "p_core->emg_psd_mean[CH1][0]",
+     "p_core->emg_psd_mean[CH2][0]",
+     "p_core->emg_psd_mean[CH3][0]",
+     "p_core->wl_head[CH1]",
+     "p_core->cload_lean_8.rise10[CH2]"
+    ],
+    "trees": 88,
+    "bytes": 32724,
+    "usable_rows": {
+     "at_firmware_threshold": {
+      "onsets": 6894,
+      "hits": 6738,
+      "recall": 0.9773716275021758,
+      "false_events": 533,
+      "negative_minutes": 78.082625,
+      "false_per_min": 6.826102477984059,
+      "latency_ms_median": -9.0,
+      "latency_ms_p90": 6.0,
+      "objective_score": 0.14318150520805267,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.995,
+     "best": {
+      "onsets": 6894,
+      "hits": 4371,
+      "recall": 0.634029590948651,
+      "false_events": 91,
+      "negative_minutes": 78.082625,
+      "false_per_min": 1.1654321303875224,
+      "latency_ms_median": 14.0,
+      "latency_ms_p90": 47.0,
+      "objective_score": 0.5440296130653506,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.42239628662605166,
+     "recall_at_fpm_2": 0.8091093704670728,
+     "recall_at_fpm_3": 0.9289237017696548,
+     "recall_at_fpm_5": 0.9540179866550623,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 1.276,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 7.896,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 5.895,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 21.564,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 3.138,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 0.503,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 8.833,
+       "recall": 0.9658417567096549
+      },
+      "TAP": {
+       "fpm": 2.869,
+       "recall": 0.9855900621118012
+      },
+      "WRIST": {
+       "fpm": 16.026,
+       "recall": null
+      }
+     }
+    },
+    "steady_rows": {
+     "at_firmware_threshold": {
+      "onsets": 912,
+      "hits": 888,
+      "recall": 0.9736842105263158,
+      "false_events": 74,
+      "negative_minutes": 21.874291666666668,
+      "false_per_min": 3.382966686540326,
+      "latency_ms_median": -9.0,
+      "latency_ms_p90": 7.0,
+      "objective_score": 0.2878196271929825,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.99,
+     "best": {
+      "onsets": 912,
+      "hits": 718,
+      "recall": 0.7872807017543859,
+      "false_events": 25,
+      "negative_minutes": 21.874291666666668,
+      "false_per_min": 1.1428941508582182,
+      "latency_ms_median": 6.0,
+      "latency_ms_p90": 36.0,
+      "objective_score": 0.688848307748538,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.40789473684210525,
+     "recall_at_fpm_2": 0.9177631578947368,
+     "recall_at_fpm_3": 0.9671052631578947,
+     "recall_at_fpm_5": 0.981359649122807,
+     "per_folder_at_firmware": {
+      "DRAG_AND_DROP": {
+       "fpm": 3.726,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 2.961,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 0.348,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 10.558,
+       "recall": 0.9447236180904522
+      },
+      "TAP": {
+       "fpm": 3.573,
+       "recall": 0.9817671809256662
+      }
+     }
+    }
+   },
+   {
+    "features": [
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][0]",
+     "p_core->acc_psd_mean[X][1]",
+     "p_core->acc_psd_mean[X][4]",
+     "p_core->acc_psd_mean[Y][0]",
+     "p_core->acc_psd_mean[Y][2]",
+     "p_core->acc_psd_mean[Y][4]",
+     "p_core->acc_psd_mean[Z][4]",
+     "p_core->acc_rate[X][4]",
+     "p_core->acc_rate[X][5]",
+     "p_core->acc_rate[Z][2]",
+     "p_core->acc_rate[Z][5]",
+     "p_core->emg_psd[0][CH1][4]",
+     "p_core->emg_psd[0][CH2][2]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0]",
+     "p_core->emg_psd_mean[CH1][0]",
+     "p_core->emg_psd_mean[CH2][0]",
+     "p_core->emg_psd_mean[CH3][0]",
+     "p_core->cload_lean_8.rise10[CH1]",
+     "p_core->cload_lean_8.rise10[CH2]",
+     "p_core->cload_lean_8.rise10[CH3]"
+    ],
+    "trees": 88,
+    "bytes": 32724,
+    "usable_rows": {
+     "at_firmware_threshold": {
+      "onsets": 4352,
+      "hits": 4123,
+      "recall": 0.9473805147058824,
+      "false_events": 1342,
+      "negative_minutes": 88.57218333333333,
+      "false_per_min": 15.151483789775233,
+      "latency_ms_median": -7.0,
+      "latency_ms_p90": 11.0,
+      "objective_score": 0.06252724339415582,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.998,
+     "best": {
+      "onsets": 4352,
+      "hits": 1429,
+      "recall": 0.3283547794117647,
+      "false_events": 72,
+      "negative_minutes": 88.57218333333333,
+      "false_per_min": 0.8128962987062718,
+      "latency_ms_median": 12.0,
+      "latency_ms_p90": 42.0,
+      "objective_score": 0.3283547794117647,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.3283547794117647,
+     "recall_at_fpm_2": 0.45128676470588236,
+     "recall_at_fpm_3": 0.5735294117647058,
+     "recall_at_fpm_5": 0.7084099264705882,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 16.893,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 20.891,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 1.059,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 32.801,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 2.721,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 6.041,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 2.968,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 6.07,
+       "recall": 0.9304471256210078
+      },
+      "TAP": {
+       "fpm": 2.37,
+       "recall": 0.9554875976894326
+      },
+      "WRIST": {
+       "fpm": 23.897,
+       "recall": null
+      }
+     }
+    },
+    "steady_rows": {
+     "at_firmware_threshold": {
+      "onsets": 656,
+      "hits": 625,
+      "recall": 0.9527439024390244,
+      "false_events": 360,
+      "negative_minutes": 27.962216666666666,
+      "false_per_min": 12.874515790057178,
+      "latency_ms_median": -9.0,
+      "latency_ms_p90": 8.0,
+      "objective_score": 0.07400230952179314,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.997,
+     "best": {
+      "onsets": 656,
+      "hits": 361,
+      "recall": 0.5503048780487805,
+      "false_events": 36,
+      "negative_minutes": 27.962216666666666,
+      "false_per_min": 1.287451579005718,
+      "latency_ms_median": 11.0,
+      "latency_ms_p90": 39.0,
+      "objective_score": 0.42743733979787707,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.40853658536585363,
+     "recall_at_fpm_2": 0.5503048780487805,
+     "recall_at_fpm_3": 0.6859756097560976,
+     "recall_at_fpm_5": 0.7942073170731707,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 4.863,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 36.326,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 1.629,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 41.168,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 2.971,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 7.194,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 3.237,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 12.669,
+       "recall": 0.9823008849557522
+      },
+      "TAP": {
+       "fpm": 3.699,
+       "recall": 0.9465930018416207
+      },
+      "WRIST": {
+       "fpm": 23.919,
+       "recall": null
+      }
+     }
+    }
+   }
+  ],
+  "K30": [
+   {
+    "features": [
+     "p_core->acc_psd[0][X][1]",
+     "p_core->acc_psd[0][X][4]",
+     "p_core->acc_psd[0][Y][0]",
+     "p_core->acc_psd[0][Z][0]",
+     "p_core->acc_psd[0][Z][4]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][1]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][5]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][0]",
+     "p_core->acc_psd_mean[X][1]",
+     "p_core->acc_psd_mean[X][2]",
+     "p_core->acc_psd_mean[X][4]",
+     "p_core->acc_psd_mean[Y][1]",
+     "p_core->acc_psd_mean[Y][2]",
+     "p_core->acc_psd_mean[Y][3]",
+     "p_core->acc_psd_mean[Y][4]",
+     "p_core->acc_psd_mean[Z][4]",
+     "p_core->acc_rate[X][1]",
+     "p_core->acc_rate[X][2]",
+     "p_core->acc_rate[X][3]",
+     "p_core->acc_rate[X][4]",
+     "p_core->acc_rate[Y][0]",
+     "p_core->acc_rate[Y][2]",
+     "p_core->acc_rate[Z][2]",
+     "p_core->emg_psd[0][CH1][4]",
+     "p_core->emg_psd[0][CH2][0]",
+     "p_core->emg_psd[0][CH2][4]",
+     "p_core->wl_head[CH1]",
+     "p_core->cload_lean_8.r01[CH1]",
+     "p_core->cload_lean_8.r01[CH3]",
+     "p_core->cload_lean_8.rise10[CH3]"
+    ],
+    "trees": 88,
+    "bytes": 32724,
+    "usable_rows": {
+     "at_firmware_threshold": {
+      "onsets": 3129,
+      "hits": 3080,
+      "recall": 0.9843400447427293,
+      "false_events": 862,
+      "negative_minutes": 89.35586666666667,
+      "false_per_min": 9.646820428876895,
+      "latency_ms_median": -10.0,
+      "latency_ms_p90": 6.0,
+      "objective_score": 0.10203777006112763,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.995,
+     "best": {
+      "onsets": 3129,
+      "hits": 2099,
+      "recall": 0.6708213486736977,
+      "false_events": 56,
+      "negative_minutes": 89.35586666666667,
+      "false_per_min": 0.6267075916671765,
+      "latency_ms_median": 8.0,
+      "latency_ms_p90": 35.0,
+      "objective_score": 0.6708213486736977,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.6708213486736977,
+     "recall_at_fpm_2": 0.840843720038351,
+     "recall_at_fpm_3": 0.9188239054010866,
+     "recall_at_fpm_5": 0.968040907638223,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 1.415,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 23.65,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 19.871,
+       "recall": null
+      },
+      "LONG_PRESS": {
+       "fpm": 1.752,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 1.379,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.582,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 1.913,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.577,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 8.152,
+       "recall": 0.9932692307692308
+      },
+      "TAP": {
+       "fpm": 2.814,
+       "recall": 0.9798946864528483
+      },
+      "WRIST": {
+       "fpm": 10.646,
+       "recall": null
+      }
+     }
+    },
+    "steady_rows": {
+     "at_firmware_threshold": {
+      "onsets": 458,
+      "hits": 444,
+      "recall": 0.9694323144104804,
+      "false_events": 351,
+      "negative_minutes": 49.071425,
+      "false_per_min": 7.152838948532675,
+      "latency_ms_median": -8.0,
+      "latency_ms_p90": 11.0,
+      "objective_score": 0.1355311256671519,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.99,
+     "best": {
+      "onsets": 458,
+      "hits": 358,
+      "recall": 0.7816593886462883,
+      "false_events": 29,
+      "negative_minutes": 49.071425,
+      "false_per_min": 0.5909752977420158,
+      "latency_ms_median": 7.0,
+      "latency_ms_p90": 41.30000000000001,
+      "objective_score": 0.7816593886462883,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.7816593886462883,
+     "recall_at_fpm_2": 0.868995633187773,
+     "recall_at_fpm_3": 0.9104803493449781,
+     "recall_at_fpm_5": 0.9410480349344978,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 1.133,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 21.294,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 13.325,
+       "recall": null
+      },
+      "LONG_PRESS": {
+       "fpm": 1.118,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 1.722,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.933,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 1.576,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.703,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 0.0,
+       "recall": 1.0
+      },
+      "TAP": {
+       "fpm": 1.121,
+       "recall": 0.9623655913978495
+      },
+      "WRIST": {
+       "fpm": 9.892,
+       "recall": null
+      }
+     }
+    }
+   },
+   {
+    "features": [
+     "p_core->acc_psd[0][X][1]",
+     "p_core->acc_psd[0][Z][0]",
+     "p_core->acc_psd[0][Z][2]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][4]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][4]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][4]",
+     "p_core->acc_psd_mean[Z][4]",
+     "p_core->acc_rate[X][0]",
+     "p_core->acc_rate[X][5]",
+     "p_core->acc_rate[Y][0]",
+     "p_core->acc_rate[Y][4]",
+     "p_core->acc_rate[Y][5]",
+     "p_core->acc_rate[Z][0]",
+     "p_core->acc_rate[Z][1]",
+     "p_core->acc_rate[Z][2]",
+     "p_core->acc_rate[Z][4]",
+     "p_core->acc_rate[Z][5]",
+     "p_core->emg_psd[0][CH2][2]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][0]",
+     "p_core->emg_psd_mean[CH1][0]",
+     "p_core->emg_psd_mean[CH2][0]",
+     "p_core->emg_psd_mean[CH3][0]",
+     "p_core->wl_head[CH1]",
+     "p_core->wl_tail[CH3]",
+     "p_core->cload_lean_8.r01[CH2]",
+     "p_core->cload_lean_8.sd3[CH2]",
+     "p_core->cload_lean_8.min10[CH3]",
+     "p_core->cload_lean_8.rise10[CH1]",
+     "p_core->cload_lean_8.rise10[CH2]"
+    ],
+    "trees": 88,
+    "bytes": 32724,
+    "usable_rows": {
+     "at_firmware_threshold": {
+      "onsets": 6894,
+      "hits": 6744,
+      "recall": 0.9782419495213229,
+      "false_events": 479,
+      "negative_minutes": 78.082625,
+      "false_per_min": 6.1345273676442105,
+      "latency_ms_median": -8.0,
+      "latency_ms_p90": 6.0,
+      "objective_score": 0.1594649254775415,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.995,
+     "best": {
+      "onsets": 6894,
+      "hits": 3984,
+      "recall": 0.577893820713664,
+      "false_events": 73,
+      "negative_minutes": 78.082625,
+      "false_per_min": 0.9349070936075728,
+      "latency_ms_median": 13.0,
+      "latency_ms_p90": 50.0,
+      "objective_score": 0.577893820713664,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.577893820713664,
+     "recall_at_fpm_2": 0.77560197272991,
+     "recall_at_fpm_3": 0.9480707861908906,
+     "recall_at_fpm_5": 0.9712793733681462,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 0.213,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 10.528,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 5.895,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 19.596,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 4.246,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 0.754,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 8.224,
+       "recall": 0.9672359707215058
+      },
+      "TAP": {
+       "fpm": 2.492,
+       "recall": 0.9860869565217392
+      },
+      "WRIST": {
+       "fpm": 11.115,
+       "recall": null
+      }
+     }
+    },
+    "steady_rows": {
+     "at_firmware_threshold": {
+      "onsets": 912,
+      "hits": 894,
+      "recall": 0.9802631578947368,
+      "false_events": 74,
+      "negative_minutes": 21.874291666666668,
+      "false_per_min": 3.382966686540326,
+      "latency_ms_median": -9.0,
+      "latency_ms_p90": 7.0,
+      "objective_score": 0.2897643544037458,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.98,
+     "best": {
+      "onsets": 912,
+      "hits": 795,
+      "recall": 0.8717105263157895,
+      "false_events": 28,
+      "negative_minutes": 21.874291666666668,
+      "false_per_min": 1.2800414489612044,
+      "latency_ms_median": 2.0,
+      "latency_ms_p90": 23.0,
+      "objective_score": 0.6810017964833961,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.5745614035087719,
+     "recall_at_fpm_2": 0.9462719298245614,
+     "recall_at_fpm_3": 0.9714912280701754,
+     "recall_at_fpm_5": 0.981359649122807,
+     "per_folder_at_firmware": {
+      "DRAG_AND_DROP": {
+       "fpm": 3.726,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 4.195,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 10.002,
+       "recall": 0.9597989949748744
+      },
+      "TAP": {
+       "fpm": 3.299,
+       "recall": 0.9859747545582047
+      }
+     }
+    }
+   },
+   {
+    "features": [
+     "p_core->acc_psd[0][Z][4]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][1]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][0]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][2]",
+     "p_core->acc_psd_mean[X][1]",
+     "p_core->acc_psd_mean[X][4]",
+     "p_core->acc_psd_mean[Y][0]",
+     "p_core->acc_psd_mean[Y][2]",
+     "p_core->acc_psd_mean[Y][4]",
+     "p_core->acc_psd_mean[Z][4]",
+     "p_core->acc_rate[X][4]",
+     "p_core->acc_rate[X][5]",
+     "p_core->acc_rate[Y][4]",
+     "p_core->acc_rate[Z][1]",
+     "p_core->acc_rate[Z][2]",
+     "p_core->acc_rate[Z][5]",
+     "p_core->emg_psd[0][CH1][4]",
+     "p_core->emg_psd[0][CH2][2]",
+     "p_core->emg_psd[0][CH2][4]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0]",
+     "p_core->emg_psd_mean[CH1][0]",
+     "p_core->emg_psd_mean[CH2][0]",
+     "p_core->emg_psd_mean[CH3][0]",
+     "p_core->wl_tail[CH1]",
+     "p_core->wl_tail[CH2]",
+     "p_core->cload_lean_8.r01[CH2]",
+     "p_core->cload_lean_8.min10[CH3]",
+     "p_core->cload_lean_8.rise10[CH1]",
+     "p_core->cload_lean_8.rise10[CH2]",
+     "p_core->cload_lean_8.rise10[CH3]"
+    ],
+    "trees": 88,
+    "bytes": 32724,
+    "usable_rows": {
+     "at_firmware_threshold": {
+      "onsets": 4352,
+      "hits": 4112,
+      "recall": 0.9448529411764706,
+      "false_events": 1282,
+      "negative_minutes": 88.57218333333333,
+      "false_per_min": 14.474070207520006,
+      "latency_ms_median": -8.0,
+      "latency_ms_p90": 9.0,
+      "objective_score": 0.06527900774486861,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.997,
+     "best": {
+      "onsets": 4352,
+      "hits": 1957,
+      "recall": 0.44967830882352944,
+      "false_events": 112,
+      "negative_minutes": 88.57218333333333,
+      "false_per_min": 1.2645053535430895,
+      "latency_ms_median": 7.0,
+      "latency_ms_p90": 36.0,
+      "objective_score": 0.3556159786619726,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.3251378676470588,
+     "recall_at_fpm_2": 0.44967830882352944,
+     "recall_at_fpm_3": 0.5737591911764706,
+     "recall_at_fpm_5": 0.7035845588235294,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 16.004,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 16.096,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 1.059,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 31.62,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 3.023,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 6.041,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 2.597,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 5.897,
+       "recall": 0.9233498935415189
+      },
+      "TAP": {
+       "fpm": 1.975,
+       "recall": 0.9551478083588175
+      },
+      "WRIST": {
+       "fpm": 23.812,
+       "recall": null
+      }
+     }
+    },
+    "steady_rows": {
+     "at_firmware_threshold": {
+      "onsets": 656,
+      "hits": 635,
+      "recall": 0.9679878048780488,
+      "false_events": 331,
+      "negative_minutes": 27.962216666666666,
+      "false_per_min": 11.83740201808035,
+      "latency_ms_median": -9.0,
+      "latency_ms_p90": 7.0,
+      "objective_score": 0.08177366988124186,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.997,
+     "best": {
+      "onsets": 656,
+      "hits": 365,
+      "recall": 0.5564024390243902,
+      "false_events": 36,
+      "negative_minutes": 27.962216666666666,
+      "false_per_min": 1.287451579005718,
+      "latency_ms_median": 8.0,
+      "latency_ms_p90": 43.200000000000045,
+      "objective_score": 0.43217348760727187,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.40396341463414637,
+     "recall_at_fpm_2": 0.6615853658536586,
+     "recall_at_fpm_3": 0.7728658536585366,
+     "recall_at_fpm_5": 0.8582317073170732,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 4.255,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 21.568,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 1.629,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 41.431,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 2.971,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 7.194,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 2.775,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 7.602,
+       "recall": 0.9823008849557522
+      },
+      "TAP": {
+       "fpm": 2.431,
+       "recall": 0.9650092081031307
+      },
+      "WRIST": {
+       "fpm": 24.191,
+       "recall": null
+      }
+     }
+    }
+   }
+  ],
+  "K40": [
+   {
+    "features": [
+     "p_core->acc_psd[0][X][1]",
+     "p_core->acc_psd[0][X][4]",
+     "p_core->acc_psd[0][X][5]",
+     "p_core->acc_psd[0][Y][0]",
+     "p_core->acc_psd[0][Y][2]",
+     "p_core->acc_psd[0][Y][4]",
+     "p_core->acc_psd[0][Z][0]",
+     "p_core->acc_psd[0][Z][2]",
+     "p_core->acc_psd[0][Z][4]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][1]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][2]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][5]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][0]",
+     "p_core->acc_psd_mean[X][1]",
+     "p_core->acc_psd_mean[X][2]",
+     "p_core->acc_psd_mean[X][3]",
+     "p_core->acc_psd_mean[X][4]",
+     "p_core->acc_psd_mean[Y][1]",
+     "p_core->acc_psd_mean[Y][2]",
+     "p_core->acc_psd_mean[Y][3]",
+     "p_core->acc_psd_mean[Y][4]",
+     "p_core->acc_psd_mean[Z][1]",
+     "p_core->acc_psd_mean[Z][4]",
+     "p_core->acc_rate[X][1]",
+     "p_core->acc_rate[X][2]",
+     "p_core->acc_rate[X][3]",
+     "p_core->acc_rate[X][4]",
+     "p_core->acc_rate[Y][0]",
+     "p_core->acc_rate[Y][2]",
+     "p_core->acc_rate[Z][2]",
+     "p_core->emg_psd[0][CH1][0]",
+     "p_core->emg_psd[0][CH1][2]",
+     "p_core->emg_psd[0][CH1][4]",
+     "p_core->emg_psd[0][CH2][0]",
+     "p_core->emg_psd[0][CH2][1]",
+     "p_core->emg_psd[0][CH2][4]",
+     "p_core->wl_head[CH1]",
+     "p_core->cload_lean_8.r01[CH1]",
+     "p_core->cload_lean_8.r01[CH3]",
+     "p_core->cload_lean_8.rise10[CH3]"
+    ],
+    "trees": 88,
+    "bytes": 32724,
+    "usable_rows": {
+     "at_firmware_threshold": {
+      "onsets": 3129,
+      "hits": 3088,
+      "recall": 0.9868967721316715,
+      "false_events": 876,
+      "negative_minutes": 89.35586666666667,
+      "false_per_min": 9.80349732679369,
+      "latency_ms_median": -9.0,
+      "latency_ms_p90": 6.0,
+      "objective_score": 0.10066782692278693,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.995,
+     "best": {
+      "onsets": 3129,
+      "hits": 2064,
+      "recall": 0.6596356663470757,
+      "false_events": 63,
+      "negative_minutes": 89.35586666666667,
+      "false_per_min": 0.7050460406255735,
+      "latency_ms_median": 7.0,
+      "latency_ms_p90": 32.700000000000045,
+      "objective_score": 0.6596356663470757,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.6596356663470757,
+     "recall_at_fpm_2": 0.8402045381911154,
+     "recall_at_fpm_3": 0.9226589964844999,
+     "recall_at_fpm_5": 0.9731543624161074,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 1.415,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 24.989,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 19.912,
+       "recall": null
+      },
+      "LONG_PRESS": {
+       "fpm": 1.752,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 1.379,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.582,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 1.913,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.289,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 7.336,
+       "recall": 0.9951923076923077
+      },
+      "TAP": {
+       "fpm": 2.623,
+       "recall": 0.9827668741024413
+      },
+      "WRIST": {
+       "fpm": 11.437,
+       "recall": null
+      }
+     }
+    },
+    "steady_rows": {
+     "at_firmware_threshold": {
+      "onsets": 458,
+      "hits": 447,
+      "recall": 0.9759825327510917,
+      "false_events": 367,
+      "negative_minutes": 49.071425,
+      "false_per_min": 7.478894285217925,
+      "latency_ms_median": -8.0,
+      "latency_ms_p90": 10.0,
+      "objective_score": 0.13049823884797068,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.99,
+     "best": {
+      "onsets": 458,
+      "hits": 365,
+      "recall": 0.7969432314410481,
+      "false_events": 32,
+      "negative_minutes": 49.071425,
+      "false_per_min": 0.6521106733705003,
+      "latency_ms_median": 7.0,
+      "latency_ms_p90": 38.200000000000045,
+      "objective_score": 0.7969432314410481,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.7969432314410481,
+     "recall_at_fpm_2": 0.8842794759825328,
+     "recall_at_fpm_3": 0.9213973799126638,
+     "recall_at_fpm_5": 0.9497816593886463,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 1.133,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 23.587,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 13.755,
+       "recall": null
+      },
+      "LONG_PRESS": {
+       "fpm": 1.118,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 1.722,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.933,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 1.576,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.352,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 0.0,
+       "recall": 1.0
+      },
+      "TAP": {
+       "fpm": 1.121,
+       "recall": 0.9704301075268817
+      },
+      "WRIST": {
+       "fpm": 10.368,
+       "recall": null
+      }
+     }
+    }
+   },
+   {
+    "features": [
+     "p_core->acc_psd[0][X][1]",
+     "p_core->acc_psd[0][Z][0]",
+     "p_core->acc_psd[0][Z][2]",
+     "p_core->acc_psd[0][Z][4]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][4]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][0]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][4]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][4]",
+     "p_core->acc_psd_mean[X][4]",
+     "p_core->acc_psd_mean[Z][4]",
+     "p_core->acc_rate[X][0]",
+     "p_core->acc_rate[X][1]",
+     "p_core->acc_rate[X][2]",
+     "p_core->acc_rate[X][4]",
+     "p_core->acc_rate[X][5]",
+     "p_core->acc_rate[Y][0]",
+     "p_core->acc_rate[Y][4]",
+     "p_core->acc_rate[Y][5]",
+     "p_core->acc_rate[Z][0]",
+     "p_core->acc_rate[Z][1]",
+     "p_core->acc_rate[Z][2]",
+     "p_core->acc_rate[Z][4]",
+     "p_core->acc_rate[Z][5]",
+     "p_core->emg_psd[0][CH1][4]",
+     "p_core->emg_psd[0][CH2][2]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][0]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][0]",
+     "p_core->emg_psd_mean[CH1][0]",
+     "p_core->emg_psd_mean[CH2][0]",
+     "p_core->emg_psd_mean[CH3][0]",
+     "p_core->wl_head[CH1]",
+     "p_core->wl_tail[CH1]",
+     "p_core->wl_tail[CH3]",
+     "p_core->cload_lean_8.r01[CH2]",
+     "p_core->cload_lean_8.r32[CH2]",
+     "p_core->cload_lean_8.sd3[CH2]",
+     "p_core->cload_lean_8.min10[CH3]",
+     "p_core->cload_lean_8.rise10[CH1]",
+     "p_core->cload_lean_8.rise10[CH2]"
+    ],
+    "trees": 88,
+    "bytes": 32724,
+    "usable_rows": {
+     "at_firmware_threshold": {
+      "onsets": 6894,
+      "hits": 6784,
+      "recall": 0.9840440963156368,
+      "false_events": 408,
+      "negative_minutes": 78.082625,
+      "false_per_min": 5.225234167012188,
+      "latency_ms_median": -9.0,
+      "latency_ms_p90": 4.0,
+      "objective_score": 0.18832535822568078,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.995,
+     "best": {
+      "onsets": 6894,
+      "hits": 4425,
+      "recall": 0.6418624891209748,
+      "false_events": 88,
+      "negative_minutes": 78.082625,
+      "false_per_min": 1.1270112909241974,
+      "latency_ms_median": 10.0,
+      "latency_ms_p90": 44.0,
+      "objective_score": 0.5695262277227232,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.4482158398607485,
+     "recall_at_fpm_2": 0.8991876994487961,
+     "recall_at_fpm_3": 0.9566289527125036,
+     "recall_at_fpm_5": 0.9783870031911808,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 1.063,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 7.896,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 5.053,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 16.195,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 3.692,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 0.503,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 7.716,
+       "recall": 0.9762983617985361
+      },
+      "TAP": {
+       "fpm": 1.855,
+       "recall": 0.9895652173913043
+      },
+      "WRIST": {
+       "fpm": 10.856,
+       "recall": null
+      }
+     }
+    },
+    "steady_rows": {
+     "at_firmware_threshold": {
+      "onsets": 912,
+      "hits": 897,
+      "recall": 0.9835526315789473,
+      "false_events": 60,
+      "negative_minutes": 21.874291666666668,
+      "false_per_min": 2.7429459620597236,
+      "latency_ms_median": -9.0,
+      "latency_ms_p90": 5.399999999999977,
+      "objective_score": 0.35857528554459067,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.99,
+     "best": {
+      "onsets": 912,
+      "hits": 719,
+      "recall": 0.7883771929824561,
+      "false_events": 24,
+      "negative_minutes": 21.874291666666668,
+      "false_per_min": 1.0971783848238894,
+      "latency_ms_median": 4.0,
+      "latency_ms_p90": 34.0,
+      "objective_score": 0.718549694276925,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.6151315789473685,
+     "recall_at_fpm_2": 0.9462719298245614,
+     "recall_at_fpm_3": 0.9868421052631579,
+     "recall_at_fpm_5": 0.9912280701754386,
+     "per_folder_at_firmware": {
+      "DRAG_AND_DROP": {
+       "fpm": 3.726,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 3.702,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 0.348,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 11.113,
+       "recall": 0.9748743718592965
+      },
+      "TAP": {
+       "fpm": 1.924,
+       "recall": 0.9859747545582047
+      }
+     }
+    }
+   },
+   {
+    "features": [
+     "p_core->acc_psd[0][X][4]",
+     "p_core->acc_psd[0][Y][4]",
+     "p_core->acc_psd[0][Z][4]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][1]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][0]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][2]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][0]",
+     "p_core->acc_psd_mean[X][1]",
+     "p_core->acc_psd_mean[X][2]",
+     "p_core->acc_psd_mean[X][4]",
+     "p_core->acc_psd_mean[Y][0]",
+     "p_core->acc_psd_mean[Y][2]",
+     "p_core->acc_psd_mean[Y][4]",
+     "p_core->acc_psd_mean[Z][4]",
+     "p_core->acc_rate[X][4]",
+     "p_core->acc_rate[X][5]",
+     "p_core->acc_rate[Y][4]",
+     "p_core->acc_rate[Z][1]",
+     "p_core->acc_rate[Z][2]",
+     "p_core->acc_rate[Z][5]",
+     "p_core->emg_psd[0][CH1][2]",
+     "p_core->emg_psd[0][CH1][4]",
+     "p_core->emg_psd[0][CH2][2]",
+     "p_core->emg_psd[0][CH2][3]",
+     "p_core->emg_psd[0][CH2][4]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][1]",
+     "p_core->emg_psd_mean[CH1][0]",
+     "p_core->emg_psd_mean[CH1][4]",
+     "p_core->emg_psd_mean[CH2][0]",
+     "p_core->emg_psd_mean[CH3][0]",
+     "p_core->emg_psd_mean[CH3][1]",
+     "p_core->wl_tail[CH1]",
+     "p_core->wl_tail[CH2]",
+     "p_core->cload_lean_8.Pm[CH2]",
+     "p_core->cload_lean_8.r01[CH2]",
+     "p_core->cload_lean_8.min10[CH3]",
+     "p_core->cload_lean_8.rise10[CH1]",
+     "p_core->cload_lean_8.rise10[CH2]",
+     "p_core->cload_lean_8.rise10[CH3]"
+    ],
+    "trees": 88,
+    "bytes": 32724,
+    "usable_rows": {
+     "at_firmware_threshold": {
+      "onsets": 4352,
+      "hits": 4157,
+      "recall": 0.9551930147058824,
+      "false_events": 1124,
+      "negative_minutes": 88.57218333333333,
+      "false_per_min": 12.690214440914577,
+      "latency_ms_median": -10.0,
+      "latency_ms_p90": 6.0,
+      "objective_score": 0.07527004521107543,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.998,
+     "best": {
+      "onsets": 4352,
+      "hits": 1948,
+      "recall": 0.4476102941176471,
+      "false_events": 81,
+      "negative_minutes": 88.57218333333333,
+      "false_per_min": 0.9145083360445558,
+      "latency_ms_median": 7.0,
+      "latency_ms_p90": 33.0,
+      "objective_score": 0.4476102941176471,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.4476102941176471,
+     "recall_at_fpm_2": 0.5599724264705882,
+     "recall_at_fpm_3": 0.6684283088235294,
+     "recall_at_fpm_5": 0.8485753676470589,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 11.41,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 11.987,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 1.059,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 27.771,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 2.721,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 5.686,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 2.597,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 5.376,
+       "recall": 0.9403832505322924
+      },
+      "TAP": {
+       "fpm": 1.831,
+       "recall": 0.9622833843017329
+      },
+      "WRIST": {
+       "fpm": 22.276,
+       "recall": null
+      }
+     }
+    },
+    "steady_rows": {
+     "at_firmware_threshold": {
+      "onsets": 656,
+      "hits": 637,
+      "recall": 0.9710365853658537,
+      "false_events": 298,
+      "negative_minutes": 27.962216666666666,
+      "false_per_min": 10.657238070658442,
+      "latency_ms_median": -11.0,
+      "latency_ms_p90": 4.0,
+      "objective_score": 0.09111521943375893,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.998,
+     "best": {
+      "onsets": 656,
+      "hits": 365,
+      "recall": 0.5564024390243902,
+      "false_events": 29,
+      "negative_minutes": 27.962216666666666,
+      "false_per_min": 1.0371137719768282,
+      "latency_ms_median": 8.0,
+      "latency_ms_p90": 35.200000000000045,
+      "objective_score": 0.5364912259952341,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.24085365853658536,
+     "recall_at_fpm_2": 0.7469512195121951,
+     "recall_at_fpm_3": 0.8323170731707317,
+     "recall_at_fpm_5": 0.9085365853658537,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 2.431,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 17.028,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 1.629,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 33.826,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 2.546,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 6.68,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 2.775,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 8.869,
+       "recall": 1.0
+      },
+      "TAP": {
+       "fpm": 2.854,
+       "recall": 0.9650092081031307
+      },
+      "WRIST": {
+       "fpm": 24.191,
+       "recall": null
+      }
+     }
+    }
+   }
+  ],
+  "K60": [
+   {
+    "features": [
+     "p_core->acc_psd[0][X][1]",
+     "p_core->acc_psd[0][X][2]",
+     "p_core->acc_psd[0][X][3]",
+     "p_core->acc_psd[0][X][4]",
+     "p_core->acc_psd[0][X][5]",
+     "p_core->acc_psd[0][Y][0]",
+     "p_core->acc_psd[0][Y][2]",
+     "p_core->acc_psd[0][Y][4]",
+     "p_core->acc_psd[0][Z][0]",
+     "p_core->acc_psd[0][Z][1]",
+     "p_core->acc_psd[0][Z][2]",
+     "p_core->acc_psd[0][Z][4]",
+     "p_core->acc_psd[0][Z][5]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][1]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][2]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][5]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][0]",
+     "p_core->acc_psd_mean[X][1]",
+     "p_core->acc_psd_mean[X][2]",
+     "p_core->acc_psd_mean[X][3]",
+     "p_core->acc_psd_mean[X][4]",
+     "p_core->acc_psd_mean[X][5]",
+     "p_core->acc_psd_mean[Y][1]",
+     "p_core->acc_psd_mean[Y][2]",
+     "p_core->acc_psd_mean[Y][3]",
+     "p_core->acc_psd_mean[Y][4]",
+     "p_core->acc_psd_mean[Z][1]",
+     "p_core->acc_psd_mean[Z][4]",
+     "p_core->acc_rate[X][1]",
+     "p_core->acc_rate[X][2]",
+     "p_core->acc_rate[X][3]",
+     "p_core->acc_rate[X][4]",
+     "p_core->acc_rate[Y][0]",
+     "p_core->acc_rate[Y][2]",
+     "p_core->acc_rate[Z][2]",
+     "p_core->emg_psd[0][CH1][0]",
+     "p_core->emg_psd[0][CH1][1]",
+     "p_core->emg_psd[0][CH1][2]",
+     "p_core->emg_psd[0][CH1][4]",
+     "p_core->emg_psd[0][CH2][0]",
+     "p_core->emg_psd[0][CH2][1]",
+     "p_core->emg_psd[0][CH2][4]",
+     "p_core->emg_psd[0][CH3][0]",
+     "p_core->emg_psd[0][CH3][1]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][4]",
+     "p_core->emg_psd_mean[CH1][0]",
+     "p_core->emg_psd_mean[CH1][1]",
+     "p_core->emg_psd_mean[CH2][3]",
+     "p_core->emg_psd_mean[CH3][1]",
+     "p_core->wl[CH1]",
+     "p_core->wl[CH3]",
+     "p_core->wl_head[CH1]",
+     "p_core->wl_tail[CH2]",
+     "p_core->cload_lean_8.Pm[CH1]",
+     "p_core->cload_lean_8.r01[CH1]",
+     "p_core->cload_lean_8.r01[CH3]",
+     "p_core->cload_lean_8.min10[CH3]",
+     "p_core->cload_lean_8.rise10[CH3]"
+    ],
+    "trees": 88,
+    "bytes": 32724,
+    "usable_rows": {
+     "at_firmware_threshold": {
+      "onsets": 3129,
+      "hits": 3087,
+      "recall": 0.9865771812080537,
+      "false_events": 814,
+      "negative_minutes": 89.35586666666667,
+      "false_per_min": 9.109642493162172,
+      "latency_ms_median": -10.0,
+      "latency_ms_p90": 5.0,
+      "objective_score": 0.10830031825602297,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.99,
+     "best": {
+      "onsets": 3129,
+      "hits": 2682,
+      "recall": 0.8571428571428571,
+      "false_events": 103,
+      "negative_minutes": 89.35586666666667,
+      "false_per_min": 1.1526943203878424,
+      "latency_ms_median": 3.0,
+      "latency_ms_p90": 26.0,
+      "objective_score": 0.7435994452149792,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.7120485778203899,
+     "recall_at_fpm_2": 0.8571428571428571,
+     "recall_at_fpm_3": 0.9552572706935123,
+     "recall_at_fpm_5": 0.9741131351869607,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 2.752,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 30.12,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 15.273,
+       "recall": null
+      },
+      "LONG_PRESS": {
+       "fpm": 0.876,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 1.379,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.582,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 2.232,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.289,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 6.114,
+       "recall": 0.9932692307692308
+      },
+      "TAP": {
+       "fpm": 2.495,
+       "recall": 0.9832455720440402
+      },
+      "WRIST": {
+       "fpm": 12.411,
+       "recall": null
+      }
+     }
+    },
+    "steady_rows": {
+     "at_firmware_threshold": {
+      "onsets": 458,
+      "hits": 445,
+      "recall": 0.9716157205240175,
+      "false_events": 407,
+      "negative_minutes": 49.071425,
+      "false_per_min": 8.29403262693105,
+      "latency_ms_median": -10.0,
+      "latency_ms_p90": 8.0,
+      "objective_score": 0.11714635862043066,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.99,
+     "best": {
+      "onsets": 458,
+      "hits": 374,
+      "recall": 0.8165938864628821,
+      "false_events": 30,
+      "negative_minutes": 49.071425,
+      "false_per_min": 0.611353756284844,
+      "latency_ms_median": 4.0,
+      "latency_ms_p90": 30.0,
+      "objective_score": 0.8165938864628821,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.8165938864628821,
+     "recall_at_fpm_2": 0.9061135371179039,
+     "recall_at_fpm_3": 0.9301310043668122,
+     "recall_at_fpm_5": 0.9541484716157205,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 1.586,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 29.156,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 12.723,
+       "recall": null
+      },
+      "LONG_PRESS": {
+       "fpm": 1.118,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 1.722,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.933,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 1.97,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.352,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 0.0,
+       "recall": 1.0
+      },
+      "TAP": {
+       "fpm": 1.121,
+       "recall": 0.9650537634408602
+      },
+      "WRIST": {
+       "fpm": 13.221,
+       "recall": null
+      }
+     }
+    }
+   },
+   {
+    "features": [
+     "p_core->acc_psd[0][X][0]",
+     "p_core->acc_psd[0][X][1]",
+     "p_core->acc_psd[0][Z][0]",
+     "p_core->acc_psd[0][Z][2]",
+     "p_core->acc_psd[0][Z][4]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][1]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][4]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][0]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][2]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][4]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][3]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][4]",
+     "p_core->acc_psd_mean[X][1]",
+     "p_core->acc_psd_mean[X][4]",
+     "p_core->acc_psd_mean[Y][4]",
+     "p_core->acc_psd_mean[Z][2]",
+     "p_core->acc_psd_mean[Z][4]",
+     "p_core->acc_rate[X][0]",
+     "p_core->acc_rate[X][1]",
+     "p_core->acc_rate[X][2]",
+     "p_core->acc_rate[X][3]",
+     "p_core->acc_rate[X][4]",
+     "p_core->acc_rate[X][5]",
+     "p_core->acc_rate[Y][0]",
+     "p_core->acc_rate[Y][3]",
+     "p_core->acc_rate[Y][4]",
+     "p_core->acc_rate[Y][5]",
+     "p_core->acc_rate[Z][0]",
+     "p_core->acc_rate[Z][1]",
+     "p_core->acc_rate[Z][2]",
+     "p_core->acc_rate[Z][3]",
+     "p_core->acc_rate[Z][4]",
+     "p_core->acc_rate[Z][5]",
+     "p_core->emg_psd[0][CH1][3]",
+     "p_core->emg_psd[0][CH1][4]",
+     "p_core->emg_psd[0][CH2][2]",
+     "p_core->emg_psd[0][CH2][3]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][4]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][0]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][4]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][0]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][4]",
+     "p_core->emg_psd_mean[CH1][0]",
+     "p_core->emg_psd_mean[CH1][4]",
+     "p_core->emg_psd_mean[CH2][0]",
+     "p_core->emg_psd_mean[CH3][0]",
+     "p_core->emg_psd_mean[CH3][1]",
+     "p_core->emg_psd_mean[CH3][3]",
+     "p_core->wl_head[CH1]",
+     "p_core->wl_head[CH2]",
+     "p_core->wl_tail[CH1]",
+     "p_core->wl_tail[CH3]",
+     "p_core->cload_lean_8.Pm[CH2]",
+     "p_core->cload_lean_8.r01[CH2]",
+     "p_core->cload_lean_8.r32[CH2]",
+     "p_core->cload_lean_8.sd3[CH2]",
+     "p_core->cload_lean_8.min10[CH3]",
+     "p_core->cload_lean_8.rise10[CH1]",
+     "p_core->cload_lean_8.rise10[CH2]"
+    ],
+    "trees": 88,
+    "bytes": 32724,
+    "usable_rows": {
+     "at_firmware_threshold": {
+      "onsets": 6894,
+      "hits": 6798,
+      "recall": 0.9860748476936466,
+      "false_events": 394,
+      "negative_minutes": 78.082625,
+      "false_per_min": 5.045936916183338,
+      "latency_ms_median": -9.0,
+      "latency_ms_p90": 4.0,
+      "objective_score": 0.19541957501115512,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.995,
+     "best": {
+      "onsets": 6894,
+      "hits": 4514,
+      "recall": 0.6547722657383231,
+      "false_events": 84,
+      "negative_minutes": 78.082625,
+      "false_per_min": 1.0757835049730975,
+      "latency_ms_median": 10.0,
+      "latency_ms_p90": 43.0,
+      "objective_score": 0.6086468724529266,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.4521322889469104,
+     "recall_at_fpm_2": 0.8178125906585436,
+     "recall_at_fpm_3": 0.9633014215259647,
+     "recall_at_fpm_5": 0.9807078619089062,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 0.425,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 9.212,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 5.053,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 17.001,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 3.138,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 0.251,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 6.396,
+       "recall": 0.9808295573370512
+      },
+      "TAP": {
+       "fpm": 1.681,
+       "recall": 0.9898136645962733
+      },
+      "WRIST": {
+       "fpm": 11.115,
+       "recall": null
+      }
+     }
+    },
+    "steady_rows": {
+     "at_firmware_threshold": {
+      "onsets": 912,
+      "hits": 898,
+      "recall": 0.9846491228070176,
+      "false_events": 49,
+      "negative_minutes": 21.874291666666668,
+      "false_per_min": 2.2400725356821076,
+      "latency_ms_median": -9.0,
+      "latency_ms_p90": 6.0,
+      "objective_score": 0.439561267379759,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.99,
+     "best": {
+      "onsets": 912,
+      "hits": 717,
+      "recall": 0.7861842105263158,
+      "false_events": 20,
+      "negative_minutes": 21.874291666666668,
+      "false_per_min": 0.9143153206865745,
+      "latency_ms_median": 4.0,
+      "latency_ms_p90": 33.0,
+      "objective_score": 0.7861842105263158,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.7861842105263158,
+     "recall_at_fpm_2": 0.9780701754385965,
+     "recall_at_fpm_3": 0.9857456140350878,
+     "recall_at_fpm_5": 0.9868421052631579,
+     "per_folder_at_firmware": {
+      "DRAG_AND_DROP": {
+       "fpm": 3.726,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 2.961,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 8.891,
+       "recall": 0.9798994974874372
+      },
+      "TAP": {
+       "fpm": 1.649,
+       "recall": 0.9859747545582047
+      }
+     }
+    }
+   },
+   {
+    "features": [
+     "p_core->acc_psd[0][X][1]",
+     "p_core->acc_psd[0][X][4]",
+     "p_core->acc_psd[0][Y][2]",
+     "p_core->acc_psd[0][Y][4]",
+     "p_core->acc_psd[0][Z][0]",
+     "p_core->acc_psd[0][Z][2]",
+     "p_core->acc_psd[0][Z][3]",
+     "p_core->acc_psd[0][Z][4]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][1]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][0]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][1]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][2]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][0]",
+     "p_core->acc_psd_mean[X][1]",
+     "p_core->acc_psd_mean[X][2]",
+     "p_core->acc_psd_mean[X][3]",
+     "p_core->acc_psd_mean[X][4]",
+     "p_core->acc_psd_mean[Y][0]",
+     "p_core->acc_psd_mean[Y][1]",
+     "p_core->acc_psd_mean[Y][2]",
+     "p_core->acc_psd_mean[Y][3]",
+     "p_core->acc_psd_mean[Y][4]",
+     "p_core->acc_psd_mean[Z][4]",
+     "p_core->acc_rate[X][3]",
+     "p_core->acc_rate[X][4]",
+     "p_core->acc_rate[X][5]",
+     "p_core->acc_rate[Y][3]",
+     "p_core->acc_rate[Y][4]",
+     "p_core->acc_rate[Z][1]",
+     "p_core->acc_rate[Z][2]",
+     "p_core->acc_rate[Z][5]",
+     "p_core->emg_psd[0][CH1][2]",
+     "p_core->emg_psd[0][CH1][4]",
+     "p_core->emg_psd[0][CH2][1]",
+     "p_core->emg_psd[0][CH2][2]",
+     "p_core->emg_psd[0][CH2][3]",
+     "p_core->emg_psd[0][CH2][4]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][1]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3]",
+     "p_core->emg_psd_mean[CH1][0]",
+     "p_core->emg_psd_mean[CH1][2]",
+     "p_core->emg_psd_mean[CH1][4]",
+     "p_core->emg_psd_mean[CH2][0]",
+     "p_core->emg_psd_mean[CH2][1]",
+     "p_core->emg_psd_mean[CH2][2]",
+     "p_core->emg_psd_mean[CH2][3]",
+     "p_core->emg_psd_mean[CH3][0]",
+     "p_core->emg_psd_mean[CH3][1]",
+     "p_core->emg_psd_mean[CH3][4]",
+     "p_core->wl_head[CH1]",
+     "p_core->wl_head[CH2]",
+     "p_core->wl_tail[CH1]",
+     "p_core->wl_tail[CH2]",
+     "p_core->cload_lean_8.Pm[CH2]",
+     "p_core->cload_lean_8.r01[CH2]",
+     "p_core->cload_lean_8.min10[CH3]",
+     "p_core->cload_lean_8.rise10[CH1]",
+     "p_core->cload_lean_8.rise10[CH2]",
+     "p_core->cload_lean_8.rise10[CH3]"
+    ],
+    "trees": 88,
+    "bytes": 32724,
+    "usable_rows": {
+     "at_firmware_threshold": {
+      "onsets": 4352,
+      "hits": 4133,
+      "recall": 0.9496783088235294,
+      "false_events": 941,
+      "negative_minutes": 88.57218333333333,
+      "false_per_min": 10.624103015036136,
+      "latency_ms_median": -10.0,
+      "latency_ms_p90": 5.0,
+      "objective_score": 0.08938903430053942,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.997,
+     "best": {
+      "onsets": 4352,
+      "hits": 2286,
+      "recall": 0.5252757352941176,
+      "false_events": 105,
+      "negative_minutes": 88.57218333333333,
+      "false_per_min": 1.1854737689466464,
+      "latency_ms_median": 6.0,
+      "latency_ms_p90": 32.0,
+      "objective_score": 0.4430935116859243,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.4133731617647059,
+     "recall_at_fpm_2": 0.6569393382352942,
+     "recall_at_fpm_3": 0.7699908088235294,
+     "recall_at_fpm_5": 0.8752297794117647,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 10.225,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 10.274,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 0.529,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 22.217,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 2.721,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 4.62,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 2.597,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 5.376,
+       "recall": 0.9325762952448545
+      },
+      "TAP": {
+       "fpm": 1.831,
+       "recall": 0.9578661230037376
+      },
+      "WRIST": {
+       "fpm": 18.947,
+       "recall": null
+      }
+     }
+    },
+    "steady_rows": {
+     "at_firmware_threshold": {
+      "onsets": 656,
+      "hits": 634,
+      "recall": 0.9664634146341463,
+      "false_events": 232,
+      "negative_minutes": 27.962216666666666,
+      "false_per_min": 8.296910175814626,
+      "latency_ms_median": -11.0,
+      "latency_ms_p90": 2.0,
+      "objective_score": 0.11648473879485563,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.998,
+     "best": {
+      "onsets": 656,
+      "hits": 339,
+      "recall": 0.5167682926829268,
+      "false_events": 29,
+      "negative_minutes": 27.962216666666666,
+      "false_per_min": 1.0371137719768282,
+      "latency_ms_median": 9.0,
+      "latency_ms_p90": 29.19999999999999,
+      "objective_score": 0.49827541263666947,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.2423780487804878,
+     "recall_at_fpm_2": 0.7545731707317073,
+     "recall_at_fpm_3": 0.8399390243902439,
+     "recall_at_fpm_5": 0.9359756097560976,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 1.216,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 13.622,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 0.814,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 24.911,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 2.546,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 5.653,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 2.775,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 8.869,
+       "recall": 0.9911504424778761
+      },
+      "TAP": {
+       "fpm": 2.431,
+       "recall": 0.9613259668508287
+      },
+      "WRIST": {
+       "fpm": 18.755,
+       "recall": null
+      }
+     }
+    }
+   }
+  ],
+  "K80": [
+   {
+    "features": [
+     "p_core->acc_psd[0][X][1]",
+     "p_core->acc_psd[0][X][2]",
+     "p_core->acc_psd[0][X][3]",
+     "p_core->acc_psd[0][X][4]",
+     "p_core->acc_psd[0][X][5]",
+     "p_core->acc_psd[0][Y][0]",
+     "p_core->acc_psd[0][Y][2]",
+     "p_core->acc_psd[0][Y][4]",
+     "p_core->acc_psd[0][Z][0]",
+     "p_core->acc_psd[0][Z][1]",
+     "p_core->acc_psd[0][Z][2]",
+     "p_core->acc_psd[0][Z][4]",
+     "p_core->acc_psd[0][Z][5]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][3]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][1]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][2]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][3]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][5]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][0]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][1]",
+     "p_core->acc_psd_mean[X][1]",
+     "p_core->acc_psd_mean[X][2]",
+     "p_core->acc_psd_mean[X][3]",
+     "p_core->acc_psd_mean[X][4]",
+     "p_core->acc_psd_mean[X][5]",
+     "p_core->acc_psd_mean[Y][1]",
+     "p_core->acc_psd_mean[Y][2]",
+     "p_core->acc_psd_mean[Y][3]",
+     "p_core->acc_psd_mean[Y][4]",
+     "p_core->acc_psd_mean[Z][1]",
+     "p_core->acc_psd_mean[Z][4]",
+     "p_core->acc_rate[X][1]",
+     "p_core->acc_rate[X][2]",
+     "p_core->acc_rate[X][3]",
+     "p_core->acc_rate[X][4]",
+     "p_core->acc_rate[Y][0]",
+     "p_core->acc_rate[Y][2]",
+     "p_core->acc_rate[Y][3]",
+     "p_core->acc_rate[Y][4]",
+     "p_core->acc_rate[Z][2]",
+     "p_core->acc_rate[Z][3]",
+     "p_core->emg_psd[0][CH1][0]",
+     "p_core->emg_psd[0][CH1][1]",
+     "p_core->emg_psd[0][CH1][2]",
+     "p_core->emg_psd[0][CH1][4]",
+     "p_core->emg_psd[0][CH2][0]",
+     "p_core->emg_psd[0][CH2][1]",
+     "p_core->emg_psd[0][CH2][4]",
+     "p_core->emg_psd[0][CH3][0]",
+     "p_core->emg_psd[0][CH3][1]",
+     "p_core->emg_psd[0][CH3][2]",
+     "p_core->emg_psd[0][CH3][4]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][1]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][4]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][4]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][0]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][2]",
+     "p_core->emg_psd_mean[CH1][0]",
+     "p_core->emg_psd_mean[CH1][1]",
+     "p_core->emg_psd_mean[CH2][0]",
+     "p_core->emg_psd_mean[CH2][3]",
+     "p_core->emg_psd_mean[CH2][4]",
+     "p_core->emg_psd_mean[CH3][1]",
+     "p_core->emg_psd_mean[CH3][2]",
+     "p_core->emg_psd_mean[CH3][4]",
+     "p_core->wl[CH1]",
+     "p_core->wl[CH3]",
+     "p_core->wl_head[CH1]",
+     "p_core->wl_tail[CH1]",
+     "p_core->wl_tail[CH2]",
+     "p_core->cload_lean_8.Pm[CH1]",
+     "p_core->cload_lean_8.Pm[CH2]",
+     "p_core->cload_lean_8.Pm[CH3]",
+     "p_core->cload_lean_8.r01[CH1]",
+     "p_core->cload_lean_8.r01[CH3]",
+     "p_core->cload_lean_8.sd3[CH3]",
+     "p_core->cload_lean_8.min10[CH3]",
+     "p_core->cload_lean_8.rise10[CH3]"
+    ],
+    "trees": 88,
+    "bytes": 32724,
+    "usable_rows": {
+     "at_firmware_threshold": {
+      "onsets": 3129,
+      "hits": 3081,
+      "recall": 0.9846596356663471,
+      "false_events": 777,
+      "negative_minutes": 89.35586666666667,
+      "false_per_min": 8.695567834382073,
+      "latency_ms_median": -10.0,
+      "latency_ms_p90": 3.0,
+      "objective_score": 0.11323695639208584,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.995,
+     "best": {
+      "onsets": 3129,
+      "hits": 2255,
+      "recall": 0.7206775327580697,
+      "false_events": 56,
+      "negative_minutes": 89.35586666666667,
+      "false_per_min": 0.6267075916671765,
+      "latency_ms_median": 6.0,
+      "latency_ms_p90": 30.0,
+      "objective_score": 0.7206775327580697,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.7206775327580697,
+     "recall_at_fpm_2": 0.9351230425055929,
+     "recall_at_fpm_3": 0.9578139980824545,
+     "recall_at_fpm_5": 0.9725151805688719,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 2.437,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 26.55,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 15.355,
+       "recall": null
+      },
+      "LONG_PRESS": {
+       "fpm": 0.876,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 1.379,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.582,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 2.232,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.289,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 6.114,
+       "recall": 0.9971153846153846
+      },
+      "TAP": {
+       "fpm": 2.495,
+       "recall": 0.9784585926280517
+      },
+      "WRIST": {
+       "fpm": 11.255,
+       "recall": null
+      }
+     }
+    },
+    "steady_rows": {
+     "at_firmware_threshold": {
+      "onsets": 458,
+      "hits": 445,
+      "recall": 0.9716157205240175,
+      "false_events": 377,
+      "negative_minutes": 49.071425,
+      "false_per_min": 7.682678870646206,
+      "latency_ms_median": -10.0,
+      "latency_ms_p90": 6.600000000000023,
+      "objective_score": 0.12646835002258697,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.99,
+     "best": {
+      "onsets": 458,
+      "hits": 374,
+      "recall": 0.8165938864628821,
+      "false_events": 33,
+      "negative_minutes": 49.071425,
+      "false_per_min": 0.6724891319133284,
+      "latency_ms_median": 1.0,
+      "latency_ms_p90": 26.0,
+      "objective_score": 0.8165938864628821,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.8165938864628821,
+     "recall_at_fpm_2": 0.9170305676855895,
+     "recall_at_fpm_3": 0.9344978165938864,
+     "recall_at_fpm_5": 0.9497816593886463,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 1.812,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 25.88,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 12.121,
+       "recall": null
+      },
+      "LONG_PRESS": {
+       "fpm": 1.118,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 1.722,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.933,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 1.97,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.352,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 0.0,
+       "recall": 1.0
+      },
+      "TAP": {
+       "fpm": 1.345,
+       "recall": 0.9650537634408602
+      },
+      "WRIST": {
+       "fpm": 11.699,
+       "recall": null
+      }
+     }
+    }
+   },
+   {
+    "features": [
+     "p_core->acc_psd[0][X][0]",
+     "p_core->acc_psd[0][X][1]",
+     "p_core->acc_psd[0][X][5]",
+     "p_core->acc_psd[0][Z][0]",
+     "p_core->acc_psd[0][Z][1]",
+     "p_core->acc_psd[0][Z][2]",
+     "p_core->acc_psd[0][Z][3]",
+     "p_core->acc_psd[0][Z][4]",
+     "p_core->acc_psd[0][Z][5]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][1]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][2]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][3]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][4]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][0]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][2]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][4]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][0]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][2]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][3]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][4]",
+     "p_core->acc_psd_mean[X][0]",
+     "p_core->acc_psd_mean[X][1]",
+     "p_core->acc_psd_mean[X][4]",
+     "p_core->acc_psd_mean[Y][4]",
+     "p_core->acc_psd_mean[Z][2]",
+     "p_core->acc_psd_mean[Z][4]",
+     "p_core->acc_rate[X][0]",
+     "p_core->acc_rate[X][1]",
+     "p_core->acc_rate[X][2]",
+     "p_core->acc_rate[X][3]",
+     "p_core->acc_rate[X][4]",
+     "p_core->acc_rate[X][5]",
+     "p_core->acc_rate[Y][0]",
+     "p_core->acc_rate[Y][3]",
+     "p_core->acc_rate[Y][4]",
+     "p_core->acc_rate[Y][5]",
+     "p_core->acc_rate[Z][0]",
+     "p_core->acc_rate[Z][1]",
+     "p_core->acc_rate[Z][2]",
+     "p_core->acc_rate[Z][3]",
+     "p_core->acc_rate[Z][4]",
+     "p_core->acc_rate[Z][5]",
+     "p_core->emg_psd[0][CH1][0]",
+     "p_core->emg_psd[0][CH1][3]",
+     "p_core->emg_psd[0][CH1][4]",
+     "p_core->emg_psd[0][CH2][2]",
+     "p_core->emg_psd[0][CH2][3]",
+     "p_core->emg_psd[0][CH2][4]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][2]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][4]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][0]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][1]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][3]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][4]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][0]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][4]",
+     "p_core->emg_psd_mean[CH1][0]",
+     "p_core->emg_psd_mean[CH1][1]",
+     "p_core->emg_psd_mean[CH1][2]",
+     "p_core->emg_psd_mean[CH1][4]",
+     "p_core->emg_psd_mean[CH2][0]",
+     "p_core->emg_psd_mean[CH2][1]",
+     "p_core->emg_psd_mean[CH2][2]",
+     "p_core->emg_psd_mean[CH3][0]",
+     "p_core->emg_psd_mean[CH3][1]",
+     "p_core->emg_psd_mean[CH3][3]",
+     "p_core->wl_head[CH1]",
+     "p_core->wl_head[CH2]",
+     "p_core->wl_tail[CH1]",
+     "p_core->wl_tail[CH3]",
+     "p_core->cload_lean_8.Pm[CH2]",
+     "p_core->cload_lean_8.Pm[CH3]",
+     "p_core->cload_lean_8.r01[CH2]",
+     "p_core->cload_lean_8.r32[CH2]",
+     "p_core->cload_lean_8.sd3[CH2]",
+     "p_core->cload_lean_8.min10[CH3]",
+     "p_core->cload_lean_8.rise10[CH1]",
+     "p_core->cload_lean_8.rise10[CH2]"
+    ],
+    "trees": 88,
+    "bytes": 32724,
+    "usable_rows": {
+     "at_firmware_threshold": {
+      "onsets": 6894,
+      "hits": 6795,
+      "recall": 0.9856396866840731,
+      "false_events": 389,
+      "negative_minutes": 78.082625,
+      "false_per_min": 4.981902183744463,
+      "latency_ms_median": -9.0,
+      "latency_ms_p90": 5.0,
+      "objective_score": 0.1978440463765295,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.995,
+     "best": {
+      "onsets": 6894,
+      "hits": 4571,
+      "recall": 0.6630403249202205,
+      "false_events": 93,
+      "negative_minutes": 78.082625,
+      "false_per_min": 1.1910460233630722,
+      "latency_ms_median": 10.0,
+      "latency_ms_p90": 44.0,
+      "objective_score": 0.5566874091464917,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.46591238758340586,
+     "recall_at_fpm_2": 0.8239048447925732,
+     "recall_at_fpm_3": 0.9630113141862489,
+     "recall_at_fpm_5": 0.9856396866840731,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 0.425,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 9.212,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 5.053,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 16.464,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 2.954,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 0.754,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 6.599,
+       "recall": 0.9783896828163123
+      },
+      "TAP": {
+       "fpm": 1.768,
+       "recall": 0.9908074534161491
+      },
+      "WRIST": {
+       "fpm": 9.822,
+       "recall": null
+      }
+     }
+    },
+    "steady_rows": {
+     "at_firmware_threshold": {
+      "onsets": 912,
+      "hits": 894,
+      "recall": 0.9802631578947368,
+      "false_events": 51,
+      "negative_minutes": 21.874291666666668,
+      "false_per_min": 2.3315040677507652,
+      "latency_ms_median": -9.0,
+      "latency_ms_p90": 7.0,
+      "objective_score": 0.4204423965858273,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.98,
+     "best": {
+      "onsets": 912,
+      "hits": 812,
+      "recall": 0.8903508771929824,
+      "false_events": 29,
+      "negative_minutes": 21.874291666666668,
+      "false_per_min": 1.325757214995533,
+      "latency_ms_median": 0.0,
+      "latency_ms_p90": 25.0,
+      "objective_score": 0.6715791301169591,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.6129385964912281,
+     "recall_at_fpm_2": 0.9583333333333334,
+     "recall_at_fpm_3": 0.9846491228070176,
+     "recall_at_fpm_5": 0.9879385964912281,
+     "per_folder_at_firmware": {
+      "DRAG_AND_DROP": {
+       "fpm": 3.726,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 2.221,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 8.891,
+       "recall": 0.9748743718592965
+      },
+      "TAP": {
+       "fpm": 2.107,
+       "recall": 0.9817671809256662
+      }
+     }
+    }
+   },
+   {
+    "features": [
+     "p_core->acc_psd[0][X][1]",
+     "p_core->acc_psd[0][X][2]",
+     "p_core->acc_psd[0][X][3]",
+     "p_core->acc_psd[0][X][4]",
+     "p_core->acc_psd[0][X][5]",
+     "p_core->acc_psd[0][Y][1]",
+     "p_core->acc_psd[0][Y][2]",
+     "p_core->acc_psd[0][Y][3]",
+     "p_core->acc_psd[0][Y][4]",
+     "p_core->acc_psd[0][Z][0]",
+     "p_core->acc_psd[0][Z][1]",
+     "p_core->acc_psd[0][Z][2]",
+     "p_core->acc_psd[0][Z][3]",
+     "p_core->acc_psd[0][Z][4]",
+     "p_core->acc_psd[0][Z][5]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][1]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][0]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][1]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][2]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][5]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][0]",
+     "p_core->acc_psd_mean[X][1]",
+     "p_core->acc_psd_mean[X][2]",
+     "p_core->acc_psd_mean[X][3]",
+     "p_core->acc_psd_mean[X][4]",
+     "p_core->acc_psd_mean[X][5]",
+     "p_core->acc_psd_mean[Y][0]",
+     "p_core->acc_psd_mean[Y][1]",
+     "p_core->acc_psd_mean[Y][2]",
+     "p_core->acc_psd_mean[Y][3]",
+     "p_core->acc_psd_mean[Y][4]",
+     "p_core->acc_psd_mean[Z][0]",
+     "p_core->acc_psd_mean[Z][3]",
+     "p_core->acc_psd_mean[Z][4]",
+     "p_core->acc_rate[X][3]",
+     "p_core->acc_rate[X][4]",
+     "p_core->acc_rate[X][5]",
+     "p_core->acc_rate[Y][3]",
+     "p_core->acc_rate[Y][4]",
+     "p_core->acc_rate[Z][1]",
+     "p_core->acc_rate[Z][2]",
+     "p_core->acc_rate[Z][5]",
+     "p_core->emg_psd[0][CH1][0]",
+     "p_core->emg_psd[0][CH1][1]",
+     "p_core->emg_psd[0][CH1][2]",
+     "p_core->emg_psd[0][CH1][3]",
+     "p_core->emg_psd[0][CH1][4]",
+     "p_core->emg_psd[0][CH2][1]",
+     "p_core->emg_psd[0][CH2][2]",
+     "p_core->emg_psd[0][CH2][3]",
+     "p_core->emg_psd[0][CH2][4]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][1]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3]",
+     "p_core->emg_psd_mean[CH1][0]",
+     "p_core->emg_psd_mean[CH1][1]",
+     "p_core->emg_psd_mean[CH1][2]",
+     "p_core->emg_psd_mean[CH1][3]",
+     "p_core->emg_psd_mean[CH1][4]",
+     "p_core->emg_psd_mean[CH2][0]",
+     "p_core->emg_psd_mean[CH2][1]",
+     "p_core->emg_psd_mean[CH2][2]",
+     "p_core->emg_psd_mean[CH2][3]",
+     "p_core->emg_psd_mean[CH2][4]",
+     "p_core->emg_psd_mean[CH3][0]",
+     "p_core->emg_psd_mean[CH3][1]",
+     "p_core->emg_psd_mean[CH3][4]",
+     "p_core->wl[CH1]",
+     "p_core->wl_head[CH1]",
+     "p_core->wl_head[CH2]",
+     "p_core->wl_tail[CH1]",
+     "p_core->wl_tail[CH2]",
+     "p_core->cload_lean_8.Pm[CH1]",
+     "p_core->cload_lean_8.Pm[CH2]",
+     "p_core->cload_lean_8.Pm[CH3]",
+     "p_core->cload_lean_8.r01[CH2]",
+     "p_core->cload_lean_8.min10[CH3]",
+     "p_core->cload_lean_8.rise10[CH1]",
+     "p_core->cload_lean_8.rise10[CH2]",
+     "p_core->cload_lean_8.rise10[CH3]"
+    ],
+    "trees": 88,
+    "bytes": 32724,
+    "usable_rows": {
+     "at_firmware_threshold": {
+      "onsets": 4352,
+      "hits": 4139,
+      "recall": 0.9510569852941176,
+      "false_events": 955,
+      "negative_minutes": 88.57218333333333,
+      "false_per_min": 10.782166184229022,
+      "latency_ms_median": -10.0,
+      "latency_ms_p90": 5.0,
+      "objective_score": 0.08820648550986167,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.997,
+     "best": {
+      "onsets": 4352,
+      "hits": 2311,
+      "recall": 0.5310202205882353,
+      "false_events": 98,
+      "negative_minutes": 88.57218333333333,
+      "false_per_min": 1.1064421843502033,
+      "latency_ms_median": 6.0,
+      "latency_ms_p90": 33.0,
+      "objective_score": 0.4799349013433498,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.4085477941176471,
+     "recall_at_fpm_2": 0.6603860294117647,
+     "recall_at_fpm_3": 0.7775735294117647,
+     "recall_at_fpm_5": 0.8795955882352942,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 10.373,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 9.932,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 0.529,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 23.966,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 2.721,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 4.62,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 2.597,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 5.55,
+       "recall": 0.936124911284599
+      },
+      "TAP": {
+       "fpm": 1.867,
+       "recall": 0.9582059123343527
+      },
+      "WRIST": {
+       "fpm": 16.557,
+       "recall": null
+      }
+     }
+    },
+    "steady_rows": {
+     "at_firmware_threshold": {
+      "onsets": 656,
+      "hits": 635,
+      "recall": 0.9679878048780488,
+      "false_events": 238,
+      "negative_minutes": 27.962216666666666,
+      "false_per_min": 8.511485438982247,
+      "latency_ms_median": -11.0,
+      "latency_ms_p90": 2.0,
+      "objective_score": 0.11372724676760948,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.998,
+     "best": {
+      "onsets": 656,
+      "hits": 339,
+      "recall": 0.5167682926829268,
+      "false_events": 27,
+      "negative_minutes": 27.962216666666666,
+      "false_per_min": 0.9655886842542883,
+      "latency_ms_median": 8.0,
+      "latency_ms_p90": 36.0,
+      "objective_score": 0.5167682926829268,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.5167682926829268,
+     "recall_at_fpm_2": 0.7515243902439024,
+     "recall_at_fpm_3": 0.8536585365853658,
+     "recall_at_fpm_5": 0.9435975609756098,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 0.608,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 13.622,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 0.814,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 28.844,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 2.546,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 5.653,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 2.775,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 8.869,
+       "recall": 1.0
+      },
+      "TAP": {
+       "fpm": 2.325,
+       "recall": 0.9613259668508287
+      },
+      "WRIST": {
+       "fpm": 16.852,
+       "recall": null
+      }
+     }
+    }
+   }
+  ],
+  "K100": [
+   {
+    "features": [
+     "p_core->acc_psd[0][X][1]",
+     "p_core->acc_psd[0][X][2]",
+     "p_core->acc_psd[0][X][3]",
+     "p_core->acc_psd[0][X][4]",
+     "p_core->acc_psd[0][X][5]",
+     "p_core->acc_psd[0][Y][0]",
+     "p_core->acc_psd[0][Y][1]",
+     "p_core->acc_psd[0][Y][2]",
+     "p_core->acc_psd[0][Y][4]",
+     "p_core->acc_psd[0][Y][5]",
+     "p_core->acc_psd[0][Z][0]",
+     "p_core->acc_psd[0][Z][1]",
+     "p_core->acc_psd[0][Z][2]",
+     "p_core->acc_psd[0][Z][4]",
+     "p_core->acc_psd[0][Z][5]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][3]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][4]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][5]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][1]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][2]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][3]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][5]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][0]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][1]",
+     "p_core->acc_psd_mean[X][1]",
+     "p_core->acc_psd_mean[X][2]",
+     "p_core->acc_psd_mean[X][3]",
+     "p_core->acc_psd_mean[X][4]",
+     "p_core->acc_psd_mean[X][5]",
+     "p_core->acc_psd_mean[Y][1]",
+     "p_core->acc_psd_mean[Y][2]",
+     "p_core->acc_psd_mean[Y][3]",
+     "p_core->acc_psd_mean[Y][4]",
+     "p_core->acc_psd_mean[Z][1]",
+     "p_core->acc_psd_mean[Z][2]",
+     "p_core->acc_psd_mean[Z][3]",
+     "p_core->acc_psd_mean[Z][4]",
+     "p_core->acc_psd_mean[Z][5]",
+     "p_core->acc_rate[X][1]",
+     "p_core->acc_rate[X][2]",
+     "p_core->acc_rate[X][3]",
+     "p_core->acc_rate[X][4]",
+     "p_core->acc_rate[Y][0]",
+     "p_core->acc_rate[Y][1]",
+     "p_core->acc_rate[Y][2]",
+     "p_core->acc_rate[Y][3]",
+     "p_core->acc_rate[Y][4]",
+     "p_core->acc_rate[Z][2]",
+     "p_core->acc_rate[Z][3]",
+     "p_core->acc_rate[Z][4]",
+     "p_core->emg_psd[0][CH1][0]",
+     "p_core->emg_psd[0][CH1][1]",
+     "p_core->emg_psd[0][CH1][2]",
+     "p_core->emg_psd[0][CH1][4]",
+     "p_core->emg_psd[0][CH2][0]",
+     "p_core->emg_psd[0][CH2][1]",
+     "p_core->emg_psd[0][CH2][4]",
+     "p_core->emg_psd[0][CH3][0]",
+     "p_core->emg_psd[0][CH3][1]",
+     "p_core->emg_psd[0][CH3][2]",
+     "p_core->emg_psd[0][CH3][3]",
+     "p_core->emg_psd[0][CH3][4]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][1]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][4]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][1]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][3]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][4]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][0]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][1]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][2]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][3]",
+     "p_core->emg_psd_mean[CH1][0]",
+     "p_core->emg_psd_mean[CH1][1]",
+     "p_core->emg_psd_mean[CH1][3]",
+     "p_core->emg_psd_mean[CH2][0]",
+     "p_core->emg_psd_mean[CH2][3]",
+     "p_core->emg_psd_mean[CH2][4]",
+     "p_core->emg_psd_mean[CH3][1]",
+     "p_core->emg_psd_mean[CH3][2]",
+     "p_core->emg_psd_mean[CH3][4]",
+     "p_core->wl[CH1]",
+     "p_core->wl[CH3]",
+     "p_core->wl_head[CH1]",
+     "p_core->wl_tail[CH1]",
+     "p_core->wl_tail[CH2]",
+     "p_core->wl_tail[CH3]",
+     "p_core->cload_lean_8.lw[CH1]",
+     "p_core->cload_lean_8.lw[CH2]",
+     "p_core->cload_lean_8.Pm[CH1]",
+     "p_core->cload_lean_8.Pm[CH2]",
+     "p_core->cload_lean_8.Pm[CH3]",
+     "p_core->cload_lean_8.r01[CH1]",
+     "p_core->cload_lean_8.r01[CH3]",
+     "p_core->cload_lean_8.r32[CH1]",
+     "p_core->cload_lean_8.r32[CH3]",
+     "p_core->cload_lean_8.sd3[CH3]",
+     "p_core->cload_lean_8.min10[CH3]",
+     "p_core->cload_lean_8.rise10[CH3]"
+    ],
+    "trees": 88,
+    "bytes": 32724,
+    "usable_rows": {
+     "at_firmware_threshold": {
+      "onsets": 3129,
+      "hits": 3083,
+      "recall": 0.9852988175135826,
+      "false_events": 766,
+      "negative_minutes": 89.35586666666667,
+      "false_per_min": 8.57246455744745,
+      "latency_ms_median": -10.0,
+      "latency_ms_p90": 3.0,
+      "objective_score": 0.11493763676836556,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.995,
+     "best": {
+      "onsets": 3129,
+      "hits": 2268,
+      "recall": 0.7248322147651006,
+      "false_events": 63,
+      "negative_minutes": 89.35586666666667,
+      "false_per_min": 0.7050460406255735,
+      "latency_ms_median": 6.0,
+      "latency_ms_p90": 31.0,
+      "objective_score": 0.7248322147651006,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.7248322147651006,
+     "recall_at_fpm_2": 0.9402364972834771,
+     "recall_at_fpm_3": 0.9619686800894854,
+     "recall_at_fpm_5": 0.973793544263343,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 2.201,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 25.881,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 15.027,
+       "recall": null
+      },
+      "LONG_PRESS": {
+       "fpm": 0.876,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 1.379,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.582,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 2.232,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.289,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 6.521,
+       "recall": 0.9980769230769231
+      },
+      "TAP": {
+       "fpm": 2.367,
+       "recall": 0.9789372905696505
+      },
+      "WRIST": {
+       "fpm": 11.498,
+       "recall": null
+      }
+     }
+    },
+    "steady_rows": {
+     "at_firmware_threshold": {
+      "onsets": 458,
+      "hits": 445,
+      "recall": 0.9716157205240175,
+      "false_events": 373,
+      "negative_minutes": 49.071425,
+      "false_per_min": 7.601165036474894,
+      "latency_ms_median": -10.0,
+      "latency_ms_p90": 5.0,
+      "objective_score": 0.12782457897725275,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.99,
+     "best": {
+      "onsets": 458,
+      "hits": 383,
+      "recall": 0.8362445414847162,
+      "false_events": 31,
+      "negative_minutes": 49.071425,
+      "false_per_min": 0.6317322148276722,
+      "latency_ms_median": 3.0,
+      "latency_ms_p90": 26.0,
+      "objective_score": 0.8362445414847162,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.8362445414847162,
+     "recall_at_fpm_2": 0.9279475982532751,
+     "recall_at_fpm_3": 0.9279475982532751,
+     "recall_at_fpm_5": 0.9475982532751092,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 1.699,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 25.225,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 12.035,
+       "recall": null
+      },
+      "LONG_PRESS": {
+       "fpm": 1.118,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 1.722,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.933,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 1.97,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.352,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 0.0,
+       "recall": 1.0
+      },
+      "TAP": {
+       "fpm": 1.345,
+       "recall": 0.9650537634408602
+      },
+      "WRIST": {
+       "fpm": 11.699,
+       "recall": null
+      }
+     }
+    }
+   },
+   {
+    "features": [
+     "p_core->acc_psd[0][X][0]",
+     "p_core->acc_psd[0][X][1]",
+     "p_core->acc_psd[0][X][4]",
+     "p_core->acc_psd[0][X][5]",
+     "p_core->acc_psd[0][Y][4]",
+     "p_core->acc_psd[0][Z][0]",
+     "p_core->acc_psd[0][Z][1]",
+     "p_core->acc_psd[0][Z][2]",
+     "p_core->acc_psd[0][Z][3]",
+     "p_core->acc_psd[0][Z][4]",
+     "p_core->acc_psd[0][Z][5]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][0]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][1]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][2]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][3]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][4]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][0]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][2]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][4]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][0]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][2]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][3]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][4]",
+     "p_core->acc_psd_mean[X][0]",
+     "p_core->acc_psd_mean[X][1]",
+     "p_core->acc_psd_mean[X][2]",
+     "p_core->acc_psd_mean[X][3]",
+     "p_core->acc_psd_mean[X][4]",
+     "p_core->acc_psd_mean[Y][1]",
+     "p_core->acc_psd_mean[Y][3]",
+     "p_core->acc_psd_mean[Y][4]",
+     "p_core->acc_psd_mean[Y][5]",
+     "p_core->acc_psd_mean[Z][1]",
+     "p_core->acc_psd_mean[Z][2]",
+     "p_core->acc_psd_mean[Z][3]",
+     "p_core->acc_psd_mean[Z][4]",
+     "p_core->acc_rate[X][0]",
+     "p_core->acc_rate[X][1]",
+     "p_core->acc_rate[X][2]",
+     "p_core->acc_rate[X][3]",
+     "p_core->acc_rate[X][4]",
+     "p_core->acc_rate[X][5]",
+     "p_core->acc_rate[Y][0]",
+     "p_core->acc_rate[Y][3]",
+     "p_core->acc_rate[Y][4]",
+     "p_core->acc_rate[Y][5]",
+     "p_core->acc_rate[Z][0]",
+     "p_core->acc_rate[Z][1]",
+     "p_core->acc_rate[Z][2]",
+     "p_core->acc_rate[Z][3]",
+     "p_core->acc_rate[Z][4]",
+     "p_core->acc_rate[Z][5]",
+     "p_core->emg_psd[0][CH1][0]",
+     "p_core->emg_psd[0][CH1][1]",
+     "p_core->emg_psd[0][CH1][2]",
+     "p_core->emg_psd[0][CH1][3]",
+     "p_core->emg_psd[0][CH1][4]",
+     "p_core->emg_psd[0][CH2][0]",
+     "p_core->emg_psd[0][CH2][1]",
+     "p_core->emg_psd[0][CH2][2]",
+     "p_core->emg_psd[0][CH2][3]",
+     "p_core->emg_psd[0][CH2][4]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][1]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][2]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][4]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][0]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][1]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][3]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][4]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][0]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][4]",
+     "p_core->emg_psd_mean[CH1][0]",
+     "p_core->emg_psd_mean[CH1][1]",
+     "p_core->emg_psd_mean[CH1][2]",
+     "p_core->emg_psd_mean[CH1][3]",
+     "p_core->emg_psd_mean[CH1][4]",
+     "p_core->emg_psd_mean[CH2][0]",
+     "p_core->emg_psd_mean[CH2][1]",
+     "p_core->emg_psd_mean[CH2][2]",
+     "p_core->emg_psd_mean[CH2][3]",
+     "p_core->emg_psd_mean[CH3][0]",
+     "p_core->emg_psd_mean[CH3][1]",
+     "p_core->emg_psd_mean[CH3][3]",
+     "p_core->wl[CH1]",
+     "p_core->wl[CH2]",
+     "p_core->wl_head[CH1]",
+     "p_core->wl_head[CH2]",
+     "p_core->wl_tail[CH1]",
+     "p_core->wl_tail[CH2]",
+     "p_core->wl_tail[CH3]",
+     "p_core->cload_lean_8.Pm[CH2]",
+     "p_core->cload_lean_8.Pm[CH3]",
+     "p_core->cload_lean_8.r01[CH2]",
+     "p_core->cload_lean_8.r32[CH2]",
+     "p_core->cload_lean_8.sd3[CH2]",
+     "p_core->cload_lean_8.min10[CH3]",
+     "p_core->cload_lean_8.rise10[CH1]",
+     "p_core->cload_lean_8.rise10[CH2]"
+    ],
+    "trees": 88,
+    "bytes": 32724,
+    "usable_rows": {
+     "at_firmware_threshold": {
+      "onsets": 6894,
+      "hits": 6795,
+      "recall": 0.9856396866840731,
+      "false_events": 386,
+      "negative_minutes": 78.082625,
+      "false_per_min": 4.943481344281139,
+      "latency_ms_median": -9.0,
+      "latency_ms_p90": 5.0,
+      "objective_score": 0.19938169440536258,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.995,
+     "best": {
+      "onsets": 6894,
+      "hits": 4758,
+      "recall": 0.6901653611836379,
+      "false_events": 100,
+      "negative_minutes": 78.082625,
+      "false_per_min": 1.280694648777497,
+      "latency_ms_median": 9.0,
+      "latency_ms_p90": 42.0,
+      "objective_score": 0.5388992308529155,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.5002901073397157,
+     "recall_at_fpm_2": 0.9187699448796055,
+     "recall_at_fpm_3": 0.9664926022628373,
+     "recall_at_fpm_5": 0.9856396866840731,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 0.213,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 7.896,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 5.053,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 16.911,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 2.4,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 0.754,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 6.599,
+       "recall": 0.9811781108400139
+      },
+      "TAP": {
+       "fpm": 1.797,
+       "recall": 0.9888198757763975
+      },
+      "WRIST": {
+       "fpm": 9.047,
+       "recall": null
+      }
+     }
+    },
+    "steady_rows": {
+     "at_firmware_threshold": {
+      "onsets": 912,
+      "hits": 896,
+      "recall": 0.9824561403508771,
+      "false_events": 47,
+      "negative_minutes": 21.874291666666668,
+      "false_per_min": 2.14864100361345,
+      "latency_ms_median": -9.0,
+      "latency_ms_p90": 7.0,
+      "objective_score": 0.4572453651860148,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.99,
+     "best": {
+      "onsets": 912,
+      "hits": 738,
+      "recall": 0.8092105263157895,
+      "false_events": 23,
+      "negative_minutes": 21.874291666666668,
+      "false_per_min": 1.0514626187895608,
+      "latency_ms_median": 4.0,
+      "latency_ms_p90": 32.30000000000007,
+      "objective_score": 0.7696046553203661,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.6502192982456141,
+     "recall_at_fpm_2": 0.9802631578947368,
+     "recall_at_fpm_3": 0.9857456140350878,
+     "recall_at_fpm_5": 0.9912280701754386,
+     "per_folder_at_firmware": {
+      "DRAG_AND_DROP": {
+       "fpm": 3.726,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 1.727,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 9.446,
+       "recall": 0.9748743718592965
+      },
+      "TAP": {
+       "fpm": 1.833,
+       "recall": 0.9845722300140253
+      }
+     }
+    }
+   },
+   {
+    "features": [
+     "p_core->acc_psd[0][X][1]",
+     "p_core->acc_psd[0][X][2]",
+     "p_core->acc_psd[0][X][3]",
+     "p_core->acc_psd[0][X][4]",
+     "p_core->acc_psd[0][X][5]",
+     "p_core->acc_psd[0][Y][1]",
+     "p_core->acc_psd[0][Y][2]",
+     "p_core->acc_psd[0][Y][3]",
+     "p_core->acc_psd[0][Y][4]",
+     "p_core->acc_psd[0][Z][0]",
+     "p_core->acc_psd[0][Z][1]",
+     "p_core->acc_psd[0][Z][2]",
+     "p_core->acc_psd[0][Z][3]",
+     "p_core->acc_psd[0][Z][4]",
+     "p_core->acc_psd[0][Z][5]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][1]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][0]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][1]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][2]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][3]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][5]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][0]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][2]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][4]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][5]",
+     "p_core->acc_psd_mean[X][1]",
+     "p_core->acc_psd_mean[X][2]",
+     "p_core->acc_psd_mean[X][3]",
+     "p_core->acc_psd_mean[X][4]",
+     "p_core->acc_psd_mean[X][5]",
+     "p_core->acc_psd_mean[Y][0]",
+     "p_core->acc_psd_mean[Y][1]",
+     "p_core->acc_psd_mean[Y][2]",
+     "p_core->acc_psd_mean[Y][3]",
+     "p_core->acc_psd_mean[Y][4]",
+     "p_core->acc_psd_mean[Z][0]",
+     "p_core->acc_psd_mean[Z][1]",
+     "p_core->acc_psd_mean[Z][2]",
+     "p_core->acc_psd_mean[Z][3]",
+     "p_core->acc_psd_mean[Z][4]",
+     "p_core->acc_psd_mean[Z][5]",
+     "p_core->acc_rate[X][1]",
+     "p_core->acc_rate[X][2]",
+     "p_core->acc_rate[X][3]",
+     "p_core->acc_rate[X][4]",
+     "p_core->acc_rate[X][5]",
+     "p_core->acc_rate[Y][0]",
+     "p_core->acc_rate[Y][1]",
+     "p_core->acc_rate[Y][3]",
+     "p_core->acc_rate[Y][4]",
+     "p_core->acc_rate[Z][0]",
+     "p_core->acc_rate[Z][1]",
+     "p_core->acc_rate[Z][2]",
+     "p_core->acc_rate[Z][3]",
+     "p_core->acc_rate[Z][4]",
+     "p_core->acc_rate[Z][5]",
+     "p_core->emg_psd[0][CH1][0]",
+     "p_core->emg_psd[0][CH1][1]",
+     "p_core->emg_psd[0][CH1][2]",
+     "p_core->emg_psd[0][CH1][3]",
+     "p_core->emg_psd[0][CH1][4]",
+     "p_core->emg_psd[0][CH2][1]",
+     "p_core->emg_psd[0][CH2][2]",
+     "p_core->emg_psd[0][CH2][3]",
+     "p_core->emg_psd[0][CH2][4]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][1]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][3]",
+     "p_core->emg_psd_mean[CH1][0]",
+     "p_core->emg_psd_mean[CH1][1]",
+     "p_core->emg_psd_mean[CH1][2]",
+     "p_core->emg_psd_mean[CH1][3]",
+     "p_core->emg_psd_mean[CH1][4]",
+     "p_core->emg_psd_mean[CH2][0]",
+     "p_core->emg_psd_mean[CH2][1]",
+     "p_core->emg_psd_mean[CH2][2]",
+     "p_core->emg_psd_mean[CH2][3]",
+     "p_core->emg_psd_mean[CH2][4]",
+     "p_core->emg_psd_mean[CH3][0]",
+     "p_core->emg_psd_mean[CH3][1]",
+     "p_core->emg_psd_mean[CH3][3]",
+     "p_core->emg_psd_mean[CH3][4]",
+     "p_core->wl[CH1]",
+     "p_core->wl_head[CH1]",
+     "p_core->wl_head[CH2]",
+     "p_core->wl_head[CH3]",
+     "p_core->wl_tail[CH1]",
+     "p_core->wl_tail[CH2]",
+     "p_core->wl_tail[CH3]",
+     "p_core->cload_lean_8.Pm[CH1]",
+     "p_core->cload_lean_8.Pm[CH2]",
+     "p_core->cload_lean_8.Pm[CH3]",
+     "p_core->cload_lean_8.r01[CH2]",
+     "p_core->cload_lean_8.r01[CH3]",
+     "p_core->cload_lean_8.min10[CH3]",
+     "p_core->cload_lean_8.rise10[CH1]",
+     "p_core->cload_lean_8.rise10[CH2]",
+     "p_core->cload_lean_8.rise10[CH3]",
+     "p_core->cload_lean_8.max10[CH2]"
+    ],
+    "trees": 88,
+    "bytes": 32724,
+    "usable_rows": {
+     "at_firmware_threshold": {
+      "onsets": 4352,
+      "hits": 4132,
+      "recall": 0.9494485294117647,
+      "false_events": 901,
+      "negative_minutes": 88.57218333333333,
+      "false_per_min": 10.172493960199319,
+      "latency_ms_median": -10.0,
+      "latency_ms_p90": 5.0,
+      "objective_score": 0.09333488258892624,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.997,
+     "best": {
+      "onsets": 4352,
+      "hits": 2333,
+      "recall": 0.5360753676470589,
+      "false_events": 93,
+      "negative_minutes": 88.57218333333333,
+      "false_per_min": 1.049991052495601,
+      "latency_ms_median": 5.0,
+      "latency_ms_p90": 31.0,
+      "objective_score": 0.5105523198249394,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.41681985294117646,
+     "recall_at_fpm_2": 0.6544117647058824,
+     "recall_at_fpm_3": 0.7704503676470589,
+     "recall_at_fpm_5": 0.8685661764705882,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 9.336,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 8.219,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 22.436,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 2.721,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 4.975,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 2.968,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 5.376,
+       "recall": 0.9368346344925479
+      },
+      "TAP": {
+       "fpm": 1.831,
+       "recall": 0.9554875976894326
+      },
+      "WRIST": {
+       "fpm": 16.045,
+       "recall": null
+      }
+     }
+    },
+    "steady_rows": {
+     "at_firmware_threshold": {
+      "onsets": 656,
+      "hits": 633,
+      "recall": 0.9649390243902439,
+      "false_events": 225,
+      "negative_minutes": 27.962216666666666,
+      "false_per_min": 8.046572368785737,
+      "latency_ms_median": -10.0,
+      "latency_ms_p90": 2.0,
+      "objective_score": 0.11991926253387533,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.998,
+     "best": {
+      "onsets": 656,
+      "hits": 338,
+      "recall": 0.5152439024390244,
+      "false_events": 28,
+      "negative_minutes": 27.962216666666666,
+      "false_per_min": 1.0013512281155583,
+      "latency_ms_median": 8.0,
+      "latency_ms_p90": 32.0,
+      "objective_score": 0.5145486298635308,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.2423780487804878,
+     "recall_at_fpm_2": 0.7454268292682927,
+     "recall_at_fpm_3": 0.885670731707317,
+     "recall_at_fpm_5": 0.9314024390243902,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 0.608,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 9.081,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 26.484,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 2.546,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 5.653,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 3.237,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 7.602,
+       "recall": 0.9911504424778761
+      },
+      "TAP": {
+       "fpm": 2.325,
+       "recall": 0.9594843462246777
+      },
+      "WRIST": {
+       "fpm": 17.124,
+       "recall": null
+      }
+     }
+    }
+   }
+  ],
+  "K150": [
+   {
+    "features": [
+     "p_core->acc_psd[0][X][0]",
+     "p_core->acc_psd[0][X][1]",
+     "p_core->acc_psd[0][X][2]",
+     "p_core->acc_psd[0][X][3]",
+     "p_core->acc_psd[0][X][4]",
+     "p_core->acc_psd[0][X][5]",
+     "p_core->acc_psd[0][Y][0]",
+     "p_core->acc_psd[0][Y][1]",
+     "p_core->acc_psd[0][Y][2]",
+     "p_core->acc_psd[0][Y][3]",
+     "p_core->acc_psd[0][Y][4]",
+     "p_core->acc_psd[0][Y][5]",
+     "p_core->acc_psd[0][Z][0]",
+     "p_core->acc_psd[0][Z][1]",
+     "p_core->acc_psd[0][Z][2]",
+     "p_core->acc_psd[0][Z][3]",
+     "p_core->acc_psd[0][Z][4]",
+     "p_core->acc_psd[0][Z][5]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][0]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][1]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][2]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][3]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][4]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][5]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][0]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][1]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][2]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][3]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][4]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][5]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][0]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][1]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][2]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][3]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][4]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][5]",
+     "p_core->acc_psd_mean[X][0]",
+     "p_core->acc_psd_mean[X][1]",
+     "p_core->acc_psd_mean[X][2]",
+     "p_core->acc_psd_mean[X][3]",
+     "p_core->acc_psd_mean[X][4]",
+     "p_core->acc_psd_mean[X][5]",
+     "p_core->acc_psd_mean[Y][0]",
+     "p_core->acc_psd_mean[Y][1]",
+     "p_core->acc_psd_mean[Y][2]",
+     "p_core->acc_psd_mean[Y][3]",
+     "p_core->acc_psd_mean[Y][4]",
+     "p_core->acc_psd_mean[Y][5]",
+     "p_core->acc_psd_mean[Z][0]",
+     "p_core->acc_psd_mean[Z][1]",
+     "p_core->acc_psd_mean[Z][2]",
+     "p_core->acc_psd_mean[Z][3]",
+     "p_core->acc_psd_mean[Z][4]",
+     "p_core->acc_psd_mean[Z][5]",
+     "p_core->acc_rate[X][0]",
+     "p_core->acc_rate[X][1]",
+     "p_core->acc_rate[X][2]",
+     "p_core->acc_rate[X][3]",
+     "p_core->acc_rate[X][4]",
+     "p_core->acc_rate[X][5]",
+     "p_core->acc_rate[Y][0]",
+     "p_core->acc_rate[Y][1]",
+     "p_core->acc_rate[Y][2]",
+     "p_core->acc_rate[Y][3]",
+     "p_core->acc_rate[Y][4]",
+     "p_core->acc_rate[Y][5]",
+     "p_core->acc_rate[Z][0]",
+     "p_core->acc_rate[Z][1]",
+     "p_core->acc_rate[Z][2]",
+     "p_core->acc_rate[Z][3]",
+     "p_core->acc_rate[Z][4]",
+     "p_core->acc_rate[Z][5]",
+     "p_core->emg_psd[0][CH1][0]",
+     "p_core->emg_psd[0][CH1][1]",
+     "p_core->emg_psd[0][CH1][2]",
+     "p_core->emg_psd[0][CH1][3]",
+     "p_core->emg_psd[0][CH1][4]",
+     "p_core->emg_psd[0][CH2][0]",
+     "p_core->emg_psd[0][CH2][1]",
+     "p_core->emg_psd[0][CH2][2]",
+     "p_core->emg_psd[0][CH2][3]",
+     "p_core->emg_psd[0][CH2][4]",
+     "p_core->emg_psd[0][CH3][0]",
+     "p_core->emg_psd[0][CH3][1]",
+     "p_core->emg_psd[0][CH3][2]",
+     "p_core->emg_psd[0][CH3][3]",
+     "p_core->emg_psd[0][CH3][4]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][1]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][2]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][4]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][0]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][1]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][2]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][3]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][4]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][0]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][1]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][2]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][3]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][4]",
+     "p_core->emg_psd_mean[CH1][0]",
+     "p_core->emg_psd_mean[CH1][1]",
+     "p_core->emg_psd_mean[CH1][2]",
+     "p_core->emg_psd_mean[CH1][3]",
+     "p_core->emg_psd_mean[CH1][4]",
+     "p_core->emg_psd_mean[CH2][0]",
+     "p_core->emg_psd_mean[CH2][1]",
+     "p_core->emg_psd_mean[CH2][2]",
+     "p_core->emg_psd_mean[CH2][3]",
+     "p_core->emg_psd_mean[CH2][4]",
+     "p_core->emg_psd_mean[CH3][0]",
+     "p_core->emg_psd_mean[CH3][1]",
+     "p_core->emg_psd_mean[CH3][2]",
+     "p_core->emg_psd_mean[CH3][3]",
+     "p_core->emg_psd_mean[CH3][4]",
+     "p_core->wl[CH1]",
+     "p_core->wl[CH2]",
+     "p_core->wl[CH3]",
+     "p_core->wl_head[CH1]",
+     "p_core->wl_head[CH2]",
+     "p_core->wl_head[CH3]",
+     "p_core->wl_tail[CH1]",
+     "p_core->wl_tail[CH2]",
+     "p_core->wl_tail[CH3]",
+     "p_core->cload_lean_8.lw[CH1]",
+     "p_core->cload_lean_8.lw[CH2]",
+     "p_core->cload_lean_8.lw[CH3]",
+     "p_core->cload_lean_8.Pm[CH1]",
+     "p_core->cload_lean_8.Pm[CH2]",
+     "p_core->cload_lean_8.Pm[CH3]",
+     "p_core->cload_lean_8.r01[CH1]",
+     "p_core->cload_lean_8.r01[CH2]",
+     "p_core->cload_lean_8.r01[CH3]",
+     "p_core->cload_lean_8.r32[CH1]",
+     "p_core->cload_lean_8.r32[CH2]",
+     "p_core->cload_lean_8.r32[CH3]",
+     "p_core->cload_lean_8.sd3[CH1]",
+     "p_core->cload_lean_8.sd3[CH2]",
+     "p_core->cload_lean_8.sd3[CH3]",
+     "p_core->cload_lean_8.min10[CH1]",
+     "p_core->cload_lean_8.min10[CH2]",
+     "p_core->cload_lean_8.min10[CH3]",
+     "p_core->cload_lean_8.rise10[CH1]",
+     "p_core->cload_lean_8.rise10[CH2]",
+     "p_core->cload_lean_8.rise10[CH3]",
+     "p_core->cload_lean_8.max10[CH1]",
+     "p_core->cload_lean_8.max10[CH2]",
+     "p_core->cload_lean_8.max10[CH3]"
+    ],
+    "trees": 88,
+    "bytes": 32724,
+    "usable_rows": {
+     "at_firmware_threshold": {
+      "onsets": 3129,
+      "hits": 3080,
+      "recall": 0.9843400447427293,
+      "false_events": 593,
+      "negative_minutes": 89.35586666666667,
+      "false_per_min": 6.636385747475637,
+      "latency_ms_median": -9.5,
+      "latency_ms_p90": 4.0,
+      "objective_score": 0.1483247180315211,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.99,
+     "best": {
+      "onsets": 3129,
+      "hits": 2709,
+      "recall": 0.8657718120805369,
+      "false_events": 83,
+      "negative_minutes": 89.35586666666667,
+      "false_per_min": 0.928870180506708,
+      "latency_ms_median": 2.0,
+      "latency_ms_p90": 25.0,
+      "objective_score": 0.8657718120805369,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.8657718120805369,
+     "recall_at_fpm_2": 0.9296899968040908,
+     "recall_at_fpm_3": 0.954298497922659,
+     "recall_at_fpm_5": 0.9705976350271652,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 1.887,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 17.18,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 12.81,
+       "recall": null
+      },
+      "LONG_PRESS": {
+       "fpm": 1.752,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 1.379,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.582,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 1.913,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.289,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 6.929,
+       "recall": 0.9951923076923077
+      },
+      "TAP": {
+       "fpm": 2.175,
+       "recall": 0.9789372905696505
+      },
+      "WRIST": {
+       "fpm": 6.996,
+       "recall": null
+      }
+     }
+    },
+    "steady_rows": {
+     "at_firmware_threshold": {
+      "onsets": 458,
+      "hits": 443,
+      "recall": 0.9672489082969432,
+      "false_events": 276,
+      "negative_minutes": 49.071425,
+      "false_per_min": 5.624454557820565,
+      "latency_ms_median": -9.0,
+      "latency_ms_p90": 7.800000000000011,
+      "objective_score": 0.17197203717328016,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.98,
+     "best": {
+      "onsets": 458,
+      "hits": 416,
+      "recall": 0.9082969432314411,
+      "false_events": 45,
+      "negative_minutes": 49.071425,
+      "false_per_min": 0.917030634427266,
+      "latency_ms_median": -1.0,
+      "latency_ms_p90": 17.0,
+      "objective_score": 0.9082969432314411,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.9082969432314411,
+     "recall_at_fpm_2": 0.9344978165938864,
+     "recall_at_fpm_3": 0.9475982532751092,
+     "recall_at_fpm_5": 0.9650655021834061,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 1.359,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 18.018,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 9.542,
+       "recall": null
+      },
+      "LONG_PRESS": {
+       "fpm": 2.235,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 1.722,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.933,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 1.576,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.352,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 0.0,
+       "recall": 1.0
+      },
+      "TAP": {
+       "fpm": 1.121,
+       "recall": 0.9596774193548387
+      },
+      "WRIST": {
+       "fpm": 7.704,
+       "recall": null
+      }
+     }
+    }
+   },
+   {
+    "features": [
+     "p_core->acc_psd[0][X][0]",
+     "p_core->acc_psd[0][X][1]",
+     "p_core->acc_psd[0][X][2]",
+     "p_core->acc_psd[0][X][3]",
+     "p_core->acc_psd[0][X][4]",
+     "p_core->acc_psd[0][X][5]",
+     "p_core->acc_psd[0][Y][0]",
+     "p_core->acc_psd[0][Y][1]",
+     "p_core->acc_psd[0][Y][2]",
+     "p_core->acc_psd[0][Y][3]",
+     "p_core->acc_psd[0][Y][4]",
+     "p_core->acc_psd[0][Y][5]",
+     "p_core->acc_psd[0][Z][0]",
+     "p_core->acc_psd[0][Z][1]",
+     "p_core->acc_psd[0][Z][2]",
+     "p_core->acc_psd[0][Z][3]",
+     "p_core->acc_psd[0][Z][4]",
+     "p_core->acc_psd[0][Z][5]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][0]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][1]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][2]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][3]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][4]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][5]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][0]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][1]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][2]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][3]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][4]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][5]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][0]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][1]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][2]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][3]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][4]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][5]",
+     "p_core->acc_psd_mean[X][0]",
+     "p_core->acc_psd_mean[X][1]",
+     "p_core->acc_psd_mean[X][2]",
+     "p_core->acc_psd_mean[X][3]",
+     "p_core->acc_psd_mean[X][4]",
+     "p_core->acc_psd_mean[X][5]",
+     "p_core->acc_psd_mean[Y][0]",
+     "p_core->acc_psd_mean[Y][1]",
+     "p_core->acc_psd_mean[Y][2]",
+     "p_core->acc_psd_mean[Y][3]",
+     "p_core->acc_psd_mean[Y][4]",
+     "p_core->acc_psd_mean[Y][5]",
+     "p_core->acc_psd_mean[Z][0]",
+     "p_core->acc_psd_mean[Z][1]",
+     "p_core->acc_psd_mean[Z][2]",
+     "p_core->acc_psd_mean[Z][3]",
+     "p_core->acc_psd_mean[Z][4]",
+     "p_core->acc_psd_mean[Z][5]",
+     "p_core->acc_rate[X][0]",
+     "p_core->acc_rate[X][1]",
+     "p_core->acc_rate[X][2]",
+     "p_core->acc_rate[X][3]",
+     "p_core->acc_rate[X][4]",
+     "p_core->acc_rate[X][5]",
+     "p_core->acc_rate[Y][0]",
+     "p_core->acc_rate[Y][1]",
+     "p_core->acc_rate[Y][2]",
+     "p_core->acc_rate[Y][3]",
+     "p_core->acc_rate[Y][4]",
+     "p_core->acc_rate[Y][5]",
+     "p_core->acc_rate[Z][0]",
+     "p_core->acc_rate[Z][1]",
+     "p_core->acc_rate[Z][2]",
+     "p_core->acc_rate[Z][3]",
+     "p_core->acc_rate[Z][4]",
+     "p_core->acc_rate[Z][5]",
+     "p_core->emg_psd[0][CH1][0]",
+     "p_core->emg_psd[0][CH1][1]",
+     "p_core->emg_psd[0][CH1][2]",
+     "p_core->emg_psd[0][CH1][3]",
+     "p_core->emg_psd[0][CH1][4]",
+     "p_core->emg_psd[0][CH2][0]",
+     "p_core->emg_psd[0][CH2][1]",
+     "p_core->emg_psd[0][CH2][2]",
+     "p_core->emg_psd[0][CH2][3]",
+     "p_core->emg_psd[0][CH2][4]",
+     "p_core->emg_psd[0][CH3][0]",
+     "p_core->emg_psd[0][CH3][1]",
+     "p_core->emg_psd[0][CH3][2]",
+     "p_core->emg_psd[0][CH3][3]",
+     "p_core->emg_psd[0][CH3][4]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][1]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][2]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][4]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][0]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][1]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][2]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][3]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][4]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][0]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][1]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][2]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][3]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][4]",
+     "p_core->emg_psd_mean[CH1][0]",
+     "p_core->emg_psd_mean[CH1][1]",
+     "p_core->emg_psd_mean[CH1][2]",
+     "p_core->emg_psd_mean[CH1][3]",
+     "p_core->emg_psd_mean[CH1][4]",
+     "p_core->emg_psd_mean[CH2][0]",
+     "p_core->emg_psd_mean[CH2][1]",
+     "p_core->emg_psd_mean[CH2][2]",
+     "p_core->emg_psd_mean[CH2][3]",
+     "p_core->emg_psd_mean[CH2][4]",
+     "p_core->emg_psd_mean[CH3][0]",
+     "p_core->emg_psd_mean[CH3][1]",
+     "p_core->emg_psd_mean[CH3][2]",
+     "p_core->emg_psd_mean[CH3][3]",
+     "p_core->emg_psd_mean[CH3][4]",
+     "p_core->wl[CH1]",
+     "p_core->wl[CH2]",
+     "p_core->wl[CH3]",
+     "p_core->wl_head[CH1]",
+     "p_core->wl_head[CH2]",
+     "p_core->wl_head[CH3]",
+     "p_core->wl_tail[CH1]",
+     "p_core->wl_tail[CH2]",
+     "p_core->wl_tail[CH3]",
+     "p_core->cload_lean_8.lw[CH1]",
+     "p_core->cload_lean_8.lw[CH2]",
+     "p_core->cload_lean_8.lw[CH3]",
+     "p_core->cload_lean_8.Pm[CH1]",
+     "p_core->cload_lean_8.Pm[CH2]",
+     "p_core->cload_lean_8.Pm[CH3]",
+     "p_core->cload_lean_8.r01[CH1]",
+     "p_core->cload_lean_8.r01[CH2]",
+     "p_core->cload_lean_8.r01[CH3]",
+     "p_core->cload_lean_8.r32[CH1]",
+     "p_core->cload_lean_8.r32[CH2]",
+     "p_core->cload_lean_8.r32[CH3]",
+     "p_core->cload_lean_8.sd3[CH1]",
+     "p_core->cload_lean_8.sd3[CH2]",
+     "p_core->cload_lean_8.sd3[CH3]",
+     "p_core->cload_lean_8.min10[CH1]",
+     "p_core->cload_lean_8.min10[CH2]",
+     "p_core->cload_lean_8.min10[CH3]",
+     "p_core->cload_lean_8.rise10[CH1]",
+     "p_core->cload_lean_8.rise10[CH2]",
+     "p_core->cload_lean_8.rise10[CH3]",
+     "p_core->cload_lean_8.max10[CH1]",
+     "p_core->cload_lean_8.max10[CH2]",
+     "p_core->cload_lean_8.max10[CH3]"
+    ],
+    "trees": 88,
+    "bytes": 32724,
+    "usable_rows": {
+     "at_firmware_threshold": {
+      "onsets": 6894,
+      "hits": 6793,
+      "recall": 0.9853495793443574,
+      "false_events": 343,
+      "negative_minutes": 78.082625,
+      "false_per_min": 4.392782645306815,
+      "latency_ms_median": -10.0,
+      "latency_ms_p90": 4.0,
+      "objective_score": 0.2243110253581726,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.995,
+     "best": {
+      "onsets": 6894,
+      "hits": 4658,
+      "recall": 0.6756599941978532,
+      "false_events": 87,
+      "negative_minutes": 78.082625,
+      "false_per_min": 1.1142043444364225,
+      "latency_ms_median": 7.0,
+      "latency_ms_p90": 36.0,
+      "objective_score": 0.6064058155684269,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.5033362344067305,
+     "recall_at_fpm_2": 0.9107919930374239,
+     "recall_at_fpm_3": 0.9611256164780969,
+     "recall_at_fpm_5": 0.9853495793443574,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 0.638,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 7.896,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 5.053,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 14.316,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 2.954,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 0.754,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 7.006,
+       "recall": 0.9804810038340885
+      },
+      "TAP": {
+       "fpm": 1.478,
+       "recall": 0.9888198757763975
+      },
+      "WRIST": {
+       "fpm": 5.945,
+       "recall": null
+      }
+     }
+    },
+    "steady_rows": {
+     "at_firmware_threshold": {
+      "onsets": 912,
+      "hits": 897,
+      "recall": 0.9835526315789473,
+      "false_events": 45,
+      "negative_minutes": 21.874291666666668,
+      "false_per_min": 2.057209471544793,
+      "latency_ms_median": -9.0,
+      "latency_ms_p90": 6.0,
+      "objective_score": 0.4781003807261208,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.99,
+     "best": {
+      "onsets": 912,
+      "hits": 728,
+      "recall": 0.7982456140350878,
+      "false_events": 20,
+      "negative_minutes": 21.874291666666668,
+      "false_per_min": 0.9143153206865745,
+      "latency_ms_median": 2.0,
+      "latency_ms_p90": 28.0,
+      "objective_score": 0.7982456140350878,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.7982456140350878,
+     "recall_at_fpm_2": 0.9791666666666666,
+     "recall_at_fpm_3": 0.9879385964912281,
+     "recall_at_fpm_5": 0.9879385964912281,
+     "per_folder_at_firmware": {
+      "DRAG_AND_DROP": {
+       "fpm": 3.726,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 2.221,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 8.891,
+       "recall": 0.9748743718592965
+      },
+      "TAP": {
+       "fpm": 1.558,
+       "recall": 0.9859747545582047
+      }
+     }
+    }
+   },
+   {
+    "features": [
+     "p_core->acc_psd[0][X][0]",
+     "p_core->acc_psd[0][X][1]",
+     "p_core->acc_psd[0][X][2]",
+     "p_core->acc_psd[0][X][3]",
+     "p_core->acc_psd[0][X][4]",
+     "p_core->acc_psd[0][X][5]",
+     "p_core->acc_psd[0][Y][0]",
+     "p_core->acc_psd[0][Y][1]",
+     "p_core->acc_psd[0][Y][2]",
+     "p_core->acc_psd[0][Y][3]",
+     "p_core->acc_psd[0][Y][4]",
+     "p_core->acc_psd[0][Y][5]",
+     "p_core->acc_psd[0][Z][0]",
+     "p_core->acc_psd[0][Z][1]",
+     "p_core->acc_psd[0][Z][2]",
+     "p_core->acc_psd[0][Z][3]",
+     "p_core->acc_psd[0][Z][4]",
+     "p_core->acc_psd[0][Z][5]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][0]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][1]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][2]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][3]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][4]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][5]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][0]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][1]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][2]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][3]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][4]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][5]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][0]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][1]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][2]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][3]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][4]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][5]",
+     "p_core->acc_psd_mean[X][0]",
+     "p_core->acc_psd_mean[X][1]",
+     "p_core->acc_psd_mean[X][2]",
+     "p_core->acc_psd_mean[X][3]",
+     "p_core->acc_psd_mean[X][4]",
+     "p_core->acc_psd_mean[X][5]",
+     "p_core->acc_psd_mean[Y][0]",
+     "p_core->acc_psd_mean[Y][1]",
+     "p_core->acc_psd_mean[Y][2]",
+     "p_core->acc_psd_mean[Y][3]",
+     "p_core->acc_psd_mean[Y][4]",
+     "p_core->acc_psd_mean[Y][5]",
+     "p_core->acc_psd_mean[Z][0]",
+     "p_core->acc_psd_mean[Z][1]",
+     "p_core->acc_psd_mean[Z][2]",
+     "p_core->acc_psd_mean[Z][3]",
+     "p_core->acc_psd_mean[Z][4]",
+     "p_core->acc_psd_mean[Z][5]",
+     "p_core->acc_rate[X][0]",
+     "p_core->acc_rate[X][1]",
+     "p_core->acc_rate[X][2]",
+     "p_core->acc_rate[X][3]",
+     "p_core->acc_rate[X][4]",
+     "p_core->acc_rate[X][5]",
+     "p_core->acc_rate[Y][0]",
+     "p_core->acc_rate[Y][1]",
+     "p_core->acc_rate[Y][2]",
+     "p_core->acc_rate[Y][3]",
+     "p_core->acc_rate[Y][4]",
+     "p_core->acc_rate[Y][5]",
+     "p_core->acc_rate[Z][0]",
+     "p_core->acc_rate[Z][1]",
+     "p_core->acc_rate[Z][2]",
+     "p_core->acc_rate[Z][3]",
+     "p_core->acc_rate[Z][4]",
+     "p_core->acc_rate[Z][5]",
+     "p_core->emg_psd[0][CH1][0]",
+     "p_core->emg_psd[0][CH1][1]",
+     "p_core->emg_psd[0][CH1][2]",
+     "p_core->emg_psd[0][CH1][3]",
+     "p_core->emg_psd[0][CH1][4]",
+     "p_core->emg_psd[0][CH2][0]",
+     "p_core->emg_psd[0][CH2][1]",
+     "p_core->emg_psd[0][CH2][2]",
+     "p_core->emg_psd[0][CH2][3]",
+     "p_core->emg_psd[0][CH2][4]",
+     "p_core->emg_psd[0][CH3][0]",
+     "p_core->emg_psd[0][CH3][1]",
+     "p_core->emg_psd[0][CH3][2]",
+     "p_core->emg_psd[0][CH3][3]",
+     "p_core->emg_psd[0][CH3][4]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][1]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][2]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][4]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][0]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][1]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][2]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][3]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][4]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][0]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][1]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][2]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][3]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][4]",
+     "p_core->emg_psd_mean[CH1][0]",
+     "p_core->emg_psd_mean[CH1][1]",
+     "p_core->emg_psd_mean[CH1][2]",
+     "p_core->emg_psd_mean[CH1][3]",
+     "p_core->emg_psd_mean[CH1][4]",
+     "p_core->emg_psd_mean[CH2][0]",
+     "p_core->emg_psd_mean[CH2][1]",
+     "p_core->emg_psd_mean[CH2][2]",
+     "p_core->emg_psd_mean[CH2][3]",
+     "p_core->emg_psd_mean[CH2][4]",
+     "p_core->emg_psd_mean[CH3][0]",
+     "p_core->emg_psd_mean[CH3][1]",
+     "p_core->emg_psd_mean[CH3][2]",
+     "p_core->emg_psd_mean[CH3][3]",
+     "p_core->emg_psd_mean[CH3][4]",
+     "p_core->wl[CH1]",
+     "p_core->wl[CH2]",
+     "p_core->wl[CH3]",
+     "p_core->wl_head[CH1]",
+     "p_core->wl_head[CH2]",
+     "p_core->wl_head[CH3]",
+     "p_core->wl_tail[CH1]",
+     "p_core->wl_tail[CH2]",
+     "p_core->wl_tail[CH3]",
+     "p_core->cload_lean_8.lw[CH1]",
+     "p_core->cload_lean_8.lw[CH2]",
+     "p_core->cload_lean_8.lw[CH3]",
+     "p_core->cload_lean_8.Pm[CH1]",
+     "p_core->cload_lean_8.Pm[CH2]",
+     "p_core->cload_lean_8.Pm[CH3]",
+     "p_core->cload_lean_8.r01[CH1]",
+     "p_core->cload_lean_8.r01[CH2]",
+     "p_core->cload_lean_8.r01[CH3]",
+     "p_core->cload_lean_8.r32[CH1]",
+     "p_core->cload_lean_8.r32[CH2]",
+     "p_core->cload_lean_8.r32[CH3]",
+     "p_core->cload_lean_8.sd3[CH1]",
+     "p_core->cload_lean_8.sd3[CH2]",
+     "p_core->cload_lean_8.sd3[CH3]",
+     "p_core->cload_lean_8.min10[CH1]",
+     "p_core->cload_lean_8.min10[CH2]",
+     "p_core->cload_lean_8.min10[CH3]",
+     "p_core->cload_lean_8.rise10[CH1]",
+     "p_core->cload_lean_8.rise10[CH2]",
+     "p_core->cload_lean_8.rise10[CH3]",
+     "p_core->cload_lean_8.max10[CH1]",
+     "p_core->cload_lean_8.max10[CH2]",
+     "p_core->cload_lean_8.max10[CH3]"
+    ],
+    "trees": 88,
+    "bytes": 32724,
+    "usable_rows": {
+     "at_firmware_threshold": {
+      "onsets": 4352,
+      "hits": 4093,
+      "recall": 0.9404871323529411,
+      "false_events": 799,
+      "negative_minutes": 88.57218333333333,
+      "false_per_min": 9.020890870365433,
+      "latency_ms_median": -9.0,
+      "latency_ms_p90": 5.0,
+      "objective_score": 0.1042565690981297,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.997,
+     "best": {
+      "onsets": 4352,
+      "hits": 2255,
+      "recall": 0.5181525735294118,
+      "false_events": 82,
+      "negative_minutes": 88.57218333333333,
+      "false_per_min": 0.9257985624154762,
+      "latency_ms_median": 5.0,
+      "latency_ms_p90": 33.0,
+      "objective_score": 0.5181525735294118,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.5181525735294118,
+     "recall_at_fpm_2": 0.6321231617647058,
+     "recall_at_fpm_3": 0.7444852941176471,
+     "recall_at_fpm_5": 0.8596047794117647,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 7.706,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 6.849,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 20.599,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 2.419,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 4.264,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 2.597,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 5.029,
+       "recall": 0.9254790631653655
+      },
+      "TAP": {
+       "fpm": 1.759,
+       "recall": 0.9476724430852871
+      },
+      "WRIST": {
+       "fpm": 12.887,
+       "recall": null
+      }
+     }
+    },
+    "steady_rows": {
+     "at_firmware_threshold": {
+      "onsets": 656,
+      "hits": 628,
+      "recall": 0.9573170731707317,
+      "false_events": 191,
+      "negative_minutes": 27.962216666666666,
+      "false_per_min": 6.830645877502558,
+      "latency_ms_median": -10.0,
+      "latency_ms_p90": 3.0,
+      "objective_score": 0.1401503006214617,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.997,
+     "best": {
+      "onsets": 656,
+      "hits": 401,
+      "recall": 0.6112804878048781,
+      "false_events": 29,
+      "negative_minutes": 27.962216666666666,
+      "false_per_min": 1.0371137719768282,
+      "latency_ms_median": 7.0,
+      "latency_ms_p90": 36.0,
+      "objective_score": 0.5894054291070929,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.46646341463414637,
+     "recall_at_fpm_2": 0.8246951219512195,
+     "recall_at_fpm_3": 0.8871951219512195,
+     "recall_at_fpm_5": 0.9314024390243902,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 0.608,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 5.676,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 27.009,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 2.122,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 5.139,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 2.775,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 7.602,
+       "recall": 1.0
+      },
+      "TAP": {
+       "fpm": 2.431,
+       "recall": 0.9484346224677717
+      },
+      "WRIST": {
+       "fpm": 8.698,
+       "recall": null
+      }
+     }
+    }
+   }
+  ],
+  "random20": [
+   {
+    "features": [
+     "p_core->acc_psd[0][X][0]",
+     "p_core->acc_psd[0][Y][1]",
+     "p_core->acc_psd[0][Z][5]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][1]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][1]",
+     "p_core->acc_psd_mean[X][4]",
+     "p_core->acc_psd_mean[Y][0]",
+     "p_core->acc_rate[Z][4]",
+     "p_core->emg_psd[0][CH1][0]",
+     "p_core->emg_psd[0][CH2][1]",
+     "p_core->emg_psd[0][CH3][0]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3]",
+     "p_core->emg_psd_mean[CH1][3]",
+     "p_core->emg_psd_mean[CH3][2]",
+     "p_core->wl[CH1]",
+     "p_core->wl[CH3]",
+     "p_core->wl_head[CH1]",
+     "p_core->wl_tail[CH1]",
+     "p_core->wl_tail[CH2]",
+     "p_core->cload_lean_8.Pm[CH2]"
+    ],
+    "trees": 88,
+    "bytes": 32724,
+    "usable_rows": {
+     "at_firmware_threshold": {
+      "onsets": 3129,
+      "hits": 3041,
+      "recall": 0.9718759987216363,
+      "false_events": 1819,
+      "negative_minutes": 89.35586666666667,
+      "false_per_min": 20.356805522189177,
+      "latency_ms_median": -10.0,
+      "latency_ms_p90": 8.0,
+      "objective_score": 0.04774206825635187,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.99,
+     "best": {
+      "onsets": 3129,
+      "hits": 1941,
+      "recall": 0.6203259827420902,
+      "false_events": 121,
+      "negative_minutes": 89.35586666666667,
+      "false_per_min": 1.3541360462808634,
+      "latency_ms_median": 10.0,
+      "latency_ms_p90": 38.0,
+      "objective_score": 0.4580972380476957,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.3710450623202301,
+     "recall_at_fpm_2": 0.6203259827420902,
+     "recall_at_fpm_3": 0.6203259827420902,
+     "recall_at_fpm_5": 0.7992968999680409,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 5.739,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 49.977,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 39.619,
+       "recall": null
+      },
+      "LONG_PRESS": {
+       "fpm": 1.752,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 0.69,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 1.745,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 1.913,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.289,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 7.744,
+       "recall": 0.9865384615384616
+      },
+      "TAP": {
+       "fpm": 2.687,
+       "recall": 0.964576352321685
+      },
+      "WRIST": {
+       "fpm": 29.323,
+       "recall": null
+      }
+     }
+    },
+    "steady_rows": {
+     "at_firmware_threshold": {
+      "onsets": 458,
+      "hits": 439,
+      "recall": 0.9585152838427947,
+      "false_events": 936,
+      "negative_minutes": 49.071425,
+      "false_per_min": 19.074237196087132,
+      "latency_ms_median": -9.0,
+      "latency_ms_p90": 13.0,
+      "objective_score": 0.05025182784449296,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.99,
+     "best": {
+      "onsets": 458,
+      "hits": 275,
+      "recall": 0.6004366812227074,
+      "false_events": 35,
+      "negative_minutes": 49.071425,
+      "false_per_min": 0.7132460489989847,
+      "latency_ms_median": 13.0,
+      "latency_ms_p90": 42.599999999999994,
+      "objective_score": 0.6004366812227074,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.6004366812227074,
+     "recall_at_fpm_2": 0.6004366812227074,
+     "recall_at_fpm_3": 0.75764192139738,
+     "recall_at_fpm_5": 0.8318777292576419,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 4.984,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 51.105,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 34.387,
+       "recall": null
+      },
+      "LONG_PRESS": {
+       "fpm": 2.235,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 0.861,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 1.866,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 1.576,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.352,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 3.829,
+       "recall": 1.0
+      },
+      "TAP": {
+       "fpm": 1.569,
+       "recall": 0.9489247311827957
+      },
+      "WRIST": {
+       "fpm": 30.152,
+       "recall": null
+      }
+     }
+    }
+   },
+   {
+    "features": [
+     "p_core->acc_psd[0][Y][1]",
+     "p_core->acc_psd[0][Z][2]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][3]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][4]",
+     "p_core->acc_psd_mean[Z][3]",
+     "p_core->acc_rate[X][4]",
+     "p_core->acc_rate[Y][0]",
+     "p_core->acc_rate[Y][2]",
+     "p_core->emg_psd[0][CH1][2]",
+     "p_core->emg_psd[0][CH2][0]",
+     "p_core->emg_psd[0][CH2][2]",
+     "p_core->emg_psd[0][CH2][4]",
+     "p_core->emg_psd[0][CH3][4]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][1]",
+     "p_core->wl_head[CH2]",
+     "p_core->cload_lean_8.r01[CH1]",
+     "p_core->cload_lean_8.min10[CH2]",
+     "p_core->cload_lean_8.rise10[CH2]",
+     "p_core->cload_lean_8.max10[CH2]",
+     "p_core->cload_lean_8.max10[CH3]"
+    ],
+    "trees": 88,
+    "bytes": 32724,
+    "usable_rows": {
+     "at_firmware_threshold": {
+      "onsets": 6894,
+      "hits": 6490,
+      "recall": 0.9413983173774296,
+      "false_events": 656,
+      "negative_minutes": 78.082625,
+      "false_per_min": 8.401356895980381,
+      "latency_ms_median": -4.0,
+      "latency_ms_p90": 17.0,
+      "objective_score": 0.1120531277308122,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.99,
+     "best": {
+      "onsets": 6894,
+      "hits": 2513,
+      "recall": 0.3645198723527705,
+      "false_events": 69,
+      "negative_minutes": 78.082625,
+      "false_per_min": 0.883679307656473,
+      "latency_ms_median": 15.0,
+      "latency_ms_p90": 56.0,
+      "objective_score": 0.3645198723527705,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.3645198723527705,
+     "recall_at_fpm_2": 0.5951552074267479,
+     "recall_at_fpm_3": 0.7085871772555846,
+     "recall_at_fpm_5": 0.8214389324049899,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 2.551,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 2.632,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 5.053,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 31.854,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 2.031,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 0.503,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 8.833,
+       "recall": 0.9212269083304288
+      },
+      "TAP": {
+       "fpm": 1.594,
+       "recall": 0.9557763975155279
+      },
+      "WRIST": {
+       "fpm": 31.794,
+       "recall": null
+      }
+     }
+    },
+    "steady_rows": {
+     "at_firmware_threshold": {
+      "onsets": 912,
+      "hits": 854,
+      "recall": 0.9364035087719298,
+      "false_events": 51,
+      "negative_minutes": 21.874291666666668,
+      "false_per_min": 2.3315040677507652,
+      "latency_ms_median": -2.0,
+      "latency_ms_p90": 19.0,
+      "objective_score": 0.4016306562464167,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.97,
+     "best": {
+      "onsets": 912,
+      "hits": 618,
+      "recall": 0.6776315789473685,
+      "false_events": 26,
+      "negative_minutes": 21.874291666666668,
+      "false_per_min": 1.188609916892547,
+      "latency_ms_median": 8.0,
+      "latency_ms_p90": 45.30000000000007,
+      "objective_score": 0.5701042615553307,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.5416666666666666,
+     "recall_at_fpm_2": 0.9035087719298246,
+     "recall_at_fpm_3": 0.9517543859649122,
+     "recall_at_fpm_5": 0.9703947368421053,
+     "per_folder_at_firmware": {
+      "DRAG_AND_DROP": {
+       "fpm": 3.726,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 1.481,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 0.348,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 11.113,
+       "recall": 0.9195979899497487
+      },
+      "TAP": {
+       "fpm": 1.924,
+       "recall": 0.94109396914446
+      }
+     }
+    }
+   },
+   {
+    "features": [
+     "p_core->acc_psd[0][X][1]",
+     "p_core->acc_psd[0][Z][0]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][4]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][5]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][3]",
+     "p_core->acc_rate[X][0]",
+     "p_core->acc_rate[X][1]",
+     "p_core->acc_rate[Z][1]",
+     "p_core->emg_psd[0][CH1][0]",
+     "p_core->emg_psd[0][CH3][4]",
+     "p_core->emg_psd_mean[CH1][2]",
+     "p_core->emg_psd_mean[CH2][2]",
+     "p_core->emg_psd_mean[CH2][3]",
+     "p_core->emg_psd_mean[CH2][4]",
+     "p_core->emg_psd_mean[CH3][0]",
+     "p_core->wl[CH2]",
+     "p_core->cload_lean_8.Pm[CH3]",
+     "p_core->cload_lean_8.r01[CH3]",
+     "p_core->cload_lean_8.r32[CH1]",
+     "p_core->cload_lean_8.rise10[CH2]"
+    ],
+    "trees": 88,
+    "bytes": 32724,
+    "usable_rows": {
+     "at_firmware_threshold": {
+      "onsets": 4352,
+      "hits": 4093,
+      "recall": 0.9404871323529411,
+      "false_events": 1821,
+      "negative_minutes": 88.57218333333333,
+      "false_per_min": 20.559502221446124,
+      "latency_ms_median": -10.0,
+      "latency_ms_p90": 17.0,
+      "objective_score": 0.045744645090283156,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.995,
+     "best": {
+      "onsets": 4352,
+      "hits": 1771,
+      "recall": 0.4069393382352941,
+      "false_events": 118,
+      "negative_minutes": 88.57218333333333,
+      "false_per_min": 1.332246711768612,
+      "latency_ms_median": 9.0,
+      "latency_ms_p90": 60.0,
+      "objective_score": 0.3054534378959476,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.24471507352941177,
+     "recall_at_fpm_2": 0.4069393382352941,
+     "recall_at_fpm_3": 0.4069393382352941,
+     "recall_at_fpm_5": 0.5801930147058824,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 18.375,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 22.603,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 44.827,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 3.93,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 4.975,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 3.71,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 10.232,
+       "recall": 0.9396735273243435
+      },
+      "TAP": {
+       "fpm": 5.242,
+       "recall": 0.9408766564729868
+      },
+      "WRIST": {
+       "fpm": 31.066,
+       "recall": null
+      }
+     }
+    },
+    "steady_rows": {
+     "at_firmware_threshold": {
+      "onsets": 656,
+      "hits": 623,
+      "recall": 0.9496951219512195,
+      "false_events": 439,
+      "negative_minutes": 27.962216666666666,
+      "false_per_min": 15.699756755097503,
+      "latency_ms_median": -13.0,
+      "latency_ms_p90": 11.800000000000068,
+      "objective_score": 0.06049107236281645,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.997,
+     "best": {
+      "onsets": 656,
+      "hits": 189,
+      "recall": 0.28810975609756095,
+      "false_events": 28,
+      "negative_minutes": 27.962216666666666,
+      "false_per_min": 1.0013512281155583,
+      "latency_ms_median": 19.0,
+      "latency_ms_p90": 57.80000000000007,
+      "objective_score": 0.28772097942073166,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.14939024390243902,
+     "recall_at_fpm_2": 0.4817073170731707,
+     "recall_at_fpm_3": 0.4817073170731707,
+     "recall_at_fpm_5": 0.676829268292683,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 6.079,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 39.731,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 50.608,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 3.819,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 5.653,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 4.162,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 20.271,
+       "recall": 0.9734513274336283
+      },
+      "TAP": {
+       "fpm": 7.504,
+       "recall": 0.9447513812154696
+      },
+      "WRIST": {
+       "fpm": 23.104,
+       "recall": null
+      }
+     }
+    }
+   }
+  ],
+  "random40": [
+   {
+    "features": [
+     "p_core->acc_psd[0][X][0]",
+     "p_core->acc_psd[0][X][1]",
+     "p_core->acc_psd[0][X][4]",
+     "p_core->acc_psd[0][X][5]",
+     "p_core->acc_psd[0][Z][1]",
+     "p_core->acc_psd[0][Z][5]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][0]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][0]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][2]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][4]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][3]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][5]",
+     "p_core->acc_psd_mean[Z][2]",
+     "p_core->acc_psd_mean[Z][4]",
+     "p_core->acc_psd_mean[Z][5]",
+     "p_core->acc_rate[X][3]",
+     "p_core->acc_rate[X][4]",
+     "p_core->acc_rate[Y][3]",
+     "p_core->acc_rate[Z][0]",
+     "p_core->acc_rate[Z][1]",
+     "p_core->acc_rate[Z][5]",
+     "p_core->emg_psd[0][CH2][4]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][4]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][4]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][0]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][2]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][4]",
+     "p_core->emg_psd_mean[CH1][1]",
+     "p_core->emg_psd_mean[CH1][3]",
+     "p_core->emg_psd_mean[CH2][2]",
+     "p_core->emg_psd_mean[CH3][4]",
+     "p_core->wl_head[CH1]",
+     "p_core->wl_tail[CH1]",
+     "p_core->wl_tail[CH3]",
+     "p_core->cload_lean_8.r32[CH1]",
+     "p_core->cload_lean_8.r32[CH3]",
+     "p_core->cload_lean_8.sd3[CH2]",
+     "p_core->cload_lean_8.rise10[CH1]",
+     "p_core->cload_lean_8.rise10[CH2]",
+     "p_core->cload_lean_8.max10[CH3]"
+    ],
+    "trees": 88,
+    "bytes": 32724,
+    "usable_rows": {
+     "at_firmware_threshold": {
+      "onsets": 3129,
+      "hits": 3090,
+      "recall": 0.987535953978907,
+      "false_events": 1374,
+      "negative_minutes": 89.35586666666667,
+      "false_per_min": 15.376718409833936,
+      "latency_ms_median": -10.0,
+      "latency_ms_p90": 6.0,
+      "objective_score": 0.06422280278914025,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.99,
+     "best": {
+      "onsets": 3129,
+      "hits": 2501,
+      "recall": 0.7992968999680409,
+      "false_events": 113,
+      "negative_minutes": 89.35586666666667,
+      "false_per_min": 1.2646063903284097,
+      "latency_ms_median": 7.0,
+      "latency_ms_p90": 36.0,
+      "objective_score": 0.6320519223064095,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.5612016618728028,
+     "recall_at_fpm_2": 0.7992968999680409,
+     "recall_at_fpm_3": 0.909875359539789,
+     "recall_at_fpm_5": 0.9408756791307127,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 5.896,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 41.499,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 29.56,
+       "recall": null
+      },
+      "LONG_PRESS": {
+       "fpm": 1.752,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 1.035,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 1.163,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 2.232,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.289,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 6.929,
+       "recall": 0.9951923076923077
+      },
+      "TAP": {
+       "fpm": 2.111,
+       "recall": 0.9837242699856391
+      },
+      "WRIST": {
+       "fpm": 19.954,
+       "recall": null
+      }
+     }
+    },
+    "steady_rows": {
+     "at_firmware_threshold": {
+      "onsets": 458,
+      "hits": 445,
+      "recall": 0.9716157205240175,
+      "false_events": 637,
+      "negative_minutes": 49.071425,
+      "false_per_min": 12.981078091781521,
+      "latency_ms_median": -10.0,
+      "latency_ms_p90": 8.600000000000023,
+      "objective_score": 0.07484861531949025,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.99,
+     "best": {
+      "onsets": 458,
+      "hits": 348,
+      "recall": 0.759825327510917,
+      "false_events": 30,
+      "negative_minutes": 49.071425,
+      "false_per_min": 0.611353756284844,
+      "latency_ms_median": 7.0,
+      "latency_ms_p90": 41.0,
+      "objective_score": 0.759825327510917,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.759825327510917,
+     "recall_at_fpm_2": 0.759825327510917,
+     "recall_at_fpm_3": 0.8668122270742358,
+     "recall_at_fpm_5": 0.9104803493449781,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 4.758,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 37.018,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 21.234,
+       "recall": null
+      },
+      "LONG_PRESS": {
+       "fpm": 2.235,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 1.291,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.933,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 1.97,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.352,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 0.0,
+       "recall": 1.0
+      },
+      "TAP": {
+       "fpm": 1.121,
+       "recall": 0.9650537634408602
+      },
+      "WRIST": {
+       "fpm": 20.735,
+       "recall": null
+      }
+     }
+    }
+   },
+   {
+    "features": [
+     "p_core->acc_psd[0][X][3]",
+     "p_core->acc_psd[0][X][5]",
+     "p_core->acc_psd[0][Y][1]",
+     "p_core->acc_psd[0][Y][2]",
+     "p_core->acc_psd[0][Z][4]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][3]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][4]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Y][4]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][1]",
+     "p_core->acc_psd_mean[Y][4]",
+     "p_core->acc_psd_mean[Z][0]",
+     "p_core->acc_psd_mean[Z][5]",
+     "p_core->acc_rate[X][1]",
+     "p_core->acc_rate[Y][3]",
+     "p_core->acc_rate[Y][4]",
+     "p_core->acc_rate[Y][5]",
+     "p_core->acc_rate[Z][1]",
+     "p_core->emg_psd[0][CH1][0]",
+     "p_core->emg_psd[0][CH1][1]",
+     "p_core->emg_psd[0][CH2][0]",
+     "p_core->emg_psd[0][CH2][1]",
+     "p_core->emg_psd[0][CH2][3]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][3]",
+     "p_core->emg_psd_mean[CH1][4]",
+     "p_core->emg_psd_mean[CH2][1]",
+     "p_core->wl_head[CH1]",
+     "p_core->wl_head[CH3]",
+     "p_core->cload_lean_8.lw[CH2]",
+     "p_core->cload_lean_8.Pm[CH3]",
+     "p_core->cload_lean_8.r01[CH1]",
+     "p_core->cload_lean_8.r01[CH3]",
+     "p_core->cload_lean_8.r32[CH1]",
+     "p_core->cload_lean_8.r32[CH2]",
+     "p_core->cload_lean_8.sd3[CH1]",
+     "p_core->cload_lean_8.min10[CH2]",
+     "p_core->cload_lean_8.min10[CH3]",
+     "p_core->cload_lean_8.rise10[CH1]",
+     "p_core->cload_lean_8.max10[CH1]",
+     "p_core->cload_lean_8.max10[CH3]"
+    ],
+    "trees": 88,
+    "bytes": 32724,
+    "usable_rows": {
+     "at_firmware_threshold": {
+      "onsets": 6894,
+      "hits": 6710,
+      "recall": 0.9733101247461561,
+      "false_events": 412,
+      "negative_minutes": 78.082625,
+      "false_per_min": 5.276461952963288,
+      "latency_ms_median": -11.0,
+      "latency_ms_p90": 4.0,
+      "objective_score": 0.18446264436712942,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.99,
+     "best": {
+      "onsets": 6894,
+      "hits": 4860,
+      "recall": 0.7049608355091384,
+      "false_events": 99,
+      "negative_minutes": 78.082625,
+      "false_per_min": 1.2678877022897221,
+      "latency_ms_median": 6.0,
+      "latency_ms_p90": 33.0,
+      "objective_score": 0.5560120460479467,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.48636495503336236,
+     "recall_at_fpm_2": 0.8381201044386423,
+     "recall_at_fpm_3": 0.9302291847983754,
+     "recall_at_fpm_5": 0.961995938497244,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 0.425,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 9.87,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 5.053,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 17.448,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 2.4,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 0.251,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 7.513,
+       "recall": 0.9627047751829906
+      },
+      "TAP": {
+       "fpm": 1.565,
+       "recall": 0.9808695652173913
+      },
+      "WRIST": {
+       "fpm": 13.441,
+       "recall": null
+      }
+     }
+    },
+    "steady_rows": {
+     "at_firmware_threshold": {
+      "onsets": 912,
+      "hits": 887,
+      "recall": 0.9725877192982456,
+      "false_events": 41,
+      "negative_minutes": 21.874291666666668,
+      "false_per_min": 1.8743464074074778,
+      "latency_ms_median": -10.0,
+      "latency_ms_p90": 7.399999999999977,
+      "objective_score": 0.5188943278865356,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.98,
+     "best": {
+      "onsets": 912,
+      "hits": 732,
+      "recall": 0.8026315789473685,
+      "false_events": 23,
+      "negative_minutes": 21.874291666666668,
+      "false_per_min": 1.0514626187895608,
+      "latency_ms_median": 0.0,
+      "latency_ms_p90": 31.0,
+      "objective_score": 0.7633477069031275,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.6633771929824561,
+     "recall_at_fpm_2": 0.9725877192982456,
+     "recall_at_fpm_3": 0.981359649122807,
+     "recall_at_fpm_5": 0.981359649122807,
+     "per_folder_at_firmware": {
+      "DRAG_AND_DROP": {
+       "fpm": 3.726,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 1.727,
+       "recall": null
+      },
+      "NOTHING": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 9.446,
+       "recall": 0.9547738693467337
+      },
+      "TAP": {
+       "fpm": 1.283,
+       "recall": 0.9775596072931276
+      }
+     }
+    }
+   },
+   {
+    "features": [
+     "p_core->acc_psd[0][Y][2]",
+     "p_core->acc_psd[0][Z][0]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][1]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][X][3]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][2]",
+     "p_core->acc_psd[ACC_PSD_HISTORY_SIZE - 1][Z][4]",
+     "p_core->acc_psd_mean[Y][2]",
+     "p_core->acc_psd_mean[Y][4]",
+     "p_core->acc_psd_mean[Z][1]",
+     "p_core->acc_psd_mean[Z][3]",
+     "p_core->acc_rate[X][2]",
+     "p_core->acc_rate[X][3]",
+     "p_core->acc_rate[X][4]",
+     "p_core->acc_rate[Z][2]",
+     "p_core->acc_rate[Z][3]",
+     "p_core->emg_psd[0][CH1][0]",
+     "p_core->emg_psd[0][CH3][4]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][2]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][4]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][0]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][3]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][2]",
+     "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][4]",
+     "p_core->emg_psd_mean[CH1][0]",
+     "p_core->emg_psd_mean[CH1][1]",
+     "p_core->emg_psd_mean[CH1][4]",
+     "p_core->emg_psd_mean[CH2][1]",
+     "p_core->emg_psd_mean[CH3][0]",
+     "p_core->emg_psd_mean[CH3][3]",
+     "p_core->wl[CH1]",
+     "p_core->wl_tail[CH2]",
+     "p_core->cload_lean_8.lw[CH3]",
+     "p_core->cload_lean_8.r01[CH1]",
+     "p_core->cload_lean_8.r01[CH3]",
+     "p_core->cload_lean_8.r32[CH3]",
+     "p_core->cload_lean_8.sd3[CH3]",
+     "p_core->cload_lean_8.min10[CH2]",
+     "p_core->cload_lean_8.rise10[CH3]",
+     "p_core->cload_lean_8.max10[CH1]"
+    ],
+    "trees": 88,
+    "bytes": 32724,
+    "usable_rows": {
+     "at_firmware_threshold": {
+      "onsets": 4352,
+      "hits": 4052,
+      "recall": 0.9310661764705882,
+      "false_events": 1428,
+      "negative_minutes": 88.57218333333333,
+      "false_per_min": 16.12244325767439,
+      "latency_ms_median": -6.0,
+      "latency_ms_p90": 13.0,
+      "objective_score": 0.05774969473236598,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.997,
+     "best": {
+      "onsets": 4352,
+      "hits": 1279,
+      "recall": 0.2938878676470588,
+      "false_events": 84,
+      "negative_minutes": 88.57218333333333,
+      "false_per_min": 0.9483790151573172,
+      "latency_ms_median": 15.0,
+      "latency_ms_p90": 52.200000000000045,
+      "objective_score": 0.2938878676470588,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.2938878676470588,
+     "recall_at_fpm_2": 0.46369485294117646,
+     "recall_at_fpm_3": 0.46369485294117646,
+     "recall_at_fpm_5": 0.6461397058823529,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 18.523,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 11.302,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 0.529,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 31.445,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 2.419,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 4.975,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 2.968,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 6.59,
+       "recall": 0.9297374024130589
+      },
+      "TAP": {
+       "fpm": 2.549,
+       "recall": 0.9317023445463812
+      },
+      "WRIST": {
+       "fpm": 35.078,
+       "recall": null
+      }
+     }
+    },
+    "steady_rows": {
+     "at_firmware_threshold": {
+      "onsets": 656,
+      "hits": 623,
+      "recall": 0.9496951219512195,
+      "false_events": 354,
+      "negative_minutes": 27.962216666666666,
+      "false_per_min": 12.659940526889558,
+      "latency_ms_median": -8.0,
+      "latency_ms_p90": 10.0,
+      "objective_score": 0.07501576487931193,
+      "false_per_min_target": 1.0
+     },
+     "best_threshold": 0.997,
+     "best": {
+      "onsets": 656,
+      "hits": 237,
+      "recall": 0.36128048780487804,
+      "false_events": 25,
+      "negative_minutes": 27.962216666666666,
+      "false_per_min": 0.8940635965317485,
+      "latency_ms_median": 15.0,
+      "latency_ms_p90": 42.0,
+      "objective_score": 0.36128048780487804,
+      "false_per_min_target": 1.0
+     },
+     "recall_at_fpm_1": 0.36128048780487804,
+     "recall_at_fpm_2": 0.5396341463414634,
+     "recall_at_fpm_3": 0.7317073170731707,
+     "recall_at_fpm_5": 0.823170731707317,
+     "per_folder_at_firmware": {
+      "ARM": {
+       "fpm": 6.079,
+       "recall": null
+      },
+      "BAND": {
+       "fpm": 11.352,
+       "recall": null
+      },
+      "DRAG_AND_DROP": {
+       "fpm": 0.0,
+       "recall": null
+      },
+      "FINGER": {
+       "fpm": 39.333,
+       "recall": null
+      },
+      "MID_LONG_PRESS": {
+       "fpm": 2.122,
+       "recall": null
+      },
+      "SOFT_LONG_PRESS": {
+       "fpm": 6.166,
+       "recall": null
+      },
+      "STRONG_LONG_PRESS": {
+       "fpm": 3.237,
+       "recall": null
+      },
+      "SWIPE": {
+       "fpm": 8.869,
+       "recall": 0.9911504424778761
+      },
+      "TAP": {
+       "fpm": 3.065,
+       "recall": 0.9410681399631676
+      },
+      "WRIST": {
+       "fpm": 33.704,
+       "recall": null
+      }
+     }
+    }
+   }
+  ]
+ }
+}

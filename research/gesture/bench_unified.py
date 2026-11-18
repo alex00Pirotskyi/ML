@@ -46,6 +46,8 @@ FROZEN = {
              learning_rate=0.05, min_child_samples=30, colsample_bytree=0.5),
         dict(BASE, feature_set="acc_current18", positive_weight=3.0, max_depth=8, num_leaves=31, n_estimators=300,
              learning_rate=0.2, min_child_samples=200, subsample=0.6),
+        dict(BASE, feature_set="all_available", positive_weight=1.0, max_depth=6, num_leaves=15, n_estimators=160,
+             learning_rate=0.1, min_child_samples=100),
     ],
     "lp": [
         dict(BASE, feature_set="raw126", positive_weight=6.0, max_depth=6, num_leaves=15, n_estimators=160,
@@ -54,6 +56,8 @@ FROZEN = {
              learning_rate=0.05, min_child_samples=30, colsample_bytree=0.5),
         dict(BASE, feature_set="raw126_lean8_instant12", positive_weight=2.0, max_depth=8, num_leaves=31,
              n_estimators=300, learning_rate=0.2, min_child_samples=200, subsample=0.6),
+        dict(BASE, feature_set="all_available", positive_weight=0.02, max_depth=8, num_leaves=31, n_estimators=200,
+             learning_rate=0.1, min_child_samples=100),
     ],
 }
 
@@ -132,7 +136,14 @@ class Recorder:
 def run(task, out_json, study=None, limit=None):
     data, rpl, tr, te, budgets, build_s = setup(task)
     results = []
-    for params in frozen_params(task, study, limit):
+    rows = frozen_params(task, study, limit)
+    if os.environ.get("MUDRA_BENCH_ONLY_ALL") == "1":
+        rows = [p for p in rows if p.get("feature_set", "all_available") == "all_available"]
+    if getattr(g, "FEATURE_SELECTION", False):
+        # v3 has no named feature sets: the all-feature trials become K = every available field.
+        rows = [dict({k: v for k, v in p.items() if k != "feature_set"}, n_features=len(data["columns"]))
+                for p in rows if p.get("feature_set", "all_available") == "all_available" or "n_features" in p]
+    for params in rows:
         rec = Recorder(); rec.install()
         trial = optuna.trial.FixedTrial(dict(params))
         t0 = time.perf_counter()
@@ -146,7 +157,8 @@ def run(task, out_json, study=None, limit=None):
                             folds=ua.get("folds"), timing=ua.get("timing"), fits=rec.fits,
                             tap_calls=sorted(rec.tap_calls), lp_calls=sorted(rec.lp_calls),
                             n_tap_calls=len(rec.tap_calls), n_lp_calls=len(rec.lp_calls)))
-        print("BENCH_TRIAL", task, json.dumps(dict(feature_set=params["feature_set"], leaves=params["num_leaves"],
+        print("BENCH_TRIAL", task, json.dumps(dict(feature_set=params.get("feature_set", f"K{params.get('n_features')}"),
+              leaves=params["num_leaves"],
               value=value, seconds=round(seconds, 2), timing=ua.get("timing", {}).get("total") if ua.get("timing") else None)),
               flush=True)
     env = dict(python=sys.version.split()[0], platform=platform.platform(), cpu_threads=g.CPU_THREADS,
@@ -174,7 +186,8 @@ def compare(a_path, b_path):
             "LP Q20 sequences": ra["lp_calls"] == rb["lp_calls"] and ra["n_lp_calls"] == rb["n_lp_calls"],
         }
         ok = all(checks.values()); ok_all &= ok
-        print(f"{'PASS' if ok else 'FAIL'} {A['task']} {ra['params']['feature_set']:24s} leaves={ra['params']['num_leaves']:3d} "
+        fs = ra["params"].get("feature_set", f"K{ra['params'].get('n_features')}")
+        print(f"{'PASS' if ok else 'FAIL'} {A['task']} {fs:24s} leaves={ra['params']['num_leaves']:3d} "
               f"value={ra['value']:.6f}/{rb['value']:.6f} time {ra['seconds']:.1f}s -> {rb['seconds']:.1f}s "
               f"({ra['seconds'] / max(rb['seconds'], 1e-9):.2f}x) fits={len(rb['fits'])} "
               f"replay_calls={rb['n_tap_calls'] + rb['n_lp_calls']}"

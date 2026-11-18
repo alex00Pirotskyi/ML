@@ -17,6 +17,53 @@ There are no command-line flags. The script:
     research/gesture/results_unified_v2/lp/models/LONG_PRESS.h
     research/gesture/results_unified_v2/COMPARISON.md        <- new models vs baselines, held-out people
 
+## v3 (default): learned feature selection
+
+`python -u research/gesture/train_unified.py` runs the **v3** experiment
+(`FEATURE_SELECTION_RESEARCH_AND_EXECUTION_PLAN.md`; evidence in `FEATURE_SELECTION_RESULTS.md`). Set
+`MUDRA_EXPERIMENT=v2` for the earlier feature-set menu; its outputs and studies are untouched and still
+resumable.
+
+What changes in v3:
+
+| | v2 | v3 |
+|---|---|---|
+| Features | Optuna picks one of a hand-written menu of sets | Optuna picks an integer **K = 1…150** over all available firmware fields; each CV fold uses its own ranking, learned from that fold's training people only (`feature_selection.py`) |
+| Rows scored | from Lean-8 frame 50 | from frame **500** = `lean_8_features_ready()`, the rows on which the firmware runs the models (`MUDRA_EVAL_MIN_FRAMES`) |
+| Training rows | from frame 50 | from frame 50 by default (`MUDRA_TRAIN_MIN_FRAMES`, see the results) |
+| TAP false-event budget | 1 per minute | the previous production TAP header's false rate on the development people (`MUDRA_TAP_FALSE_PER_MIN_TARGET=baseline`, or a number) |
+| Default model | could skip candidates that failed on the held-out people | chosen on CV only; the held-out report is written once, before anything is fitted on those people (`holdout_report.json`) |
+| Production model | refit on everyone | ranking refitted on everyone at the locked K, then refit |
+| Starting trials | – | K = all fields (all-feature control) |
+
+The ranking method:
+
+1. Build correlation clusters from the training rows: Spearman |ρ|, average linkage, cut chosen by
+   silhouette.
+2. Run an inner person-grouped cross-fit. In each split, train a screening LightGBM on all fields.
+3. For each feature and each cluster (shifted jointly), apply a **within-recording circular shift** and
+   measure the drop in the firmware replay score. The operating point is fixed from the unperturbed
+   screening model.
+4. Order the features: clusters by joint importance, members by their own importance.
+
+This is block-permutation importance, not conditional sampling. The ordering is only a search path: K,
+retraining and replay decide.
+
+Outputs (`results_unified_v3_feature_selection/<task>/`):
+
+- `feature_selection/fold_*_ranking.csv`, `development_ranking.csv`, `final_ranking.csv`: every field with its
+  rank, importance, cluster, cluster importance and LightGBM gain share.
+- `correlation_clusters.json`, `selection_stability.json` (Nogueira), `selected_features_by_trial.json`,
+  `final_selected_features.json`, `report.md`.
+- `holdout_report.json`.
+- The same model outputs as v2.
+
+Cost of the rankings: one ranking per CV fold, plus a development and a final ranking, five per task.
+Each runs about 250 replay perturbations on its validation people. On the 2-CPU research box a TAP fold
+ranking took 26–31 min and an LP fold ranking about 12 min. On the server the LightGBM part uses all
+threads, and the single-threaded replay scoring then dominates. Rankings are cached
+(`feature_selection/cache/`) and computed only when Optuna first tries K < all fields.
+
 ## Why v2 (what was wrong with v1)
 
 | v1 | Effect | v2 |
@@ -147,6 +194,10 @@ Environment variables:
 | `MUDRA_LEAN8_VERIFY_SOURCE_SHA` | 0 | 1 = also SHA-256 every source recording before reusing its derived file (size + mtime is the default check) |
 | `MUDRA_LP_RELEASE_THRESHOLD` | 0.5 | firmware LP release threshold on the 10-sample Q20 mean; part of the LP study name |
 | `MUDRA_LP_BASELINE_THRESHOLD` | 0.85 | release threshold used to replay the LP baselines |
+| `MUDRA_EXPERIMENT` | v3 | v3 = learned feature selection; v2 = earlier feature-set menu |
+| `MUDRA_EVAL_MIN_FRAMES` | 500 (v3) | rows scored and ranked = rows the firmware runs the models on |
+| `MUDRA_TRAIN_MIN_FRAMES` | 50 (v3) | rows used as training examples |
+| `MUDRA_TAP_FALSE_PER_MIN_TARGET` | baseline (v3), 1.0 (v2) | TAP false-event budget: `baseline` = previous TAP header's rate on the development people, or a number |
 | `MUDRA_CPU_THREADS` | 80% of CPUs | LightGBM threads; does not change the models (deterministic=True). Choose with `bench_unified.py threads` |
 
 ## Selection and outputs

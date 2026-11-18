@@ -358,6 +358,7 @@ GENERATOR_SHA = algorithm_sha()
 # algorithm (verified by regenerating recordings byte-for-byte): their derived files are reused, not rebuilt.
 LEGACY_EQUIVALENT_SHAS = {
     "14b60b6c03441cb9cf1977dd5678664c9be0db7fb8457db2d898b1a78d481fbc",   # commit 235a8b07
+    "04216225634c365f9b8151edcbe2611e02c4c7dfc309b5de7b14177dbdf0690c",   # aa37e9e2 (before .csv I/O support; .csv.gz bytes verified identical)
 }
 VERIFY_SOURCE_SHA = os.environ.get("MUDRA_LEAN8_VERIFY_SOURCE_SHA", "0") not in ("0", "", "false", "no")
 

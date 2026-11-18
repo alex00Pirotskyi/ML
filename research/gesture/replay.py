@@ -204,7 +204,8 @@ class TapCounts:
             for key in f: f[key] += v[key]
         return self
 
-    def report(self, target=TAP_FALSE_PER_MIN_TARGET):
+    def report(self, target=None):
+        target = TAP_FALSE_PER_MIN_TARGET if target is None else float(target)   # module value at call time
         rate = lambda false, ms: false / (ms / 60000.0) if ms > 0 else float("nan")
         recall = self.hits / self.onsets if self.onsets else float("nan")
         fpm = rate(self.false, self.neg_ms)
