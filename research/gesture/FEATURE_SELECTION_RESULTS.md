@@ -6,7 +6,7 @@ people** were used; the 22% person holdout was never touched.
 
 Reproduce with:
 
-- `research/gesture/fs_research.py`: `gate`, `rank`, `kcurve` and `report` modes.
+- `research/gesture/fs_research.py`: `gate`, `rank`, `kcurve`, `report`, `soft` and `rules` modes.
 - `research/gesture/ablate_lean8.py`.
 - `research/gesture/bench_unified.py`: equivalence checks.
 
@@ -28,6 +28,12 @@ Reproduce with:
    uses rows from frame 50: on firmware-gated rows TAP is +0.07 better with them, and LP is neutral (§2).
 4. **Holdout.** It no longer influences which model becomes the default. It is reported once, before
    anything is fitted on those people.
+5. **Soft taps.** Teaching the labeller's unconfirmed taps does not help: recall of *all* real pointer presses
+   at a matched false-event rate is unchanged, and they add ~1 false event per minute. The model trained on
+   confirmed taps already finds 92–94% of all real presses, a figure that does not depend on the labeller (§5).
+6. **Replay rules.** Every comparison above keeps its direction under 9 TAP and 18 LP variants of the replay
+   rules; only absolute numbers move (§6). The rules themselves can be checked once the device logs its own
+   decisions (`validate_events.py`, §7).
 
 ## 1. TAP sensitivity is set by the false-event budget, not by the features
 
@@ -180,6 +186,128 @@ Full tables, per-fold rankings and stability are in `results_fs_research/` (`rep
 `report_lp.md`, JSON).
 
 
+## 5. Independent grading and soft taps
+
+**An independent yardstick.** Every TAP/SWIPE recording contains only taps or swipes, so every real
+pointer press in it is a tap. That is folder truth, with no teacher involved. `PointerState` is an
+external touch/pointer reference, not a firmware output, for three reasons:
+
+- It comes *before* the sensor tap peak in about 30% of confirmed taps, by up to 57 ms.
+- It has a per-recording clock offset between −47 and +62 ms.
+- `InputX`/`InputY` are continuous coordinates.
+
+So recall against all real pointer presses (`recall_press`, window [press − 150, press + 250] ms) is
+independent of the band and of the teacher. The trainer now reports it next to recall on confirmed taps
+(`recall_strong`) and on the teacher's left-out soft taps (`recall_soft`).
+
+Note that these windows are wide, so `recall_press` is optimistic about timing. It tells whether the tap
+was found, not how promptly.
+
+**Can soft taps be rescued?** The labeller leaves 4,671 of 24,316 TAP/SWIPE presses unknown (19%), and
+70% of those show a weaker tap peak (teacher score 0.5–0.966). The test:
+
+- Train the same model (all 150 fields, 3 folds, same people) on confirmed taps only, or with the soft taps
+  added as positives (weighted by teacher score, or at full weight).
+- Score each on confirmed, soft and all-press recall at matched false-event rates.
+
+Means over 3 folds, steady-state rows (`results_fs_research/soft_tap.json`):
+
+| Training labels | At 0.85: confirmed / soft / all presses, false per min | At ≤ 2 false/min: confirmed / soft / all presses | At ≤ 3: all presses |
+|---|---|---|---|
+| confirmed taps only | 0.976 / 0.758 / **0.921**, 4.75 | 0.896 / 0.430 / **0.818** | **0.865** |
+| + soft, weighted by score | 0.973 / 0.743 / 0.924, 5.64 | 0.889 / 0.480 / 0.817 | 0.868 |
+| + soft, full weight | 0.973 / 0.750 / 0.923, 5.60 | 0.878 / 0.442 / 0.799 | 0.834 |
+
+All usable rows tell the same story: all-press recall 0.771 / 0.763 / 0.769 at ≤ 2/min, and +1.2 false
+events per minute at 0.85.
+
+**Conclusions:**
+
+1. **Soft labels don't help.** All-press recall at a matched false-event rate is unchanged or lower, and at
+   0.85 they add about 1 false event per minute. Soft labels are therefore **off** by default
+   (`MUDRA_TAP_SOFT_LABELS`).
+2. **"Soft taps are never taught" is not a real ceiling.** The model trained on confirmed taps already
+   finds **92–94% of all real pointer presses** at the firmware threshold, soft ones included.
+3. **The real limit is separability.** At strict false-event budgets the weakest taps look like deliberate
+   finger, wrist and band movements. Teaching weak bursts just slides the model along the same trade-off
+   curve.
+4. **Only better information moves that curve:** new signals, better sensor contact, or user calibration.
+
+## 6. Do the conclusions depend on the replay rules?
+
+The replay rules are firmware assumptions: the TAP refractory, the window in which an event counts as a hit,
+and the LP release timing limits. `fs_research.py rules` replays the same fold models (3 folds,
+development people, trained on rows from frame 50, scored on steady rows from frame 500) under every
+combination of:
+
+- **TAP:** refractory 100 / 150 / 250 ms × hit window [−50, +150], [−100, +250], [−150, +400] ms.
+- **LP:** premature margin 150 / 250 / 400 ms × timely release 300 / 500 / 800 ms × long-press time 400 / 600 ms.
+
+Results: `results_fs_research/rules_{tap,lp}.json`.
+
+TAP, mean of 3 folds, models trained on all 150 fields / the 126 raw fields / all 150 with soft labels:
+
+Recall here counts confirmed and soft taps together, since this run had soft labels on.
+
+| Refractory ms | Hit window ms | Recall at 0.85 (150 / 126 / soft) | False/min at 0.85 (150 / 126 / soft) |
+|---|---|---|---|
+| 100 | −50 … +150 | 0.932 / 0.926 / 0.925 | 4.84 / 5.54 / 5.70 |
+| 100 | −100 … +250 | 0.953 / 0.952 / 0.953 | 4.87 / 5.64 / 5.78 |
+| 100 | −150 … +400 | 0.955 / 0.954 / 0.955 | 4.90 / 5.68 / 5.80 |
+| 150 | −50 … +150 | 0.929 / 0.924 / 0.922 | 4.72 / 5.42 / 5.56 |
+| **150** | **−100 … +250** (trainer) | **0.953 / 0.951 / 0.951** | **4.75 / 5.50 / 5.64** |
+| 150 | −150 … +400 | 0.954 / 0.954 / 0.954 | 4.77 / 5.52 / 5.66 |
+| 250 | −50 … +150 | 0.896 / 0.895 / 0.891 | 4.51 / 5.16 / 5.20 |
+| 250 | −100 … +250 | 0.921 / 0.923 / 0.921 | 4.54 / 5.23 / 5.28 |
+| 250 | −150 … +400 | 0.923 / 0.926 / 0.924 | 4.55 / 5.24 / 5.29 |
+
+- All 150 fields give **fewer false events than the 126 raw fields in 25 of 27** fold × rule cells
+  (−0.65 to −0.78 per minute on average) and fewer than the soft-label model in **27 of 27** (−0.69 to −0.89).
+  Recall differs by at most ±0.017.
+- The absolute numbers do move: recall at 0.85 spans 0.896–0.955 and false events 4.5–4.9 per minute,
+  mostly through the refractory and the early edge of the hit window.
+
+LP, mean of 3 folds: the score of every model moves by at most 0.025 across the 18 rule variants. The
+comparison of all 150 fields with the 126 raw fields keeps its sign in all 18:
+
+- At each model's best threshold, all 150 fields win by +0.013 to +0.024.
+- At the fixed 0.50 release threshold with this fixed research configuration, the raw fields win by 0.034–0.045.
+  That is a calibration difference: the trainer tunes the release weight so that 0.50 is a good operating
+  point, which this fixed configuration does not.
+
+**Conclusion:** none of the choices made here depends on the replay assumptions. The *reported* numbers
+do, which is why the rules should still be confirmed on the device (§7).
+
+## 7. What still needs data from outside: firmware logs and gold taps
+
+**PointerState cannot check the replay rules.** It is an external touch/pointer reference, not a log of the
+firmware's decisions. It leads the sensor tap peak in ~30% of taps, and its clock is offset per recording by
+−47 to +62 ms. It is good for *finding* taps (§5), not for timing them to a frame.
+
+**`validate_events.py`** closes the gap as soon as either source exists (synthetic self-test in the smoke
+test: `VALIDATE_EVENTS_CHECKS_PASSED`):
+
+1. **Firmware log.** The device writes its own `TAP_SWIPE_predict()` decision (and, for LP, the held state)
+   as a 0/1 column next to the sensor fields while a known header runs. The tool replays the header on the
+   same rows and reports:
+   - TAP agreement (F1) and the timing offset.
+   - The refractory that best explains the device, and the device's shortest interval between taps.
+   - For LP, the share of releases within 30 ms of the simulated ten-sample Q20 release.
+
+   **Pass:** TAP F1 ≥ 0.98 at the configured refractory; LP ≥ 95% within tolerance. Otherwise the tool
+   names the refractory to set.
+2. **Gold taps.** Independently timed taps: a synchronised high-speed video or a touch surface on the
+   recording clock, in fully annotated sessions that mix taps with the hard negatives (finger, wrist and
+   band movement). It reports recall, false events per minute and latency of a header against them.
+   Suggested set: 15–20 people, 3 minutes each, ~1,000 taps. That measures recall to about ±2% and the
+   false-event rate to about ±0.3 per minute (95%), more where people differ strongly.
+
+    python research/gesture/validate_events.py --header <models>/TAP_SWIPE.h \
+        --recordings 'DATA/DATA_TAP_LEAN8/TAP/*.csv.gz' --device-column FW_TAP
+    python research/gesture/validate_events.py --task lp --header <models>/LONG_PRESS.h \
+        --recordings '...' --device-column FW_HELD
+    python research/gesture/validate_events.py --header <models>/TAP_SWIPE.h --recordings '...' --gold gold.csv
+
 ## How v3 is implemented (`feature_selection.py`, `train_unified.py`)
 
 | Plan item | Implementation |
@@ -195,7 +323,7 @@ Full tables, per-fold rankings and stability are in `results_fs_research/` (`rep
 | Stability (6) | Nogueira Φ of the top-K sets across the outer-fold rankings and across all inner-split importances. |
 | Cache | Keyed on: data content hash, columns, gates, task, fold people, TAP target, ranker version and settings. |
 | Readiness gate (8) | `MUDRA_EVAL_MIN_FRAMES` (rows scored and ranked; default 500 = `lean_8_features_ready()`) is separate from `MUDRA_TRAIN_MIN_FRAMES` (training examples). |
-| New outputs / studies (11) | `results_unified_v3_feature_selection/`. Study names carry the ranker version, gates, TAP target or LP threshold. v2 is untouched (`MUDRA_EXPERIMENT=v2`). |
+| New outputs / studies (11) | `results_unified_v3_feature_selection/`. Study names carry the ranker version, gates, TAP target (and soft-label setting) or LP threshold. The v2 feature-set menu was removed once its study finished; it is in git history (commit 53e3e83d). |
 
 ## Checks
 

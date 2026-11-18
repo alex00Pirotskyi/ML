@@ -72,41 +72,41 @@ RAW_SOURCE_LP = ROOT / "DATA" / "DATA_LONG_PRESS"
 SOURCE_TAP = ROOT / "DATA" / "DATA_TAP_LEAN8"          # derived: original lines + firmware Lean-8 columns
 SOURCE_LP = ROOT / "DATA" / "DATA_LONG_PRESS_LEAN8"
 USE_LEAN8 = os.environ.get("MUDRA_USE_LEAN8", "1").strip().lower() not in ("0", "false", "no", "off")
-# A row is used for training and replay once the firmware has called lean_8_features_handler this many
-# times since the recording (sensor stream) started. 50 frames ~ 1.1 s skips the least reliable first
-# second and keeps the firmware's own warm-up values after it (nearest-edge sd3, partial min/max).
-# 500 = lean_8_features_ready() (~10.8 s at the measured 46.4 frames/s): most recordings are shorter,
-# so only ~14% of labelled taps and ~73% of holds would remain. Held-out metrics are ALSO reported
-# for rows with >= LEAN8_STEADY_FRAMES (fully warm history), whatever this setting is.
-LEAN8_MIN_FRAMES = int(os.environ.get("MUDRA_LEAN8_MIN_FRAMES", 50))
+# Frame gates count Lean-8 handler calls since the recording (sensor stream) started (46.4 frames/s).
+# EVAL: rows the firmware runs the models on. model_execution() returns until lean_8_features_ready()
+#   (500 frames, ~10.8 s), so candidates are scored, ranked and chosen on those rows only.
+# TRAIN: rows used as training examples. From frame 50 (~1.1 s) the warm-up rows still teach the model
+#   (FEATURE_SELECTION_RESULTS.md, section 2); only the least reliable first second is skipped.
+# Held-out metrics are also reported for steady rows (>= LEAN8_STEADY_FRAMES), whatever the gates are.
 LEAN8_STEADY_FRAMES = lean8.HISTORY_10S
-
-# Experiment. v3 (default) = FEATURE_SELECTION_RESEARCH_AND_EXECUTION_PLAN.md: fold-local learned feature ranking,
-# integer K over all available fields, firmware-gated evaluation, CV-only candidate choice, TAP false-event
-# budget anchored on the previous TAP model. v2 = the earlier feature-set menu (its studies stay resumable).
-EXPERIMENT = os.environ.get("MUDRA_EXPERIMENT", "v3").strip().lower()
-if EXPERIMENT not in ("v2", "v3"):
-    raise ValueError("MUDRA_EXPERIMENT must be v2 or v3")
-FEATURE_SELECTION = EXPERIMENT == "v3"
-# Frame gates (Lean-8 handler calls since the stream started). EVAL = rows the firmware runs the models on:
-# the firmware returns from model_execution() until lean_8_features_ready() (500 frames, ~10.8 s), so v3
-# scores, selects and ranks on those rows only. TRAIN = rows used as training examples (see the research
-# report for why earlier rows are kept as examples). v2 used one gate for both.
-if FEATURE_SELECTION:
-    TRAIN_MIN_FRAMES = int(os.environ.get("MUDRA_TRAIN_MIN_FRAMES", LEAN8_MIN_FRAMES))
-    EVAL_MIN_FRAMES = int(os.environ.get("MUDRA_EVAL_MIN_FRAMES", LEAN8_STEADY_FRAMES))
-else:
-    TRAIN_MIN_FRAMES = EVAL_MIN_FRAMES = LEAN8_MIN_FRAMES
-# TAP score = recall * min(1, target / false events per minute). v2 used target 1.0, which made the search
-# give up ~25% of taps (see research report). v3 default "baseline": the target is the false-event rate of
-# the previous production TAP header replayed on the development people (a number fixes it explicitly).
-TAP_TARGET_SETTING = os.environ.get("MUDRA_TAP_FALSE_PER_MIN_TARGET", "baseline" if FEATURE_SELECTION else "1.0")
+TRAIN_MIN_FRAMES = int(os.environ.get("MUDRA_TRAIN_MIN_FRAMES", os.environ.get("MUDRA_LEAN8_MIN_FRAMES", 50)))
+EVAL_MIN_FRAMES = int(os.environ.get("MUDRA_EVAL_MIN_FRAMES", LEAN8_STEADY_FRAMES))
+LEAN8_MIN_FRAMES = TRAIN_MIN_FRAMES                  # older name of the train gate (research scripts)
+# One pipeline: fold-local learned feature ranking with an integer K over all available fields, firmware-gated
+# evaluation, CV-only candidate choice, TAP false-event budget anchored on the previous TAP model
+# (FEATURE_SELECTION_RESEARCH_AND_EXECUTION_PLAN.md). The earlier feature-set menu ("v2") was removed after its
+# study finished; its code is in git history (commit 53e3e83d).
+if os.environ.get("MUDRA_EXPERIMENT", "v3").strip().lower() != "v3":
+    raise ValueError("MUDRA_EXPERIMENT=v2 was removed; check out commit 53e3e83d to run it")
+EXPERIMENT = "v3"
+# TAP score = recall * min(1, target / false events per minute). Default "baseline": the target is the
+# false-event rate of the previous production TAP header replayed on the development people (a number fixes it
+# explicitly). A fixed 1.0 made the search give up ~25% of taps (FEATURE_SELECTION_RESULTS.md, section 1).
+TAP_TARGET_SETTING = os.environ.get("MUDRA_TAP_FALSE_PER_MIN_TARGET", "baseline")
 TAP_TARGET_BASELINE = "previous_tap_thr085"
+# TAP soft labels (optional, OFF by default). Presses in TAP/SWIPE recordings that the labeller left UNKNOWN although
+# its tap teacher saw a sensor tap peak with score >= this value become training positives in their 0-80 ms onset
+# window, weighted by that score; their recall then also counts in the objective. Measured on the full data
+# (FEATURE_SELECTION_RESULTS.md, section 5): no gain in recall of ALL real pointer presses at a matched false rate,
+# +0.9-1.3 false events/min at 0.85 -> off. The reference recalls (strong / soft / press) are always reported.
+_soft = os.environ.get("MUDRA_TAP_SOFT_LABELS", "off").strip().lower()
+TAP_SOFT_MIN_SCORE = None if _soft in ("off", "0", "none", "") else float(_soft)
+TAP_ONSET_WINDOW_MS = (0, 80)        # the labeller's onset window (label_gestures.py P["TAP_WIN"])
+PRESS_WINDOW_MS = (150, 250)         # pointer-press reference: [min(press, onset) - 150, max(press, onset) + 250]
 TAP_TARGET_FALLBACK = 1.0
 LABEL_TAP = ROOT / "DATA" / "LABELS" / "DATA_TAP"
 LABEL_LP = ROOT / "DATA" / "LABELS" / "DATA_LONG_PRESS"
-OUTPUT = ROOT / "research" / "gesture" / ("results_unified_v3_feature_selection" if FEATURE_SELECTION
-                                          else "results_unified_v2")
+OUTPUT = ROOT / "research" / "gesture" / "results_unified_v3_feature_selection"
 PREVIOUS_UNIFIED = ROOT / "research" / "gesture" / "results_unified_20261117"
 CLAUDE_LABELER = ROOT / "claude_labeling" / "label_gestures.py"
 TRIALS_PER_MODEL = 40
@@ -197,7 +197,7 @@ TASKS = (
                 "timely releases and taps released"),
 )
 SAMPLE_KINDS = {0: "background", 1: "hard_near_press", 2: "hard_muscle_activity", 3: "positive",
-                4: "hold", 5: "release_after_press"}
+                4: "hold", 5: "release_after_press", 6: "positive_soft"}
 
 
 def task_threshold(task: str) -> float:
@@ -205,18 +205,14 @@ def task_threshold(task: str) -> float:
 
 
 def study_name(task: str) -> str:
-    """v2: the TAP name is exactly what earlier runs used (resumable); LP carries a non-default release
-    threshold. v3: every setting that changes the objective or the data is part of the name."""
-    if FEATURE_SELECTION:
-        name = (f"unified_v3_{task}_fs{FS.RANKER_VERSION}_lean8{int(USE_LEAN8)}"
-                f"_train{TRAIN_MIN_FRAMES}_eval{EVAL_MIN_FRAMES}")
-        if task == "tap":
-            name += f"_fpm{R.TAP_FALSE_PER_MIN_TARGET:.3f}"
-        else:
-            name += f"_rel{LP_RELEASE_THRESHOLD:.2f}"
-        return name
-    name = f"unified_v2_{task}_lean8{int(USE_LEAN8)}_min{LEAN8_MIN_FRAMES}"
-    if task == "lp" and LP_RELEASE_THRESHOLD != 0.85:
+    """Every setting that changes the objective or the data is part of the name."""
+    name = (f"unified_v3_{task}_fs{FS.RANKER_VERSION}_lean8{int(USE_LEAN8)}"
+            f"_train{TRAIN_MIN_FRAMES}_eval{EVAL_MIN_FRAMES}")
+    if task == "tap":
+        name += f"_fpm{R.TAP_FALSE_PER_MIN_TARGET:.3f}"
+        if TAP_SOFT_MIN_SCORE is not None:
+            name += f"_soft{TAP_SOFT_MIN_SCORE:.2f}"
+    else:
         name += f"_rel{LP_RELEASE_THRESHOLD:.2f}"
     return name
 
@@ -456,8 +452,8 @@ def near(t_ms: np.ndarray, times, window_ms: float) -> np.ndarray:
     return np.minimum(lo, hi) <= window_ms
 
 
-def sample_tap(t, y, active, ev):
-    """Return row indices and sample kind for the TAP training set."""
+def sample_tap(t, y, active, ev, soft=None):
+    """Return row indices and sample kind for the TAP training set (soft: rows that are soft positives)."""
     times = []
     if ev is not None and len(ev):
         for c in ("t_on", "t_ptr", "t_rel"):
@@ -471,6 +467,10 @@ def sample_tap(t, y, active, ev):
     kind = {}
     for idx, k in ((bg, 0), (act, 2), (hard, 1), (pos, 3)):        # later kinds win
         for i in idx: kind[int(i)] = k
+    if soft is not None:
+        for i in pos:
+            if soft[i]:
+                kind[int(i)] = 6
     rows = np.fromiter(kind.keys(), np.int64, len(kind)); order = np.argsort(rows)
     return rows[order], np.fromiter(kind.values(), np.int8, len(kind))[order]
 
@@ -510,7 +510,8 @@ def sample_lp(t, y, hold_ms, folder, ev):
 # ============================================================================ dataset + replay cache
 def _fingerprint(task, records, columns):
     h = hashlib.sha256()
-    h.update(json.dumps(dict(task=task, columns=columns, version=4, lean8=USE_LEAN8,
+    h.update(json.dumps(dict(task=task, columns=columns, version=5, lean8=USE_LEAN8,
+        soft=TAP_SOFT_MIN_SCORE if task == "tap" else None, onset_win=TAP_ONSET_WINDOW_MS, press_win=PRESS_WINDOW_MS,
         tap=[TAP_BACKGROUND_STRIDE_MS, TAP_HARD_WINDOW_MS, TAP_HARD_STRIDE_MS, TAP_ACTIVE_STRIDE_MS,
              TAP_POSITIVE_STRIDE_MS],
         lp=[LP_HOLD_STRIDE_MS, LP_EARLY_HOLD_MS, LP_RELEASE_WINDOW_MS, LP_TAP_RELEASE_WINDOW_MS,
@@ -550,7 +551,7 @@ def build_task_data(task: str, records, out: Path):
     events = {"tap": load_events(LABEL_TAP) if task == "tap" else None, "lp": load_events(LABEL_LP)}
     ncol = len(columns)
     raw = open(cache / "replay_X.f32", "wb"); nrep = 0
-    T = dict(X=[], y=[], kind=[], rec=[], t=[], frames=[])
+    T = dict(X=[], y=[], kind=[], rec=[], t=[], frames=[], w=[])
     recs = []          # per recording metadata
     rp_t, rp_lab, rp_frames = [], [], []
     windows = []       # LP press windows
@@ -577,8 +578,20 @@ def build_task_data(task: str, records, out: Path):
         if task == "lp" and folder in HOLD_FOLDERS and not (y == 0).any():
             info["hold_bags_without_confirmed_event"] += 1; continue
         ts = lab["Timestamp"].to_numpy(np.int64); t = (ts - ts[0]).astype(np.float64)
+        y_train, wrow, soft_rows, soft_ev = y, None, None, None
+        if (task == "tap" and TAP_SOFT_MIN_SCORE is not None and folder in TAP_FOLDERS
+                and ev is not None and len(ev)):
+            soft_ev = ev[(ev.type == "tap_press") & (ev.tier == "PRESS") & (ev.labeled == -1)
+                         & (pd.to_numeric(ev.score, errors="coerce") >= TAP_SOFT_MIN_SCORE)]
+            if "rule_disconnect" in soft_ev:
+                soft_ev = soft_ev[soft_ev.rule_disconnect.astype(str).str.lower() != "true"]
+            y_train = y.copy(); wrow = np.ones(len(y), np.float32); soft_rows = np.zeros(len(y), bool)
+            for x in soft_ev.itertuples():
+                m = (t >= x.t_on + TAP_ONSET_WINDOW_MS[0]) & (t <= x.t_on + TAP_ONSET_WINDOW_MS[1]) & (y == -1)
+                y_train[m] = 1; wrow[m] = float(x.score); soft_rows[m] = True
+            info["soft_label_presses"] += len(soft_ev)
         if task == "tap":
-            rows, kinds = sample_tap(t, y, lab["any_active"].to_numpy(np.int8), ev)
+            rows, kinds = sample_tap(t, y_train, lab["any_active"].to_numpy(np.int8), ev, soft_rows)
         else:
             rows, kinds = sample_lp(t, y, lab["hold_ms"].to_numpy(np.int32), folder, ev)
         source_cols = set(columns) | {"Timestamp", "User"}
@@ -605,8 +618,18 @@ def build_task_data(task: str, records, out: Path):
             start = nrep; raw.write(X.tobytes()); nrep += len(X)
             rp_t.append(t.astype(np.float32)); rp_lab.append(y); rp_frames.append(frames)
             if ev is not None and len(ev):
+                lo_on, hi_on = R.TAP_HIT_BEFORE_MS, R.TAP_HIT_AFTER_MS
                 for o in ev[(ev.type == "tap_press") & (ev.labeled == 1)].t_on.dropna():
-                    onsets.append((ri, float(o)))
+                    onsets.append((ri, float(o), "strong", float(o) - lo_on, float(o) + hi_on))
+                if soft_ev is not None:
+                    for o in soft_ev.t_on.dropna():
+                        onsets.append((ri, float(o), "soft", float(o) - lo_on, float(o) + hi_on))
+                if folder in TAP_FOLDERS:          # every real pointer press of a TAP/SWIPE recording (folder truth)
+                    pr = ev[(ev.type == "tap_press") & (ev.tier == "PRESS") & (ev.labeled != 0)]
+                    for x in pr.itertuples():
+                        a_ = np.nanmin([x.t_ptr, x.t_on]); b_ = np.nanmax([x.t_ptr, x.t_on])
+                        onsets.append((ri, float(x.t_on), "press", float(a_) - PRESS_WINDOW_MS[0],
+                                       float(b_) + PRESS_WINDOW_MS[1]))
             recs.append(dict(file=source.relative_to(ROOT).as_posix(), folder=folder, group=who,
                              start=start, end=nrep))
         else:
@@ -632,7 +655,8 @@ def build_task_data(task: str, records, out: Path):
                 nrep += b + 1 - a
         # ---- training sample
         if len(rows):
-            T["X"].append(X[rows]); T["y"].append(y[rows]); T["kind"].append(kinds)
+            T["X"].append(X[rows]); T["y"].append(y_train[rows]); T["kind"].append(kinds)
+            T["w"].append(wrow[rows] if wrow is not None else np.ones(len(rows), np.float32))
             T["rec"].append(np.full(len(rows), ri, np.int32)); T["t"].append(t[rows].astype(np.float32))
             T["frames"].append(frames[rows])
         info["read_sources"] += 1; info[folder + "_files"] += 1
@@ -644,33 +668,75 @@ def build_task_data(task: str, records, out: Path):
     rec_df = pd.DataFrame(recs)
     np.save(cache / "train_X.npy", np.concatenate(T["X"]).astype(np.float32))
     np.savez(cache / "train_meta.npz", y=np.concatenate(T["y"]), kind=np.concatenate(T["kind"]),
-             rec=np.concatenate(T["rec"]), t=np.concatenate(T["t"]), frames=np.concatenate(T["frames"]))
+             rec=np.concatenate(T["rec"]), t=np.concatenate(T["t"]), frames=np.concatenate(T["frames"]),
+             w=np.concatenate(T["w"]).astype(np.float32))
     np.savez(cache / "replay_meta.npz", t=np.concatenate(rp_t) if rp_t else np.zeros(0, np.float32),
              label=np.concatenate(rp_lab) if rp_lab else np.zeros(0, np.int8),
              frames=np.concatenate(rp_frames) if rp_frames else np.zeros(0, np.int32), n=nrep, ncol=ncol)
     rec_df.to_csv(cache / "recordings.csv", index=False)
     pd.DataFrame(windows, columns=["rec", "kind", "start", "end", "start_ms", "release_ms"]).to_csv(
         cache / "lp_windows.csv", index=False)
-    pd.DataFrame(onsets, columns=["rec", "t_on"]).to_csv(cache / "tap_onsets.csv", index=False)
+    pd.DataFrame(onsets, columns=["rec", "t_on", "kind", "lo", "hi"]).to_csv(cache / "tap_onsets.csv", index=False)
     write_json(cache / "info.json", dict(counts=dict(info), previous_content_sha256=previous_sha))
     write_json(stamp, dict(fingerprint=fp))
     return load_cache(cache, columns)
 
 
+def _objective_onsets(onsets):
+    """Onsets whose recall the objective counts: confirmed taps (+ rescued soft taps while soft labels are on)."""
+    if not len(onsets):
+        return {}
+    if "kind" not in onsets:
+        onsets = onsets.assign(kind="strong")
+    kinds = ["strong"] + (["soft"] if TAP_SOFT_MIN_SCORE is not None else [])
+    o = onsets[onsets.kind.isin(kinds)]
+    return {int(k): np.sort(g.t_on.to_numpy(float)) for k, g in o.groupby("rec")}
+
+
+def _reference_windows(onsets):
+    """Reported-only recall references: name -> rec -> (lo, hi) arrays (strong, soft, press)."""
+    if not len(onsets) or "kind" not in onsets:
+        return {}
+    out = {}
+    for name, g in onsets.groupby("kind"):
+        out[str(name)] = {int(r): (gg.lo.to_numpy(float), gg.hi.to_numpy(float))
+                          for r, gg in g.sort_values("lo").groupby("rec")}
+    return out
+
+
 def cache_content_sha(cache: Path) -> str:
-    """SHA-256 of the cache CONTENT: array bytes (not .npz zip timestamps), replay matrix, plan tables."""
+    """SHA-256 of the cache CONTENT that training and the objective see: array bytes (not .npz zip timestamps),
+    replay matrix, plan tables. Report-only additions are left out so that a study keeps resuming when only
+    they change: unit sample weights (soft labels off) and the reference windows of tap_onsets.csv. With soft
+    labels off the hash equals the one of the cache format before those additions."""
     h = hashlib.sha256()
     for npz in ("train_meta.npz", "replay_meta.npz"):
         with np.load(cache / npz) as z:
             for k in sorted(z.files):
                 a = np.ascontiguousarray(z[k])
+                if npz == "train_meta.npz" and k == "w" and bool((a == 1).all()):
+                    continue
                 h.update(f"{npz}:{k}:{a.dtype}:{a.shape}".encode()); h.update(a.tobytes())
     for name in ("train_X.npy", "replay_X.f32", "recordings.csv", "lp_windows.csv", "tap_onsets.csv"):
         h.update(name.encode())
+        if name == "tap_onsets.csv":
+            h.update(_objective_onsets_bytes(cache / name))
+            continue
         with open(cache / name, "rb") as f:
             for chunk in iter(lambda: f.read(1 << 24), b""):
                 h.update(chunk)
     return h.hexdigest()
+
+
+def _objective_onsets_bytes(path: Path) -> bytes:
+    """tap_onsets.csv as the objective sees it: confirmed onsets in the earlier two-column format, then the soft
+    onsets (if soft labels were on). The pointer-press reference rows are report-only."""
+    o = pd.read_csv(path)
+    if "kind" not in o:
+        return path.read_bytes()
+    text = o[o.kind == "strong"][["rec", "t_on"]].to_csv(index=False).encode()
+    soft = o[o.kind == "soft"]
+    return text + (soft.to_csv(index=False).encode() if len(soft) else b"")
 
 
 def load_cache(cache: Path, columns):
@@ -694,11 +760,12 @@ def load_cache(cache: Path, columns):
     data = dict(X=X, y=m["y"][gate].astype(np.int8), kind=m["kind"][gate], t=m["t"][gate], frames=m["frames"][gate],
                 group=recs.group.to_numpy(object)[rec], file=recs.file.to_numpy(object)[rec],
                 category=recs.folder.to_numpy(object)[rec], rec=rec,
-                w=np.ones(len(rec), np.float32), columns=list(columns), feature_sets=feature_sets(list(columns)))
+                w=(m["w"][gate].astype(np.float32) if "w" in m.files else np.ones(len(rec), np.float32)),
+                columns=list(columns), feature_sets=feature_sets(list(columns)))
     fr = rp["frames"]
     rpl = dict(X=replay_X, t=rp["t"], label=rp["label"], frames=fr,
                ready=fr >= EVAL_MIN_FRAMES, steady=fr >= LEAN8_STEADY_FRAMES, recs=recs, windows=windows,
-               onsets={int(k): g.t_on.to_numpy(float) for k, g in onsets.groupby("rec")} if len(onsets) else {})
+               onsets=_objective_onsets(onsets), extra=_reference_windows(onsets))
     info_all = json.loads((cache / "info.json").read_text())
     if "content_sha256" not in info_all:            # first use of this cache (or a cache from older code)
         t0 = time.perf_counter()
@@ -1022,8 +1089,14 @@ def prepare_tap_replay(rpl, groups):
             continue
         # Onsets before the gate opens cannot be detected by any model: not counted as misses.
         ons = np.asarray(rpl["onsets"].get(int(i), []), np.float64)
-        ons = ons[ons >= float(rpl["t"][a]) + R.TAP_HIT_BEFORE_MS]
-        items.append((a, b, r.folder, ons))
+        t_a = float(rpl["t"][a])
+        ons = ons[ons >= t_a + R.TAP_HIT_BEFORE_MS]
+        extra = {}
+        for name, per_rec in (rpl.get("extra") or {}).items():
+            lo, hi = per_rec.get(int(i), (np.zeros(0), np.zeros(0)))
+            keep = lo >= t_a
+            extra[name] = (lo[keep], hi[keep])
+        items.append((a, b, r.folder, ons, extra))
     return items
 
 
@@ -1044,13 +1117,13 @@ def prepare_lp_replay(rpl, groups):
 def replay_tap_items(prob_fn, rpl, items, selected):
     """prob_fn(X) -> dict name -> probability (or decision) arrays. Returns name -> TapCounts."""
     counts = {}
-    preds = _ranges_predict([prob_fn], rpl["X"], [(a, b) for a, b, _, _ in items], selected)
-    for (a, b, folder, ons), ((a_, b_), (outs,)) in zip(items, preds):
+    preds = _ranges_predict([prob_fn], rpl["X"], [(it[0], it[1]) for it in items], selected)
+    for (a, b, folder, ons, extra), ((a_, b_), (outs,)) in zip(items, preds):
         with CLOCK("replay_score"):
             for name, p in outs.items():
                 d = p if p.dtype == bool else (p >= FIXED_THRESHOLD)
                 R.tap_replay_recording(d, rpl["t"][a:b], rpl["label"][a:b], ons,
-                                       folder, counts.setdefault(name, R.TapCounts()))
+                                       folder, counts.setdefault(name, R.TapCounts()), extra=extra)
     return counts
 
 
@@ -1146,13 +1219,8 @@ def objective(trial, data, rpl, train_ids, task, budgets):
     t_start = time.perf_counter()
     CLOCK.reset()
     n_all = len(data["columns"])
-    if FEATURE_SELECTION:
-        n_features = trial.suggest_int("n_features", 1, n_all)
-        name = None
-        selected = list(range(n_all))
-    else:
-        name = trial.suggest_categorical("feature_set", list(data["feature_sets"]))
-        selected = [data["columns"].index(x) for x in data["feature_sets"][name]]
+    n_features = trial.suggest_int("n_features", 1, n_all)
+    selected = list(range(n_all))
     lo, hi = POSITIVE_WEIGHT[task]
     positive_weight = trial.suggest_float("positive_weight", lo, hi, log=True)
     params = suggest_params(trial, task)
@@ -1164,7 +1232,7 @@ def objective(trial, data, rpl, train_ids, task, budgets):
     with CLOCK("fold_prepare"):
         prepared = prepared_folds(data, rpl, train_ids, task)
     rankings = None
-    if FEATURE_SELECTION and n_features < n_all:
+    if n_features < n_all:
         with CLOCK("feature_ranking"):
             rankings = fold_rankings(data, rpl, train_ids, task)
     sel_index = np.asarray(selected, dtype=np.intp)
@@ -1216,12 +1284,9 @@ def objective(trial, data, rpl, train_ids, task, budgets):
         pooled["objective_score"] = float(np.mean(per_fold)) if per_fold else 0.0
         reports[str(bud)] = pooled
     trial.set_user_attr("training_params", params)
-    if FEATURE_SELECTION:
-        trial.set_user_attr("n_features", n_features)
-        trial.set_user_attr("selected_features_by_fold", selected_by_fold)
-        trial.set_user_attr("feature_ranker", FS.RANKER_VERSION)
-    else:
-        trial.set_user_attr("selected_features", list(data["feature_sets"][name]))
+    trial.set_user_attr("n_features", n_features)
+    trial.set_user_attr("selected_features_by_fold", selected_by_fold)
+    trial.set_user_attr("feature_ranker", FS.RANKER_VERSION)
     trial.set_user_attr("folds", folds)
     trial.set_user_attr("cv", reports)
     trial.set_user_attr("seconds", round(time.monotonic() - t0, 1))
@@ -1389,7 +1454,7 @@ def pick_trials(study, budgets):
 def promote(out: Path, stem: str, candidates, budgets):
     """Default header = best CV candidate inside the primary budget that did not fail on any CV fold
     (fold score 0: never fires / never releases for those people). The held-out people never influence the
-    choice; their C replay is an audit reported once (FEATURE_SELECTION plan, section 5.2)."""
+    choice; their C replay is an audit reported once (FEATURE_SELECTION_RESEARCH_AND_EXECUTION_PLAN.md, section 5.2)."""
     model_dir = out / "models"
     primary = [c for c in candidates if c["role"].startswith("rank_")]
     chosen, skipped = None, []
@@ -1418,7 +1483,7 @@ def export_candidates(data, rpl, task, stem, tr, te, picks, out: Path):
     """Phase 1: each candidate is trained WITHOUT the held-out people, exported and replayed as C on them;
     the held-out report is then frozen (written) before anything is fitted on the held-out people.
     Phase 2: final model on everyone, trimmed to the budget, exported with the stable API.
-    v3: the feature subset of phase 1 comes from a ranking fitted on the development people only; phase 2
+    The feature subset of phase 1 comes from a ranking fitted on the development people only; phase 2
     re-fits the ranking on everyone at the same (locked) K."""
     model_dir = out / "models"; model_dir.mkdir(parents=True, exist_ok=True)
     y = data["y"]; cols = data["columns"]
@@ -1426,14 +1491,12 @@ def export_candidates(data, rpl, task, stem, tr, te, picks, out: Path):
     every = np.arange(len(y))
     me = sys.modules[__name__]
     ranking_dev = ranking_all = None
-    if FEATURE_SELECTION and any(t.params["n_features"] < len(cols) for _, _, t in picks):
+    if any(t.params["n_features"] < len(cols) for _, _, t in picks):
         ranking_dev = FS.fit_fold_ranker(me, R, data, rpl, tr, task, seed=101, cache_dir=FS_CACHE_DIR,
                                          tap_target=R.TAP_FALSE_PER_MIN_TARGET, log=lambda *a: notice(*a))
         FS.validate_fold_local(ranking_dev, held)
 
     def subset_for(trial, ranking):
-        if not FEATURE_SELECTION:
-            return list(trial.user_attrs["selected_features"])
         k = int(trial.params["n_features"])
         return list(cols) if (k >= len(cols) or ranking is None) else [cols[j] for j in FS.select_top_k(ranking, k)]
 
@@ -1545,11 +1608,49 @@ def comparison_table(task, candidates, baselines):
         text += (f"\nSteady state only (rows after {LEAN8_STEADY_FRAMES} Lean-8 frames, ~10.8 s, "
                  "i.e. lean_8_features_ready()):\n\n"
                  + _comparison_rows(task, candidates, baselines, "holdout_c_header_steady_state", "holdout_steady_state"))
+    rows = acceptance(task, candidates, baselines)
+    if rows:
+        text += ("\nAcceptance of the default header against each replayed baseline, held-out people "
+                 "(PIPELINE.md; report only, the choice is made on CV):\n\n"
+                 "| Baseline | Metric | New | Baseline | Rule | Result |\n| --- | --- | --- | --- | --- | --- |\n"
+                 + "".join(f"| {r['baseline']} | {r['metric']} | {r['new']:.3f} | {r['baseline_value']:.3f} | "
+                           f"{r['rule']} | {'pass' if r['pass'] else '**review**'} |\n" for r in rows))
     return text
 
 
+# Go/no-go rules before a header goes into the firmware (PIPELINE.md): a new default should find the taps the
+# previous header found (one point of slack), without more false events (10% + 0.1/min slack), and LP should
+# keep holds, release on time and release taps at least as well.
+ACCEPTANCE = dict(tap=(("recall_press", "min", 0.01), ("recall", "min", 0.01), ("false_per_min", "max", None)),
+                  lp=(("hold_kept", "min", 0.0), ("timely_release", "min", 0.0), ("tap_released", "min", 0.0)))
+
+
+def acceptance(task, candidates, baselines):
+    """Report-only comparison of the default header with every replayed baseline on the held-out people."""
+    d = next((c for c in candidates if c.get("default")), None)
+    new = (d or {}).get("holdout_c_header") or {}
+    rows = []
+    for b in baselines:
+        old = b.get("holdout") or {}
+        if b.get("status") != "replayed" or not new or not old:
+            continue
+        for metric, kind, slack in ACCEPTANCE[task]:
+            a, z = new.get(metric), old.get(metric)
+            if a is None or z is None or a != a or z != z:
+                continue
+            if kind == "min":
+                ok, rule = a >= z - slack, f">= baseline - {slack:g}"
+            else:
+                ok, rule = a <= z * 1.1 + 0.1, "<= baseline x 1.1 + 0.1"
+            rows.append(dict(baseline=b["name"], metric=metric, new=float(a), baseline_value=float(z), rule=rule,
+                             **{"pass": bool(ok)}))
+    return rows
+
+
 def _comparison_rows(task, candidates, baselines, ckey, bkey):
-    key = (["recall", "false_per_min", "latency_ms_median", "objective_score"] if task == "tap"
+    # recall = confirmed taps (the objective); recall_press = every real pointer press of the TAP/SWIPE recordings,
+    # a reference that does not depend on the labeller (FEATURE_SELECTION_RESULTS.md, section 5).
+    key = (["recall", "recall_press", "false_per_min", "latency_ms_median", "objective_score"] if task == "tap"
            else ["hold_kept", "timely_release", "tap_released", "release_latency_ms_median", "objective_score"])
     head = "| Model | Bytes | " + " | ".join(key) + " |\n|" + " --- |" * (len(key) + 2) + "\n"
     fmt = lambda v: "-" if v is None or (isinstance(v, float) and v != v) else (f"{v:.3f}" if isinstance(v, float) else str(v))
@@ -1557,7 +1658,7 @@ def _comparison_rows(task, candidates, baselines, ckey, bkey):
     for c in candidates:
         h = c.get(ckey) or {}
         mark = " **default**" if c.get("default") else ""
-        kk = f", K={c['n_features']}" if FEATURE_SELECTION and c.get("n_features") else ""
+        kk = f", K={c['n_features']}" if c.get("n_features") else ""
         lines.append(f"| new {c['role']} (trial {c['trial']}{kk}){mark} | {c['static_bytes']} | " + " | ".join(fmt(h.get(k)) for k in key) + " |")
     for b in baselines:
         h = b.get(bkey) or {}
@@ -1738,11 +1839,11 @@ def write_run_manifest(out: Path, task, data, budgets, study):
                     cache_fingerprint=json.loads(fp_file.read_text()).get("fingerprint") if fp_file.is_file() else None,
                     data_content=data.get("content_sha256")),
         study=dict(name=study.study_name, trials=len(study.trials), requested=TRIALS_PER_MODEL, folds=CV_FOLDS),
-        feature_sets=list(data["feature_sets"]), budgets_bytes=budgets, threshold=task_threshold(task),
-        experiment=EXPERIMENT, frame_gates=dict(train=TRAIN_MIN_FRAMES, eval=EVAL_MIN_FRAMES, steady=LEAN8_STEADY_FRAMES),
+        budgets_bytes=budgets, threshold=task_threshold(task),
+        experiment=EXPERIMENT, tap_soft_labels=TAP_SOFT_MIN_SCORE if task == "tap" else None, frame_gates=dict(train=TRAIN_MIN_FRAMES, eval=EVAL_MIN_FRAMES, steady=LEAN8_STEADY_FRAMES),
         tap_false_per_min_target=R.TAP_FALSE_PER_MIN_TARGET if task == "tap" else None,
         feature_ranker=dict(version=FS.RANKER_VERSION, inner_folds=FS.INNER_FOLDS, screen=FS.SCREEN_PARAMS,
-                            repeats=[FS.REPEATS_FEATURE, FS.REPEATS_GROUP]) if FEATURE_SELECTION else None,
+                            repeats=[FS.REPEATS_FEATURE, FS.REPEATS_GROUP]),
         lean8=lean8_setting(), search=dict(n_estimators=N_ESTIMATORS, max_depth=MAX_DEPTH, num_leaves=NUM_LEAVES,
                                            learning_rate=LEARNING_RATE, min_child_samples=MIN_CHILD_SAMPLES,
                                            positive_weight=POSITIVE_WEIGHT[task]),
@@ -1763,12 +1864,8 @@ def same_lean8_setting(saved) -> bool:
 
 
 def lean8_setting():
-    if FEATURE_SELECTION:
-        return dict(enabled=USE_LEAN8, train_min_frames=TRAIN_MIN_FRAMES if USE_LEAN8 else None,
-                    eval_min_frames=EVAL_MIN_FRAMES if USE_LEAN8 else None,
-                    steady_frames=LEAN8_STEADY_FRAMES if USE_LEAN8 else None,
-                    generator_sha256=lean8.GENERATOR_SHA if USE_LEAN8 else None)
-    return dict(enabled=USE_LEAN8, min_frames=LEAN8_MIN_FRAMES if USE_LEAN8 else None,
+    return dict(enabled=USE_LEAN8, train_min_frames=TRAIN_MIN_FRAMES if USE_LEAN8 else None,
+                eval_min_frames=EVAL_MIN_FRAMES if USE_LEAN8 else None,
                 steady_frames=LEAN8_STEADY_FRAMES if USE_LEAN8 else None,
                 generator_sha256=lean8.GENERATOR_SHA if USE_LEAN8 else None)
 
@@ -1785,14 +1882,14 @@ def train_task(task: str, tap_files, lp_files):
         saved = json.loads(summary_file.read_text())
         if (saved.get("status") == "success" and saved.get("fixed_threshold") == task_threshold(task)
                 and saved.get("budgets") == budgets and same_lean8_setting(saved.get("lean8"))
-                and saved.get("experiment", "v2") == EXPERIMENT
-                and (task != "tap" or not FEATURE_SELECTION
-                     or (saved.get("tap_target") or {}).get("setting") == TAP_TARGET_SETTING.strip().lower())
+                and saved.get("experiment") == EXPERIMENT
+                and (task != "tap" or ((saved.get("tap_target") or {}).get("setting") == TAP_TARGET_SETTING.strip().lower()
+                                       and saved.get("tap_soft_labels") == TAP_SOFT_MIN_SCORE))
                 and (out / "models" / (stem + ".h")).is_file()):
             notice("UNIFIED_COMPLETE_REUSED", task, str(out))
             return saved
-        raise ValueError("Existing output does not match this configuration (threshold, budgets or Lean-8 "
-                         "settings changed); move it away to start a new experiment: " + str(out))
+        raise ValueError("Existing output does not match this configuration (threshold, budgets, frame gates, "
+                         "TAP target or soft labels changed); move it away to start a new experiment: " + str(out))
     out.mkdir(parents=True, exist_ok=True)
     data, rpl, info = build_task_data(task, selected_sources(task, tap_files, lp_files), out)
     tr, te = split_heldout(data, task)
@@ -1824,8 +1921,8 @@ def train_task(task: str, tap_files, lp_files):
         # A known-good anchor (the research student) and a deep-tree anchor, inside the budget.
         # LP anchors start at a release weight that puts the replay optimum near the release threshold.
         pw0 = LP_ANCHOR_POSITIVE_WEIGHT if task == "lp" else 1.0
-        # v3: both anchors are the all-feature control (K = every available field).
-        fsel = dict(n_features=len(data["columns"])) if FEATURE_SELECTION else dict(feature_set="all_available")
+        # Both anchors are the all-feature control (K = every available field).
+        fsel = dict(n_features=len(data["columns"]))
         study.enqueue_trial(dict(**fsel, positive_weight=pw0, max_depth=6, num_leaves=15,
                                  n_estimators=160, learning_rate=0.1, min_child_samples=100, reg_lambda=1.0,
                                  reg_alpha=1e-3, colsample_bytree=0.8, subsample=0.8))
@@ -1845,7 +1942,7 @@ def train_task(task: str, tap_files, lp_files):
                        "tap_released": c["tap_released"]}),
                    "bytes": trial.user_attrs[f"max_bytes_{budgets[0]}"], "seconds": trial.user_attrs["seconds"],
                    "leaves": trial.user_attrs["training_params"]["num_leaves"],
-                   **({"K": trial.user_attrs["n_features"]} if FEATURE_SELECTION else {}),
+                   "K": trial.user_attrs["n_features"],
                    "depth": trial.user_attrs["training_params"]["max_depth"]}))
             return z
         study.optimize(fn, n_trials=1, n_jobs=1, show_progress_bar=False, catch=())
@@ -1855,7 +1952,7 @@ def train_task(task: str, tap_files, lp_files):
     for c in candidates:
         c["default"] = c is default
     baselines = replay_baselines(task, data, rpl, te, out)
-    fs_report = write_fs_reports(out, task, data, study, candidates, default) if FEATURE_SELECTION else None
+    fs_report = write_fs_reports(out, task, data, study, candidates, default)
     table = comparison_table(task, candidates, baselines)
     (out / "COMPARISON.md").write_text(f"# {task}: held-out people, replayed through the C headers\n\n" + table)
     notice(table)
@@ -1869,6 +1966,8 @@ def train_task(task: str, tap_files, lp_files):
                    class_zero=definition["class_zero"], fixed_threshold=task_threshold(task), threshold_tuned=False,
                    budgets=budgets, lean8=lean8_setting(), selected=default, skipped=skipped, candidates=candidates,
                    baselines=baselines, experiment=EXPERIMENT, tap_target=target_info, feature_selection=fs_report,
+                   tap_soft_labels=TAP_SOFT_MIN_SCORE if task == "tap" else None,
+                   acceptance=acceptance(task, candidates, baselines),
                    trials=len(done), pruned=len([t for t in study.trials if t.state == optuna.trial.TrialState.PRUNED]),
                    dataset=dict(train_rows=int(len(data["y"])), replay_rows=int(len(rpl["X"])),
                                 recordings=int(len(rpl["recs"])), subjects=len(set(data["group"])), counts=info),
@@ -1896,7 +1995,8 @@ def main():
     b = train_task("lp", files_t, files_l)
     write_json(OUTPUT / "UNIFIED_SUMMARY.json",
                dict(status="success", tap=a, lp=b, elapsed_s=round(time.monotonic() - t0, 1), baseline_unchanged=True,
-                    lean8=dict(enabled=USE_LEAN8, min_frames=LEAN8_MIN_FRAMES, steady_frames=LEAN8_STEADY_FRAMES,
+                    lean8=dict(enabled=USE_LEAN8, train_min_frames=TRAIN_MIN_FRAMES, eval_min_frames=EVAL_MIN_FRAMES,
+                               steady_frames=LEAN8_STEADY_FRAMES,
                                firmware_parity=(lean8_manifest or {}).get("firmware_parity"),
                                generator_sha256=(lean8_manifest or {}).get("generator_sha256"))))
     comp = "".join((OUTPUT / t / "COMPARISON.md").read_text() + "\n" for t in ("tap", "lp"))

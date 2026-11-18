@@ -1,4 +1,6 @@
-# Unified TAP/SWIPE + LONG PRESS trainer (v2, 2026-11-18)
+# Unified TAP/SWIPE + LONG PRESS trainer (2026-11-18)
+
+**Start with `PIPELINE.md`**: one page on what runs, what is checked and what still needs outside data.
 
 Run from the repository root:
 
@@ -10,36 +12,33 @@ There are no command-line flags. The script:
 1. Refreshes the firmware Lean-8 features (`generate_lean8_features.py`, incremental, bit-exact with the
    firmware handler; see **LEAN8_UNIFIED_WORKFLOW.md**).
 2. Reuses or generates Claude's unified labels (`claude_labeling/label_gestures.py`).
-3. Trains two separate binary LightGBM models with Optuna on raw126 and/or Lean-8 fields.
+3. Trains two separate binary LightGBM models with Optuna, choosing among all 150 firmware fields.
 4. Exports C headers with the stable firmware API:
 
-    research/gesture/results_unified_v2/tap/models/TAP_SWIPE.h
-    research/gesture/results_unified_v2/lp/models/LONG_PRESS.h
-    research/gesture/results_unified_v2/COMPARISON.md        <- new models vs baselines, held-out people
+    research/gesture/results_unified_v3_feature_selection/tap/models/TAP_SWIPE.h
+    research/gesture/results_unified_v3_feature_selection/lp/models/LONG_PRESS.h
+    research/gesture/results_unified_v3_feature_selection/COMPARISON.md   <- new models vs baselines, held-out people
 
-## v3 (default): learned feature selection
+## How models are searched and chosen
 
-`python -u research/gesture/train_unified.py` runs the **v3** experiment
-(`FEATURE_SELECTION_RESEARCH_AND_EXECUTION_PLAN.md`; evidence in `FEATURE_SELECTION_RESULTS.md`). Set
-`MUDRA_EXPERIMENT=v2` for the earlier feature-set menu; its outputs and studies are untouched and still
-resumable.
+The design is in `FEATURE_SELECTION_RESEARCH_AND_EXECUTION_PLAN.md`; the evidence is in
+`FEATURE_SELECTION_RESULTS.md`. The earlier feature-set menu ("v2") was removed once its study finished; it
+is in git history (commit 53e3e83d), and `MUDRA_EXPERIMENT=v2` now stops with that message.
 
-What changes in v3:
-
-| | v2 | v3 |
-|---|---|---|
-| Features | Optuna picks one of a hand-written menu of sets | Optuna picks an integer **K = 1…150** over all available firmware fields; each CV fold uses its own ranking, learned from that fold's training people only (`feature_selection.py`) |
-| Rows scored | from Lean-8 frame 50 | from frame **500** = `lean_8_features_ready()`, the rows on which the firmware runs the models (`MUDRA_EVAL_MIN_FRAMES`) |
-| Training rows | from frame 50 | from frame 50 by default (`MUDRA_TRAIN_MIN_FRAMES`, see the results) |
-| TAP false-event budget | 1 per minute | the previous production TAP header's false rate on the development people (`MUDRA_TAP_FALSE_PER_MIN_TARGET=baseline`, or a number) |
-| Default model | could skip candidates that failed on the held-out people | chosen on CV only; the held-out report is written once, before anything is fitted on those people (`holdout_report.json`) |
-| Production model | refit on everyone | ranking refitted on everyone at the locked K, then refit |
-| Starting trials | – | K = all fields (all-feature control) |
+| | |
+|---|---|
+| Features | Optuna picks an integer **K = 1…150** over all available firmware fields; each CV fold uses its own ranking, learned from that fold's training people only (`feature_selection.py`). Both starting trials use K = all fields. |
+| Rows scored | from Lean-8 frame **500** = `lean_8_features_ready()`, the rows on which the firmware runs the models (`MUDRA_EVAL_MIN_FRAMES`) |
+| Training rows | from frame 50 (`MUDRA_TRAIN_MIN_FRAMES`); the warm-up rows still help (results, §2) |
+| TAP false-event budget | the previous production TAP header's false rate on the development people (`MUDRA_TAP_FALSE_PER_MIN_TARGET=baseline`, or a number). A fixed 1/min made the search give up ~25% of taps. |
+| TAP labels | confirmed taps only. Soft labels (`MUDRA_TAP_SOFT_LABELS`) are off: measured, they do not help (results, §5). |
+| Default model | chosen on CV only; the held-out report is written once, before anything is fitted on those people (`holdout_report.json`) |
+| Production model | ranking refitted on everyone at the locked K, then refit |
 
 The ranking method:
 
-1. Build correlation clusters from the training rows: Spearman |ρ|, average linkage, cut chosen by
-   silhouette.
+1. Build correlation clusters from the training rows: Spearman |ρ|, complete linkage, cut chosen by
+   silhouette among strong-correlation cuts (|ρ| ≥ 0.7).
 2. Run an inner person-grouped cross-fit. In each split, train a screening LightGBM on all fields.
 3. For each feature and each cluster (shifted jointly), apply a **within-recording circular shift** and
    measure the drop in the firmware replay score. The operating point is fixed from the unperturbed
@@ -56,7 +55,7 @@ Outputs (`results_unified_v3_feature_selection/<task>/`):
 - `correlation_clusters.json`, `selection_stability.json` (Nogueira), `selected_features_by_trial.json`,
   `final_selected_features.json`, `report.md`.
 - `holdout_report.json`.
-- The same model outputs as v2.
+- `models/`, `COMPARISON.md`, `summary.json`, `run_manifest.json`, `timing.jsonl` (below).
 
 Cost of the rankings: one ranking per CV fold, plus a development and a final ranking, five per task.
 Each runs about 250 replay perturbations on its validation people. On the 2-CPU research box a TAP fold
@@ -64,9 +63,9 @@ ranking took 26–31 min and an LP fold ranking about 12 min. On the server the 
 threads, and the single-threaded replay scoring then dominates. Rankings are cached
 (`feature_selection/cache/`) and computed only when Optuna first tries K < all fields.
 
-## Why v2 (what was wrong with v1)
+## What the unified trainer fixed (v1 → v2, kept since)
 
-| v1 | Effect | v2 |
+| v1 | Effect | Now |
 |---|---|---|
 | Optuna minimized model bytes as a second objective, and the default was "smallest within 0.015 of best" | Always shipped the smallest model | Performance first, inside a byte **budget** (default 32 KB, alternative 24 KB) |
 | At most 45 training rows per class per recording | Hard negatives (finger/wrist/band motion) barely seen | ~1.0 M TAP / ~0.77 M LP rows, with explicit hard negatives |
@@ -188,16 +187,15 @@ Environment variables:
 | `MUDRA_TAP_BASELINE_HEADER` | `research/tap_real/results_claude_v2_optuna_126_thr085/models/TAP_SWIPE.h` | previous successful TAP model |
 | `MUDRA_LP_V20_HEADER` | not set | **LP v20 header; set this to get the v20 comparison** |
 | `MUDRA_USE_LEAN8` | 1 | 0 = raw126 only, read straight from the raw recordings |
-| `MUDRA_LEAN8_MIN_FRAMES` | 50 | rows are used once the Lean-8 handler has run this many EMG frames (~1.1 s); 500 = `lean_8_features_ready()` (~10.8 s, keeps only ~14% of taps) |
 | `MUDRA_LEAN8_FIRMWARE_HEADER` | `research/gesture/_lean8_reference/core_type_def.h` | firmware header for the C parity check (git-ignored; public repo) |
 | `MUDRA_LEAN8_PARITY_FILES` | 24 | recordings compared with the firmware C code on each generation (0 = off) |
 | `MUDRA_LEAN8_VERIFY_SOURCE_SHA` | 0 | 1 = also SHA-256 every source recording before reusing its derived file (size + mtime is the default check) |
 | `MUDRA_LP_RELEASE_THRESHOLD` | 0.5 | firmware LP release threshold on the 10-sample Q20 mean; part of the LP study name |
 | `MUDRA_LP_BASELINE_THRESHOLD` | 0.85 | release threshold used to replay the LP baselines |
-| `MUDRA_EXPERIMENT` | v3 | v3 = learned feature selection; v2 = earlier feature-set menu |
-| `MUDRA_EVAL_MIN_FRAMES` | 500 (v3) | rows scored and ranked = rows the firmware runs the models on |
-| `MUDRA_TRAIN_MIN_FRAMES` | 50 (v3) | rows used as training examples |
-| `MUDRA_TAP_FALSE_PER_MIN_TARGET` | baseline (v3), 1.0 (v2) | TAP false-event budget: `baseline` = previous TAP header's rate on the development people, or a number |
+| `MUDRA_EVAL_MIN_FRAMES` | 500 | rows scored and ranked = rows the firmware runs the models on (`lean_8_features_ready()`) |
+| `MUDRA_TRAIN_MIN_FRAMES` | 50 | rows used as training examples, counted in Lean-8 frames (~1.1 s); the older name `MUDRA_LEAN8_MIN_FRAMES` is still read |
+| `MUDRA_TAP_FALSE_PER_MIN_TARGET` | baseline | TAP false-event budget: `baseline` = previous TAP header's rate on the development people, or a number |
+| `MUDRA_TAP_SOFT_LABELS` | off | a teacher score (e.g. 0.5): unconfirmed taps with at least that score become weighted positives and count in the objective. Measured not to help; part of the TAP study name when set |
 | `MUDRA_CPU_THREADS` | 80% of CPUs | LightGBM threads; does not change the models (deterministic=True). Choose with `bench_unified.py threads` |
 
 ## Selection and outputs
@@ -207,19 +205,19 @@ Environment variables:
   - TAP anchors use positive weight 1.
   - LP anchors use 0.02 at a 0.5 release threshold. Measured: the LP replay optimum sits at threshold
     1.0 / 0.95 / 0.85 / 0.7 for weights 6 / 1.5 / 0.2 / 0.05.
-- Study names:
-  - TAP: `unified_v2_tap_lean81_min50`, unchanged, so a running study resumes.
-  - LP: `unified_v2_lp_lean81_min50_rel0.50`. It carries the release threshold, so an LP study run at
-    0.85 is never resumed under 0.5.
+- Study names carry every setting that changes the objective or the data, so a study is never resumed under
+  other settings: `unified_v3_tap_fsfs-2_lean81_train50_eval500_fpm<target>` (plus `_soft<score>` when soft
+  labels are on) and `unified_v3_lp_fsfs-2_lean81_train50_eval500_rel0.50`.
 - The top 5 by CV score inside the primary budget, plus the best inside 24 KB, are exported. For each one:
   - It is refit without the held-out people (22%, never used for CV).
   - It is exported to C and replayed **through the compiled header**, with C-vs-Python parity checked.
   - It is then refit on everyone, trimmed and exported.
-- **Default** = the best CV candidate whose held-out C replay is not a failure (it fires / releases on
-  unseen people). Skipped candidates and the reason are listed in `summary.json`.
+- **Default** = the best CV candidate that did not fail on any CV fold (fold score 0: never fires / never
+  releases for those people). The held-out people never influence the choice. Skipped candidates and the
+  reason are listed in `summary.json`.
 
 ```
-results_unified_v2/
+results_unified_v3_feature_selection/
   COMPARISON.md, UNIFIED_SUMMARY.json
   tap/ and lp/
     models/TAP_SWIPE.h (LONG_PRESS.h)        default, stable API
@@ -247,8 +245,11 @@ On start the trainer:
 - If the cache is rebuilt, hashes the old cache first and logs whether the rebuild is identical
   (`UNIFIED_CACHE_REBUILD identical content`).
 
-The TAP study name, search space, feature sets, seeds, sampler and pruner are unchanged, so Optuna
-continues the same 40-trial study.
+The content hash covers only what training and the objective see. Report-only additions (unit sample
+weights, the pointer-press reference windows in `tap_onsets.csv`) are left out, so a study started on
+commit 53e3e83d resumes after this update: on a 1/25 subset the old and the new cache give the same hash for
+TAP and LP, and the smoke test checks it (`CACHE_HASH_COMPAT_OK`). The study names, search space, seeds,
+sampler and pruner are unchanged, so Optuna continues the same 40-trial study.
 
 ## Baselines (read-only)
 
@@ -278,7 +279,8 @@ All the details are in `LEAN8_UNIFIED_WORKFLOW.md`.
 | `raw126_lean8_instant12` | raw126 + `lw`, `Pm`, `r01`, `r32` (no history, so no warm-up effect) |
 | `all_available` | all 150 |
 
-- Rows are used from frame `MUDRA_LEAN8_MIN_FRAMES` (default 50) on.
+- Training rows are used from frame `MUDRA_TRAIN_MIN_FRAMES` (default 50) on; rows are scored from
+  `MUDRA_EVAL_MIN_FRAMES` (default 500).
 - `COMPARISON.md` has a second table: held-out C replay on rows after 500 frames, the firmware's
   `lean_8_features_ready()` steady state.
 - Exported headers are compile-checked against a synthetic `t_core` that includes `cload_lean_8`.
@@ -315,15 +317,18 @@ rerunning continues the sqlite study.
 `TRAINING_PERFORMANCE_OPTIMIZATION_PLAN.md`. Its implementation status and results are at the top of
 that file.
 
-    python research/gesture/bench_unified.py run tap new.json [--study results_unified_v2/tap/optuna_study.sqlite3 --limit 5]
+    python research/gesture/bench_unified.py run tap new.json [--study results_unified_v3_feature_selection/tap/optuna_study.sqlite3 --limit 5]
     python research/gesture/bench_unified.py compare old.json new.json      # ALL_EQUIVALENT or a list of mismatches
     python research/gesture/bench_unified.py stages tap                     # old vs optimized time per changed stage
     python research/gesture/bench_unified.py threads tap 8,16,24,32,48,64,76  # time + exact-model check per thread count
 
 ## Limitations
 
-- Labels are offline silver labels (teacher + PointerState fusion), not physical truth.
-- The replay timing rules above are assumptions about the firmware.
+- Labels are offline silver labels (teacher + PointerState fusion), not physical truth. TAP reports also give
+  `recall_press`: recall of every real pointer press in the TAP/SWIPE recordings, which does not depend on
+  the labeller (but uses a wide window, so it does not grade timing).
+- The replay timing rules above are assumptions about the firmware. No model comparison changes under other
+  rules (results, §6), but absolute numbers do: confirm them with `validate_events.py` on a firmware log.
 - C replay uses a synthetic all-float `t_core`, not the nRF52832 ABI. Build the chosen headers in the
   real firmware before field tests.
 

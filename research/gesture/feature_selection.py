@@ -122,7 +122,10 @@ class InnerReplay:
                         continue
                     a = int(nz[0])
                 ons = it[3] if a == 0 else it[3][it[3] >= t[a] + R.TAP_HIT_BEFORE_MS]
-                R.tap_replay_recording(p[s + a:e] >= threshold, t[a:], lab[a:], ons, it[2], c)
+                extra = it[4] if len(it) > 4 else None
+                if extra and a:
+                    extra = {k: (lo[lo >= t[a]], hi[lo >= t[a]]) for k, (lo, hi) in extra.items()}
+                R.tap_replay_recording(p[s + a:e] >= threshold, t[a:], lab[a:], ons, it[2], c, extra=extra)
             return c.report(target=self.target) if c.onsets else None
         c = R.LpCounts()
         q = R.q20(p)

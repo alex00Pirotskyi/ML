@@ -5,6 +5,9 @@ the 22% person holdout is never touched).
     python research/gesture/fs_research.py gate tap|lp     # train frame gate 50 vs 500, scored on all usable and steady rows
     python research/gesture/fs_research.py rank tap|lp     # fold-local nested rankings for the 3 trainer CV folds
     python research/gesture/fs_research.py kcurve tap|lp   # fixed-config models at K = 5..150 from each fold's ranking
+    python research/gesture/fs_research.py soft tap        # confirmed-only vs soft-label TAP training (needs
+                                                           # MUDRA_TAP_SOFT_LABELS=<min score> for the soft cache)
+    python research/gesture/fs_research.py rules tap|lp    # do the model comparisons survive other replay rules?
 
 Environment: MUDRA_BENCH_LABEL_ROOT / MUDRA_BENCH_OUT (as bench_unified.py), MUDRA_FS_OUT (results).
 Analysis-only threshold sweeps are reported next to the firmware threshold; nothing here tunes a threshold.
@@ -22,9 +25,10 @@ from sklearn.model_selection import GroupKFold
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-# These experiments define their own gates (rows from frame 50 are usable; steady = frame 500 reported
-# separately) and their own operating points: run the trainer module in its v2 data semantics.
-os.environ.setdefault("MUDRA_EXPERIMENT", "v2")
+# These experiments define their own gates: rows from frame 50 are both trained on and scored ("usable");
+# steady rows (frame >= 500, the firmware gate) are reported separately. TAP target 1.0 unless set.
+os.environ.setdefault("MUDRA_TRAIN_MIN_FRAMES", "50")
+os.environ.setdefault("MUDRA_EVAL_MIN_FRAMES", "50")
 import bench_unified as B          # noqa: E402
 import train_unified as g          # noqa: E402
 import replay as R                 # noqa: E402
@@ -93,7 +97,7 @@ def gate(task):
         trn = tr[a]; val = set(data["group"][tr[b]])
         ev = FS.InnerReplay(g, R, rpl, val, task, R.TAP_FALSE_PER_MIN_TARGET)
         for name, sel in sets.items():
-            for gmin in (g.LEAN8_MIN_FRAMES, g.LEAN8_STEADY_FRAMES):
+            for gmin in (g.TRAIN_MIN_FRAMES, g.LEAN8_STEADY_FRAMES):
                 rows = trn[data["frames"][trn] >= gmin]
                 t0 = time.perf_counter()
                 m, k, size = fit(data, rows, sel, task, budgets[0])
@@ -152,6 +156,113 @@ def kcurve(task):
                 steady=round(r["steady_rows"]["best"]["objective_score"], 4))))
         del ev
     write(f"kcurve_{task}.json", dict(task=task, config=CONFIG, positive_weight=PW[task], results=res))
+
+
+def soft(task="tap"):
+    """Soft-label rescue: strong-only vs strong + soft (weight = teacher score) vs strong + soft (weight 1).
+    Same people, folds, configuration (all fields). Recall is reported separately for confirmed taps (strong),
+    rescued soft taps (soft) and every real pointer press of the TAP/SWIPE recordings (press: independent of
+    the teacher's decisions). False events are counted only on trusted-negative rows, identical for all."""
+    assert task == "tap" and g.TAP_SOFT_MIN_SCORE is not None, "run with MUDRA_TAP_SOFT_LABELS set"
+    data, rpl, tr, te, budgets, folds = setup(task)
+    sel = list(range(len(data["columns"])))
+    soft_rows = data["kind"] == 6
+    variants = {"strong_only": (~soft_rows, data["w"] * 0 + 1),
+                "soft_weighted": (np.ones(len(soft_rows), bool), data["w"]),
+                "soft_full": (np.ones(len(soft_rows), bool), np.ones_like(data["w"]))}
+    only = os.environ.get("MUDRA_FS_VARIANTS")
+    res = {}
+    for f, (a, b) in enumerate(folds):
+        trn = tr[a]; val = set(data["group"][tr[b]])
+        ev = FS.InnerReplay(g, R, rpl, val, task, R.TAP_FALSE_PER_MIN_TARGET)
+        for name, (mask, w) in variants.items():
+            if only and name not in only.split(","):
+                continue
+            rows = trn[mask[trn]]
+            t0 = time.perf_counter()
+            dv = dict(data, w=w)
+            params = dict(CONFIG, n_jobs=g.CPU_THREADS, random_state=g.SEED)
+            m = g.fit_model(data["X"][rows], data["y"][rows], g.weights_for_task(dv, rows, task, PW[task]), params, budgets[0])
+            k, size = g.trees_within(m, budgets[0])
+            p = ev.probabilities(m, None, k)
+            out = {}
+            for view, rows_mask in (("usable", None), ("steady", ev.steady)):
+                reps = {thr: ev.report(p, thr, rows_mask) for thr in FS.TAP_GRID}
+                at = reps[0.85]
+                o = dict(at_085={k_: at.get(k_) for k_ in ("recall_strong", "recall_soft", "recall_press", "false_per_min",
+                                                          "n_strong", "n_soft", "n_press")},
+                         per_folder_fpm_085={k_: v["false_per_min"] for k_, v in at["per_folder"].items()})
+                for tgt in (1, 2, 3, 5):
+                    ok = {thr: r for thr, r in reps.items() if r["false_per_min"] <= tgt}
+                    if ok:
+                        thr = max(ok, key=lambda q: ok[q]["recall_press"])
+                        o[f"fpm_le_{tgt}"] = dict(threshold=thr, **{k_: ok[thr][k_] for k_ in
+                                                  ("recall_strong", "recall_soft", "recall_press", "false_per_min")})
+                out[view] = o
+            r = dict(train_rows=int(len(rows)), soft_rows=int(soft_rows[rows].sum()), trees=k, bytes=size,
+                     seconds=round(time.perf_counter() - t0, 1), **out)
+            res.setdefault(name, []).append(r)
+            u = r["steady"]
+            log("FS_SOFT", f, name, json.dumps(dict(
+                at085={k_: round(v, 3) for k_, v in u["at_085"].items() if isinstance(v, float)},
+                fpm2={k_: round(v, 3) for k_, v in (u.get("fpm_le_2") or {}).items() if isinstance(v, float)})))
+        del ev
+        write(f"soft_{task}.json", dict(task=task, config=CONFIG, positive_weight=PW[task],
+                                        soft_min_score=g.TAP_SOFT_MIN_SCORE, folds_done=f + 1, results=res))
+
+
+TAP_RULES = [dict(TAP_REFRACTORY_MS=r, TAP_HIT_BEFORE_MS=b_, TAP_HIT_AFTER_MS=a_)
+             for r in (100, 150, 250) for b_, a_ in ((50, 150), (100, 250), (150, 400))]
+LP_RULES = [dict(LP_PREMATURE_MARGIN_MS=m, LP_RELEASE_OK_MS=o, LP_LONG_PRESS_AFTER_MS=l)
+            for m in (150, 250, 400) for o in (300, 500, 800) for l in (400, 600)]
+
+
+def rules(task):
+    """Do the conclusions depend on the assumed firmware replay rules? The same trained models are re-scored
+    under a grid of alternative rules; the model ordering and the size of the differences are reported."""
+    data, rpl, tr, te, budgets, folds = setup(task)
+    cols = data["columns"]
+    allf = list(range(len(cols))); raw = [cols.index(c) for c in data["feature_sets"]["raw126"]]
+    kind = data["kind"]
+    models = {"all150": (allf, kind != 6, None), "raw126": (raw, kind != 6, None)}
+    if task == "tap" and (kind == 6).any():
+        models["all150_soft"] = (allf, np.ones(len(kind), bool), data["w"])
+    grid = TAP_RULES if task == "tap" else LP_RULES
+    base = {k: getattr(R, k) for k in grid[0]}
+    res = {}
+    for f, (a, b) in enumerate(folds):
+        trn = tr[a]; val = set(data["group"][tr[b]])
+        ev = FS.InnerReplay(g, R, rpl, val, task, R.TAP_FALSE_PER_MIN_TARGET)
+        for name, (sel, mask, w) in models.items():
+            rows = trn[mask[trn]]
+            dv = dict(data, w=(np.ones_like(data["w"]) if w is None else w))
+            params = dict(CONFIG, n_jobs=g.CPU_THREADS, random_state=g.SEED)
+            m = g.fit_model(data["X"][np.ix_(rows, np.asarray(sel, np.intp))], data["y"][rows],
+                            g.weights_for_task(dv, rows, task, PW[task]), params, budgets[0])
+            k, _ = g.trees_within(m, budgets[0])
+            p = ev.probabilities(m, sel, k)
+            for vi, rule in enumerate(grid):
+                for kk, vv in rule.items():
+                    setattr(R, kk, vv)
+                try:
+                    if task == "tap":
+                        reps = {thr: ev.report(p, thr, ev.steady) for thr in FS.TAP_GRID}
+                        ok = {t_: r for t_, r in reps.items() if r["false_per_min"] <= 2}
+                        best = max(ok, key=lambda q: ok[q].get("recall_press", ok[q]["recall"])) if ok else None
+                        val_ = dict(press_at_fpm2=(ok[best].get("recall_press") if best else 0.0),
+                                    recall_at_fpm2=(ok[best]["recall"] if best else 0.0),
+                                    recall_085=reps[0.85]["recall"], fpm_085=reps[0.85]["false_per_min"])
+                    else:
+                        reps = {thr: ev.report(p, thr, ev.steady) for thr in FS.LP_GRID}
+                        val_ = dict(best=max(r["objective_score"] for r in reps.values() if r),
+                                    at_050=reps[0.5]["objective_score"])
+                finally:
+                    for kk, vv in base.items():
+                        setattr(R, kk, vv)
+                res.setdefault(name, {}).setdefault(str(vi), []).append(val_)
+            log("FS_RULES", task, f, name, json.dumps(res[name][str(len(grid) // 2)][-1]))
+        del ev
+    write(f"rules_{task}.json", dict(task=task, rules=grid, base=base, results=res))
 
 
 def report(task):
@@ -220,4 +331,4 @@ def write(name, obj):
 
 
 if __name__ == "__main__":
-    dict(gate=gate, rank=rank, kcurve=kcurve, report=report)[sys.argv[1]](sys.argv[2])
+    dict(gate=gate, rank=rank, kcurve=kcurve, report=report, soft=soft, rules=rules)[sys.argv[1]](sys.argv[2])

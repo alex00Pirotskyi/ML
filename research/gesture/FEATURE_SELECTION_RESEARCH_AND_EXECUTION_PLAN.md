@@ -10,8 +10,11 @@
 
 ## 0. Implementation status (2026-11-18)
 
-Implemented as the trainer's default **v3** experiment (`feature_selection.py`, `train_unified.py`), with the
-evidence in **`FEATURE_SELECTION_RESULTS.md`**. Short version:
+Implemented as the trainer's only pipeline (`feature_selection.py`, `train_unified.py`; the v2 menu was removed
+after its study finished), with the evidence in **`FEATURE_SELECTION_RESULTS.md`** and an overview in
+**`PIPELINE.md`**. Follow-ups measured since: soft TAP labels (no gain, off), a labeller-independent TAP
+reference (`recall_press`), robustness to the replay rules, and `validate_events.py` for firmware logs and gold
+taps (results, §5–7). Short version:
 
 - **Implemented as planned:**
   - all 150 fields

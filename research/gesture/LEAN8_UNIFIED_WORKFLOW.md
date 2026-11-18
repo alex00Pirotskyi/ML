@@ -110,14 +110,15 @@ Each recording is treated as a fresh sensor stream (`lean_8_features_reset()`). 
 
 In addition, every CONNECTED, DISCONNECTED, LOOSE and TABLE recording is shorter than 500 frames.
 
-The default is `MUDRA_LEAN8_MIN_FRAMES=50`. It skips the least reliable first second, then trains on the
-firmware's own warm-up values. The firmware computes those deliberately, using nearest-edge padding. To
-match it, the firmware should run the models once `seen >= 50`, rather than waiting for
-`lean_8_features_ready()`.
+The trainer uses two gates (`PIPELINE.md`, `FEATURE_SELECTION_RESULTS.md` §2):
 
-If the firmware keeps the 10.8 s gate, look at the **steady-state** table in `COMPARISON.md`. Every
-held-out C replay is also reported on rows after frame 500. Or set `MUDRA_LEAN8_MIN_FRAMES=500`, which
-loses most taps.
+- **Training examples** from frame 50 (`MUDRA_TRAIN_MIN_FRAMES`). This skips the least reliable first second
+  and keeps the firmware's warm-up values (nearest-edge padding), which still teach the model.
+- **Scoring, ranking and choice** from frame 500 (`MUDRA_EVAL_MIN_FRAMES`), because the firmware returns from
+  `model_execution()` until `lean_8_features_ready()`.
+
+If the firmware is changed to run the models once `seen >= 50`, set `MUDRA_EVAL_MIN_FRAMES=50` so that the
+search scores those rows too.
 
 The `raw126_lean8_instant12` feature set adds only `lw`, `Pm`, `r01` and `r32`. These have no history,
 so they behave identically during and after warm-up.
@@ -143,7 +144,8 @@ The trainer:
 1. Refreshes the Lean-8 trees incrementally and checks parity.
 2. Labels the raw recordings.
 3. Reads raw and Lean-8 fields from the derived files.
-4. Searches the following feature sets, plus the earlier raw subsets:
+4. Searches an integer number K of fields, taken from a ranking learned inside each CV fold over all 150
+   fields (`feature_selection.py`). The named sets below are kept for research scripts and reports:
 
 | Feature set | Fields |
 |---|---|
@@ -152,8 +154,8 @@ The trainer:
 | `raw126_lean8_instant12` | raw126 + `lw`, `Pm`, `r01`, `r32` |
 | `all_available` | all 150 |
 
-5. Uses rows from frame `MUDRA_LEAN8_MIN_FRAMES` on, for training and replay. Taps before that point are
-   not counted as misses.
+5. Trains on rows from frame `MUDRA_TRAIN_MIN_FRAMES` (50) on and scores rows from `MUDRA_EVAL_MIN_FRAMES`
+   (500) on. Taps before the scoring gate are not counted as misses.
 6. Scores TAP by event replay and LP by the 10-sample Q20 average, on person-grouped folds.
 7. Exports headers. The compile check uses a `t_core` that includes `cload_lean_8`.
 8. Replays held-out people through the C headers, on all usable rows and on steady-state rows.

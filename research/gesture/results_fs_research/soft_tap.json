@@ -1,0 +1,1017 @@
+{
+ "task": "tap",
+ "config": {
+  "objective": "binary",
+  "n_estimators": 400,
+  "learning_rate": 0.1,
+  "num_leaves": 31,
+  "max_depth": 8,
+  "min_child_samples": 100,
+  "reg_lambda": 1.0,
+  "reg_alpha": 0.001,
+  "colsample_bytree": 0.7,
+  "subsample": 0.8,
+  "subsample_freq": 1,
+  "max_bin": 127,
+  "verbosity": -1,
+  "deterministic": true
+ },
+ "positive_weight": 1.0,
+ "soft_min_score": 0.5,
+ "folds_done": 3,
+ "results": {
+  "strong_only": [
+   {
+    "train_rows": 486742,
+    "soft_rows": 0,
+    "trees": 88,
+    "bytes": 32724,
+    "seconds": 28.7,
+    "usable": {
+     "at_085": {
+      "recall_strong": 0.9668008048289738,
+      "recall_soft": 0.7819905213270142,
+      "recall_press": 0.9498275321417372,
+      "false_per_min": 5.905584600178882,
+      "n_strong": 2982,
+      "n_soft": 211,
+      "n_press": 3189
+     },
+     "per_folder_fpm_085": {
+      "ARM": 0.8392792879859713,
+      "BAND": 11.869568754955624,
+      "DRAG_AND_DROP": 0.0,
+      "FINGER": 11.643099045410692,
+      "LONG_PRESS": 0.8760914639488363,
+      "MID_LONG_PRESS": 1.3794689044717785,
+      "NOTHING": 0.5817222857807682,
+      "SOFT_LONG_PRESS": 1.9133873333758529,
+      "STRONG_LONG_PRESS": 0.2887072171992513,
+      "SWIPE": 6.362822265164726,
+      "TAP": 1.1320022424425373,
+      "WRIST": 5.527261242054562
+     },
+     "fpm_le_1": {
+      "threshold": 0.99,
+      "recall_strong": 0.8071763916834339,
+      "recall_soft": 0.33649289099526064,
+      "recall_press": 0.7720288491690185,
+      "false_per_min": 0.8252813325113865
+     },
+     "fpm_le_2": {
+      "threshold": 0.97,
+      "recall_strong": 0.9104627766599598,
+      "recall_soft": 0.5497630331753555,
+      "recall_press": 0.8811539667607401,
+      "false_per_min": 1.7255882407056262
+     },
+     "fpm_le_3": {
+      "threshold": 0.95,
+      "recall_strong": 0.9282360831656606,
+      "recall_soft": 0.6161137440758294,
+      "recall_press": 0.90310442144873,
+      "false_per_min": 2.583023391366807
+     },
+     "fpm_le_5": {
+      "threshold": 0.9,
+      "recall_strong": 0.9486921529175051,
+      "recall_soft": 0.7298578199052133,
+      "recall_press": 0.9300721229225463,
+      "false_per_min": 4.405073086521816
+     }
+    },
+    "steady": {
+     "at_085": {
+      "recall_strong": 0.9659090909090909,
+      "recall_soft": 0.7368421052631579,
+      "recall_press": 0.9400428265524625,
+      "false_per_min": 4.813003025663447,
+      "n_strong": 440,
+      "n_soft": 19,
+      "n_press": 467
+     },
+     "per_folder_fpm_085": {
+      "ARM": 0.4531080379477982,
+      "BAND": 16.0520654749555,
+      "DRAG_AND_DROP": 0.0,
+      "FINGER": 8.424792962145743,
+      "LONG_PRESS": 1.117568171658471,
+      "MID_LONG_PRESS": 1.7215654768736373,
+      "NOTHING": 0.9329808738920852,
+      "SOFT_LONG_PRESS": 1.5763546798029555,
+      "STRONG_LONG_PRESS": 0.35157211329997307,
+      "SWIPE": 0.0,
+      "TAP": 0.8710843548410513,
+      "WRIST": 6.277633078687595
+     },
+     "fpm_le_1": {
+      "threshold": 0.98,
+      "recall_strong": 0.85,
+      "recall_soft": 0.2631578947368421,
+      "recall_press": 0.8115631691648822,
+      "false_per_min": 0.6250653280082398
+     },
+     "fpm_le_2": {
+      "threshold": 0.95,
+      "recall_strong": 0.8954545454545455,
+      "recall_soft": 0.3157894736842105,
+      "recall_press": 0.8565310492505354,
+      "false_per_min": 1.7918539402902873
+     },
+     "fpm_le_3": {
+      "threshold": 0.95,
+      "recall_strong": 0.8954545454545455,
+      "recall_soft": 0.3157894736842105,
+      "recall_press": 0.8565310492505354,
+      "false_per_min": 1.7918539402902873
+     },
+     "fpm_le_5": {
+      "threshold": 0.85,
+      "recall_strong": 0.9659090909090909,
+      "recall_soft": 0.7368421052631579,
+      "recall_press": 0.9400428265524625,
+      "false_per_min": 4.813003025663447
+     }
+    }
+   },
+   {
+    "train_rows": 493839,
+    "soft_rows": 0,
+    "trees": 88,
+    "bytes": 32724,
+    "seconds": 31.3,
+    "usable": {
+     "at_085": {
+      "recall_strong": 0.9836559822278642,
+      "recall_soft": 0.851493848857645,
+      "recall_press": 0.9459950668570687,
+      "false_per_min": 4.93827108651727,
+      "n_strong": 6302,
+      "n_soft": 1138,
+      "n_press": 7703
+     },
+     "per_folder_fpm_085": {
+      "ARM": 1.1946683657505648,
+      "BAND": 16.09943008017516,
+      "DRAG_AND_DROP": 5.052915251382534,
+      "FINGER": 13.686611686260749,
+      "MID_LONG_PRESS": 3.87914314038188,
+      "NOTHING": 0.0,
+      "SOFT_LONG_PRESS": 1.6388890153463747,
+      "STRONG_LONG_PRESS": 0.0,
+      "SWIPE": 5.9112156520545875,
+      "TAP": 2.248318383577415,
+      "WRIST": 7.557724543548965
+     },
+     "fpm_le_1": {
+      "threshold": 0.997,
+      "recall_strong": 0.5439543002221517,
+      "recall_soft": 0.1256590509666081,
+      "recall_press": 0.4634557964429443,
+      "false_per_min": 0.7936507103331327
+     },
+     "fpm_le_2": {
+      "threshold": 0.98,
+      "recall_strong": 0.9006664550936211,
+      "recall_soft": 0.5298769771528998,
+      "recall_press": 0.8198104634557964,
+      "false_per_min": 1.9274374393804652
+     },
+     "fpm_le_3": {
+      "threshold": 0.95,
+      "recall_strong": 0.9565217391304348,
+      "recall_soft": 0.6985940246045694,
+      "recall_press": 0.8947163442814487,
+      "false_per_min": 2.809271561972835
+     },
+     "fpm_le_5": {
+      "threshold": 0.85,
+      "recall_strong": 0.9836559822278642,
+      "recall_soft": 0.851493848857645,
+      "recall_press": 0.9459950668570687,
+      "false_per_min": 4.93827108651727
+     }
+    },
+    "steady": {
+     "at_085": {
+      "recall_strong": 0.9848837209302326,
+      "recall_soft": 0.7741935483870968,
+      "recall_press": 0.9213270142180094,
+      "false_per_min": 2.519021919766819,
+      "n_strong": 860,
+      "n_soft": 155,
+      "n_press": 1055
+     },
+     "per_folder_fpm_085": {
+      "DRAG_AND_DROP": 3.725859535095527,
+      "MID_LONG_PRESS": 3.2261933813401935,
+      "NOTHING": 0.0,
+      "SOFT_LONG_PRESS": 1.1548381301887518,
+      "STRONG_LONG_PRESS": 0.0,
+      "SWIPE": 8.13275758573282,
+      "TAP": 1.9347275143588258
+     },
+     "fpm_le_1": {
+      "threshold": 0.997,
+      "recall_strong": 0.5186046511627908,
+      "recall_soft": 0.09032258064516129,
+      "recall_press": 0.4265402843601896,
+      "false_per_min": 0.559782648837071
+     },
+     "fpm_le_2": {
+      "threshold": 0.95,
+      "recall_strong": 0.9534883720930233,
+      "recall_soft": 0.632258064516129,
+      "recall_press": 0.8720379146919431,
+      "false_per_min": 1.7259965005809688
+     },
+     "fpm_le_3": {
+      "threshold": 0.8,
+      "recall_strong": 0.9872093023255814,
+      "recall_soft": 0.8387096774193549,
+      "recall_press": 0.9317535545023696,
+      "false_per_min": 2.658967581976087
+     },
+     "fpm_le_5": {
+      "threshold": 0.5,
+      "recall_strong": 0.9895348837209302,
+      "recall_soft": 0.9161290322580645,
+      "recall_press": 0.9592417061611375,
+      "false_per_min": 4.57155829883608
+     }
+    }
+   },
+   {
+    "train_rows": 489617,
+    "soft_rows": 0,
+    "trees": 88,
+    "bytes": 32724,
+    "seconds": 29.8,
+    "usable": {
+     "at_085": {
+      "recall_strong": 0.9715183657434688,
+      "recall_soft": 0.7846364883401921,
+      "recall_press": 0.9250248262164846,
+      "false_per_min": 9.18046085913513,
+      "n_strong": 5091,
+      "n_soft": 729,
+      "n_press": 6042
+     },
+     "per_folder_fpm_085": {
+      "ARM": 12.101150249546206,
+      "BAND": 8.390174173800904,
+      "DRAG_AND_DROP": 0.0,
+      "FINGER": 23.260959807182736,
+      "MID_LONG_PRESS": 2.4159938794821723,
+      "SOFT_LONG_PRESS": 3.511329357373526,
+      "STRONG_LONG_PRESS": 2.5970974344387487,
+      "SWIPE": 5.722700478770371,
+      "TAP": 1.539800302565522,
+      "WRIST": 16.643489877035268
+     },
+     "fpm_le_1": {
+      "threshold": 0.997,
+      "recall_strong": 0.5655077587900216,
+      "recall_soft": 0.12071330589849108,
+      "recall_press": 0.49205561072492554,
+      "false_per_min": 0.9960500017100858
+     },
+     "fpm_le_2": {
+      "threshold": 0.995,
+      "recall_strong": 0.6941661756040071,
+      "recall_soft": 0.2167352537722908,
+      "recall_press": 0.6117179741807348,
+      "false_per_min": 1.4520728940592817
+     },
+     "fpm_le_3": {
+      "threshold": 0.99,
+      "recall_strong": 0.8128069141622472,
+      "recall_soft": 0.3717421124828532,
+      "recall_press": 0.7305527970870572,
+      "false_per_min": 2.244112654455254
+     },
+     "fpm_le_5": {
+      "threshold": 0.97,
+      "recall_strong": 0.9131801217835396,
+      "recall_soft": 0.5569272976680384,
+      "recall_press": 0.8411122144985105,
+      "false_per_min": 4.080204826282279
+     }
+    },
+    "steady": {
+     "at_085": {
+      "recall_strong": 0.977961432506887,
+      "recall_soft": 0.7631578947368421,
+      "recall_press": 0.9029017857142857,
+      "false_per_min": 6.9208710911426135,
+      "n_strong": 726,
+      "n_soft": 114,
+      "n_press": 896
+     },
+     "per_folder_fpm_085": {
+      "ARM": 1.2157438832885872,
+      "BAND": 3.4055434679784313,
+      "DRAG_AND_DROP": 0.0,
+      "FINGER": 27.00854177911121,
+      "MID_LONG_PRESS": 2.5218914185639227,
+      "SOFT_LONG_PRESS": 4.04897763314763,
+      "STRONG_LONG_PRESS": 2.774737556072821,
+      "SWIPE": 7.558306939245608,
+      "TAP": 2.087510991061657,
+      "WRIST": 12.503171094118073
+     },
+     "fpm_le_1": {
+      "threshold": 0.998,
+      "recall_strong": 0.44352617079889806,
+      "recall_soft": 0.06140350877192982,
+      "recall_press": 0.36830357142857145,
+      "false_per_min": 0.6785167736414327
+     },
+     "fpm_le_2": {
+      "threshold": 0.99,
+      "recall_strong": 0.8388429752066116,
+      "recall_soft": 0.34210526315789475,
+      "recall_press": 0.7243303571428571,
+      "false_per_min": 1.967698643560155
+     },
+     "fpm_le_3": {
+      "threshold": 0.98,
+      "recall_strong": 0.9159779614325069,
+      "recall_soft": 0.47368421052631576,
+      "recall_press": 0.8069196428571429,
+      "false_per_min": 2.510512062473301
+     },
+     "fpm_le_5": {
+      "threshold": 0.95,
+      "recall_strong": 0.9490358126721763,
+      "recall_soft": 0.6228070175438597,
+      "recall_press": 0.8571428571428571,
+      "false_per_min": 4.206803996576883
+     }
+    }
+   }
+  ],
+  "soft_weighted": [
+   {
+    "train_rows": 500319,
+    "soft_rows": 13577,
+    "trees": 88,
+    "bytes": 32724,
+    "seconds": 28.4,
+    "usable": {
+     "at_085": {
+      "recall_strong": 0.9644533869885983,
+      "recall_soft": 0.7867298578199052,
+      "recall_press": 0.9482596425211665,
+      "false_per_min": 7.459685810752272,
+      "n_strong": 2982,
+      "n_soft": 211,
+      "n_press": 3189
+     },
+     "per_folder_fpm_085": {
+      "ARM": 1.2207698734341401,
+      "BAND": 12.061013412293619,
+      "DRAG_AND_DROP": 0.0,
+      "FINGER": 15.605228272804181,
+      "LONG_PRESS": 0.8760914639488363,
+      "MID_LONG_PRESS": 1.3794689044717785,
+      "NOTHING": 1.7451668573423047,
+      "SOFT_LONG_PRESS": 2.2322852222718286,
+      "STRONG_LONG_PRESS": 0.0,
+      "SWIPE": 6.009332139322241,
+      "TAP": 1.293716848505757,
+      "WRIST": 6.768074990270892
+     },
+     "fpm_le_1": {
+      "threshold": 0.99,
+      "recall_strong": 0.7924211938296445,
+      "recall_soft": 0.3033175355450237,
+      "recall_press": 0.7550956412668548,
+      "false_per_min": 0.9003069081942398
+     },
+     "fpm_le_2": {
+      "threshold": 0.98,
+      "recall_strong": 0.8839704896042925,
+      "recall_soft": 0.4928909952606635,
+      "recall_press": 0.8532455315145814,
+      "false_per_min": 1.5433832711901252
+     },
+     "fpm_le_3": {
+      "threshold": 0.97,
+      "recall_strong": 0.9107981220657277,
+      "recall_soft": 0.5781990521327014,
+      "recall_press": 0.8827218563813107,
+      "false_per_min": 2.047126422203569
+     },
+     "fpm_le_5": {
+      "threshold": 0.95,
+      "recall_strong": 0.9309188464118041,
+      "recall_soft": 0.6492890995260664,
+      "recall_press": 0.9074945123863281,
+      "false_per_min": 3.033176845463927
+     }
+    },
+    "steady": {
+     "at_085": {
+      "recall_strong": 0.9613636363636363,
+      "recall_soft": 0.631578947368421,
+      "recall_press": 0.9357601713062098,
+      "false_per_min": 5.792272039543022,
+      "n_strong": 440,
+      "n_soft": 19,
+      "n_press": 467
+     },
+     "per_folder_fpm_085": {
+      "ARM": 1.019493085382546,
+      "BAND": 16.379658647913775,
+      "DRAG_AND_DROP": 0.0,
+      "FINGER": 11.261713041235636,
+      "LONG_PRESS": 1.117568171658471,
+      "MID_LONG_PRESS": 1.7215654768736373,
+      "NOTHING": 1.8659617477841703,
+      "SOFT_LONG_PRESS": 1.9704433497536946,
+      "STRONG_LONG_PRESS": 0.0,
+      "SWIPE": 0.0,
+      "TAP": 0.8710843548410513,
+      "WRIST": 6.943442647639309
+     },
+     "fpm_le_1": {
+      "threshold": 0.98,
+      "recall_strong": 0.8522727272727273,
+      "recall_soft": 0.3684210526315789,
+      "recall_press": 0.8179871520342612,
+      "false_per_min": 0.7500783936098877
+     },
+     "fpm_le_2": {
+      "threshold": 0.97,
+      "recall_strong": 0.8772727272727273,
+      "recall_soft": 0.3684210526315789,
+      "recall_press": 0.841541755888651,
+      "false_per_min": 1.1667886122820477
+     },
+     "fpm_le_3": {
+      "threshold": 0.95,
+      "recall_strong": 0.9090909090909091,
+      "recall_soft": 0.47368421052631576,
+      "recall_press": 0.8758029978586723,
+      "false_per_min": 2.021044560559975
+     },
+     "fpm_le_5": {
+      "threshold": 0.9,
+      "recall_strong": 0.9454545454545454,
+      "recall_soft": 0.631578947368421,
+      "recall_press": 0.9207708779443254,
+      "false_per_min": 3.896240544584695
+     }
+    }
+   },
+   {
+    "train_rows": 500537,
+    "soft_rows": 6698,
+    "trees": 88,
+    "bytes": 32724,
+    "seconds": 30.5,
+    "usable": {
+     "at_085": {
+      "recall_strong": 0.9820691843859093,
+      "recall_soft": 0.8796133567662566,
+      "recall_press": 0.9535246008048812,
+      "false_per_min": 5.530359711686433,
+      "n_strong": 6302,
+      "n_soft": 1138,
+      "n_press": 7703
+     },
+     "per_folder_fpm_085": {
+      "ARM": 2.048002912715254,
+      "BAND": 16.09943008017516,
+      "DRAG_AND_DROP": 5.052915251382534,
+      "FINGER": 15.6167748727847,
+      "MID_LONG_PRESS": 4.063864242304827,
+      "NOTHING": 0.0,
+      "SOFT_LONG_PRESS": 2.185185353795166,
+      "STRONG_LONG_PRESS": 0.0,
+      "SWIPE": 6.650117608561411,
+      "TAP": 2.337067793455471,
+      "WRIST": 8.9142392052116
+     },
+     "fpm_le_1": {
+      "threshold": 0.997,
+      "recall_strong": 0.4927007299270073,
+      "recall_soft": 0.10984182776801406,
+      "recall_press": 0.41944696871348824,
+      "false_per_min": 0.7684554496876365
+     },
+     "fpm_le_2": {
+      "threshold": 0.98,
+      "recall_strong": 0.9046334496985085,
+      "recall_soft": 0.5632688927943761,
+      "recall_press": 0.8291574711151499,
+      "false_per_min": 1.8644492877667245
+     },
+     "fpm_le_3": {
+      "threshold": 0.95,
+      "recall_strong": 0.9590606156775627,
+      "recall_soft": 0.7372583479789103,
+      "recall_press": 0.904712449694924,
+      "false_per_min": 2.9604431258458126
+     },
+     "fpm_le_5": {
+      "threshold": 0.9,
+      "recall_strong": 0.9769914312916534,
+      "recall_soft": 0.828646748681898,
+      "recall_press": 0.93768661560431,
+      "false_per_min": 4.3839753523163525
+     }
+    },
+    "steady": {
+     "at_085": {
+      "recall_strong": 0.9813953488372092,
+      "recall_soft": 0.8064516129032258,
+      "recall_press": 0.9279620853080569,
+      "false_per_min": 2.9855074604643783,
+      "n_strong": 860,
+      "n_soft": 155,
+      "n_press": 1055
+     },
+     "per_folder_fpm_085": {
+      "DRAG_AND_DROP": 3.725859535095527,
+      "MID_LONG_PRESS": 3.7225308246233,
+      "NOTHING": 0.0,
+      "SOFT_LONG_PRESS": 1.5397841735850024,
+      "STRONG_LONG_PRESS": 0.0,
+      "SWIPE": 8.713668841856592,
+      "TAP": 2.4875068041756334
+     },
+     "fpm_le_1": {
+      "threshold": 0.995,
+      "recall_strong": 0.6244186046511628,
+      "recall_soft": 0.14838709677419354,
+      "recall_press": 0.5213270142180095,
+      "false_per_min": 0.6997283110463387
+     },
+     "fpm_le_2": {
+      "threshold": 0.95,
+      "recall_strong": 0.9569767441860465,
+      "recall_soft": 0.7032258064516129,
+      "recall_press": 0.8862559241706162,
+      "false_per_min": 1.9125907168599925
+     },
+     "fpm_le_3": {
+      "threshold": 0.85,
+      "recall_strong": 0.9813953488372092,
+      "recall_soft": 0.8064516129032258,
+      "recall_press": 0.9279620853080569,
+      "false_per_min": 2.9855074604643783
+     },
+     "fpm_le_5": {
+      "threshold": 0.7,
+      "recall_strong": 0.986046511627907,
+      "recall_soft": 0.9032258064516129,
+      "recall_press": 0.95260663507109,
+      "false_per_min": 4.058424204068764
+     }
+    }
+   },
+   {
+    "train_rows": 499282,
+    "soft_rows": 9665,
+    "trees": 88,
+    "bytes": 32724,
+    "seconds": 31.6,
+    "usable": {
+     "at_085": {
+      "recall_strong": 0.9687684148497349,
+      "recall_soft": 0.8024691358024691,
+      "recall_press": 0.927341939755048,
+      "false_per_min": 10.788541584787556,
+      "n_strong": 5091,
+      "n_soft": 729,
+      "n_press": 6042
+     },
+     "per_folder_fpm_085": {
+      "ARM": 12.485313749531802,
+      "BAND": 8.390174173800904,
+      "DRAG_AND_DROP": 0.0,
+      "FINGER": 27.759541656685055,
+      "MID_LONG_PRESS": 2.7179931144174434,
+      "SOFT_LONG_PRESS": 3.511329357373526,
+      "STRONG_LONG_PRESS": 2.5970974344387487,
+      "SWIPE": 6.589776308887093,
+      "TAP": 1.7911962703313216,
+      "WRIST": 20.58536905843836
+     },
+     "fpm_le_1": {
+      "threshold": 0.997,
+      "recall_strong": 0.5411510508740915,
+      "recall_soft": 0.11934156378600823,
+      "recall_press": 0.4710360807679576,
+      "false_per_min": 0.8760439774076659
+     },
+     "fpm_le_2": {
+      "threshold": 0.995,
+      "recall_strong": 0.6837556472205853,
+      "recall_soft": 0.23182441700960219,
+      "recall_press": 0.6052631578947368,
+      "false_per_min": 1.356068074617346
+     },
+     "fpm_le_3": {
+      "threshold": 0.99,
+      "recall_strong": 0.8057356118640738,
+      "recall_soft": 0.37448559670781895,
+      "recall_press": 0.7262495862297252,
+      "false_per_min": 2.3401174738971897
+     },
+     "fpm_le_5": {
+      "threshold": 0.97,
+      "recall_strong": 0.9125908465920252,
+      "recall_soft": 0.5939643347050755,
+      "recall_press": 0.8464084740152268,
+      "false_per_min": 4.512226513770991
+     }
+    },
+    "steady": {
+     "at_085": {
+      "recall_strong": 0.9752066115702479,
+      "recall_soft": 0.7894736842105263,
+      "recall_press": 0.9073660714285714,
+      "false_per_min": 8.142201283697192,
+      "n_strong": 726,
+      "n_soft": 114,
+      "n_press": 896
+     },
+     "per_folder_fpm_085": {
+      "ARM": 1.8236158249328809,
+      "BAND": 3.4055434679784313,
+      "DRAG_AND_DROP": 0.0,
+      "FINGER": 32.515137675823205,
+      "MID_LONG_PRESS": 2.5218914185639227,
+      "SOFT_LONG_PRESS": 4.04897763314763,
+      "STRONG_LONG_PRESS": 2.774737556072821,
+      "SWIPE": 9.717823207601496,
+      "TAP": 2.561945307212034,
+      "WRIST": 14.405827564962129
+     },
+     "fpm_le_1": {
+      "threshold": 0.997,
+      "recall_strong": 0.5344352617079889,
+      "recall_soft": 0.06140350877192982,
+      "recall_press": 0.44419642857142855,
+      "false_per_min": 0.8481459670517909
+     },
+     "fpm_le_2": {
+      "threshold": 0.99,
+      "recall_strong": 0.8333333333333334,
+      "recall_soft": 0.3684210526315789,
+      "recall_press": 0.7232142857142857,
+      "false_per_min": 1.9337728048780831
+     },
+     "fpm_le_3": {
+      "threshold": 0.98,
+      "recall_strong": 0.90633608815427,
+      "recall_soft": 0.49122807017543857,
+      "recall_press": 0.7991071428571429,
+      "false_per_min": 2.883696287976089
+     },
+     "fpm_le_5": {
+      "threshold": 0.95,
+      "recall_strong": 0.953168044077135,
+      "recall_soft": 0.6403508771929824,
+      "recall_press": 0.8660714285714286,
+      "false_per_min": 4.376433189987241
+     }
+    }
+   }
+  ],
+  "soft_full": [
+   {
+    "train_rows": 500319,
+    "soft_rows": 13577,
+    "trees": 88,
+    "bytes": 32724,
+    "seconds": 28.5,
+    "usable": {
+     "at_085": {
+      "recall_strong": 0.966130114017438,
+      "recall_soft": 0.7582938388625592,
+      "recall_press": 0.9482596425211665,
+      "false_per_min": 7.4060961138359485,
+      "n_strong": 2982,
+      "n_soft": 211,
+      "n_press": 3189
+     },
+     "per_folder_fpm_085": {
+      "ARM": 1.2207698734341401,
+      "BAND": 12.6353473843076,
+      "DRAG_AND_DROP": 0.0,
+      "FINGER": 15.744250350958339,
+      "LONG_PRESS": 0.8760914639488363,
+      "MID_LONG_PRESS": 1.0346016783538339,
+      "NOTHING": 0.5817222857807682,
+      "SOFT_LONG_PRESS": 2.2322852222718286,
+      "STRONG_LONG_PRESS": 0.0,
+      "SWIPE": 6.362822265164726,
+      "TAP": 1.1320022424425373,
+      "WRIST": 6.3168699909195
+     },
+     "fpm_le_1": {
+      "threshold": 0.99,
+      "recall_strong": 0.7940979208584842,
+      "recall_soft": 0.3127962085308057,
+      "recall_press": 0.7566635308874256,
+      "false_per_min": 0.9431786657272988
+     },
+     "fpm_le_2": {
+      "threshold": 0.97,
+      "recall_strong": 0.9101274312541918,
+      "recall_soft": 0.5829383886255924,
+      "recall_press": 0.8827218563813107,
+      "false_per_min": 1.9828187859039803
+     },
+     "fpm_le_3": {
+      "threshold": 0.97,
+      "recall_strong": 0.9101274312541918,
+      "recall_soft": 0.5829383886255924,
+      "recall_press": 0.8827218563813107,
+      "false_per_min": 1.9828187859039803
+     },
+     "fpm_le_5": {
+      "threshold": 0.95,
+      "recall_strong": 0.9299128101945003,
+      "recall_soft": 0.6492890995260664,
+      "recall_press": 0.9071809344622138,
+      "false_per_min": 3.0974844817635154
+     }
+    },
+    "steady": {
+     "at_085": {
+      "recall_strong": 0.9613636363636363,
+      "recall_soft": 0.6842105263157895,
+      "recall_press": 0.9357601713062098,
+      "false_per_min": 5.542245908339726,
+      "n_strong": 440,
+      "n_soft": 19,
+      "n_press": 467
+     },
+     "per_folder_fpm_085": {
+      "ARM": 0.7929390664086468,
+      "BAND": 17.034844993830326,
+      "DRAG_AND_DROP": 0.0,
+      "FINGER": 10.91784394073989,
+      "LONG_PRESS": 1.117568171658471,
+      "MID_LONG_PRESS": 1.2911741076552279,
+      "NOTHING": 0.9329808738920852,
+      "SOFT_LONG_PRESS": 1.9704433497536946,
+      "STRONG_LONG_PRESS": 0.0,
+      "SWIPE": 0.0,
+      "TAP": 0.5807229032273675,
+      "WRIST": 6.46786438410237
+     },
+     "fpm_le_1": {
+      "threshold": 0.98,
+      "recall_strong": 0.8568181818181818,
+      "recall_soft": 0.3157894736842105,
+      "recall_press": 0.8201284796573876,
+      "false_per_min": 0.7292428826762798
+     },
+     "fpm_le_2": {
+      "threshold": 0.97,
+      "recall_strong": 0.8818181818181818,
+      "recall_soft": 0.42105263157894735,
+      "recall_press": 0.8479657387580299,
+      "false_per_min": 1.1459531013484396
+     },
+     "fpm_le_3": {
+      "threshold": 0.95,
+      "recall_strong": 0.9068181818181819,
+      "recall_soft": 0.5263157894736842,
+      "recall_press": 0.8758029978586723,
+      "false_per_min": 2.0002090496263674
+     },
+     "fpm_le_5": {
+      "threshold": 0.9,
+      "recall_strong": 0.9318181818181818,
+      "recall_soft": 0.6842105263157895,
+      "recall_press": 0.9079229122055674,
+      "false_per_min": 4.021253610186343
+     }
+    }
+   },
+   {
+    "train_rows": 500537,
+    "soft_rows": 6698,
+    "trees": 88,
+    "bytes": 32724,
+    "seconds": 31.8,
+    "usable": {
+     "at_085": {
+      "recall_strong": 0.9836559822278642,
+      "recall_soft": 0.867311072056239,
+      "recall_press": 0.9531351421524081,
+      "false_per_min": 5.643738384591166,
+      "n_strong": 6302,
+      "n_soft": 1138,
+      "n_press": 7703
+     },
+     "per_folder_fpm_085": {
+      "ARM": 1.5360021845364402,
+      "BAND": 13.523521267347135,
+      "DRAG_AND_DROP": 5.052915251382534,
+      "FINGER": 16.581856466046677,
+      "MID_LONG_PRESS": 4.43330644615072,
+      "NOTHING": 0.0,
+      "SOFT_LONG_PRESS": 2.458333523019562,
+      "STRONG_LONG_PRESS": 0.0,
+      "SWIPE": 6.861232453277646,
+      "TAP": 2.4258172033335264,
+      "WRIST": 8.332875778784757
+     },
+     "fpm_le_1": {
+      "threshold": 0.997,
+      "recall_strong": 0.5193589336718502,
+      "recall_soft": 0.11775043936731107,
+      "recall_press": 0.4430741269635207,
+      "false_per_min": 0.7936507103331327
+     },
+     "fpm_le_2": {
+      "threshold": 0.98,
+      "recall_strong": 0.9046334496985085,
+      "recall_soft": 0.5632688927943761,
+      "recall_press": 0.829546929767623,
+      "false_per_min": 1.9778279606714577
+     },
+     "fpm_le_3": {
+      "threshold": 0.95,
+      "recall_strong": 0.9582672167565852,
+      "recall_soft": 0.7311072056239016,
+      "recall_press": 0.9030247955342074,
+      "false_per_min": 2.922650234877568
+     },
+     "fpm_le_5": {
+      "threshold": 0.9,
+      "recall_strong": 0.9769914312916534,
+      "recall_soft": 0.8391915641476274,
+      "recall_press": 0.9387251720109049,
+      "false_per_min": 4.434365873607345
+     }
+    },
+    "steady": {
+     "at_085": {
+      "recall_strong": 0.9813953488372092,
+      "recall_soft": 0.7935483870967742,
+      "recall_press": 0.9270142180094787,
+      "false_per_min": 3.218750230813158,
+      "n_strong": 860,
+      "n_soft": 155,
+      "n_press": 1055
+     },
+     "per_folder_fpm_085": {
+      "DRAG_AND_DROP": 3.725859535095527,
+      "MID_LONG_PRESS": 3.9706995462648536,
+      "NOTHING": 0.0,
+      "SOFT_LONG_PRESS": 1.924730216981253,
+      "STRONG_LONG_PRESS": 0.0,
+      "SWIPE": 9.294580097980365,
+      "TAP": 2.6717665674479023
+     },
+     "fpm_le_1": {
+      "threshold": 0.995,
+      "recall_strong": 0.6511627906976745,
+      "recall_soft": 0.15483870967741936,
+      "recall_press": 0.5450236966824644,
+      "false_per_min": 0.8396739732556064
+     },
+     "fpm_le_2": {
+      "threshold": 0.97,
+      "recall_strong": 0.9290697674418604,
+      "recall_soft": 0.5548387096774193,
+      "recall_press": 0.8369668246445497,
+      "false_per_min": 1.7726450546507246
+     },
+     "fpm_le_3": {
+      "threshold": 0.9,
+      "recall_strong": 0.9732558139534884,
+      "recall_soft": 0.7741935483870968,
+      "recall_press": 0.9146919431279621,
+      "false_per_min": 2.4257248116273074
+     },
+     "fpm_le_5": {
+      "threshold": 0.7,
+      "recall_strong": 0.9813953488372092,
+      "recall_soft": 0.8516129032258064,
+      "recall_press": 0.9488151658767773,
+      "false_per_min": 4.245018420347788
+     }
+    }
+   },
+   {
+    "train_rows": 499282,
+    "soft_rows": 9665,
+    "trees": 88,
+    "bytes": 32724,
+    "seconds": 29.6,
+    "usable": {
+     "at_085": {
+      "recall_strong": 0.9699469652327637,
+      "recall_soft": 0.8010973936899863,
+      "recall_press": 0.9276729559748428,
+      "false_per_min": 10.62053315076417,
+      "n_strong": 5091,
+      "n_soft": 729,
+      "n_press": 6042
+     },
+     "per_folder_fpm_085": {
+      "ARM": 12.293231999539005,
+      "BAND": 6.991811811500753,
+      "DRAG_AND_DROP": 0.0,
+      "FINGER": 26.936630342751705,
+      "MID_LONG_PRESS": 2.7179931144174434,
+      "SOFT_LONG_PRESS": 3.511329357373526,
+      "STRONG_LONG_PRESS": 2.5970974344387487,
+      "SWIPE": 6.589776308887093,
+      "TAP": 1.7597717743605967,
+      "WRIST": 21.24234892200554
+     },
+     "fpm_le_1": {
+      "threshold": 0.997,
+      "recall_strong": 0.517580043213514,
+      "recall_soft": 0.13168724279835392,
+      "recall_press": 0.45332671300893745,
+      "false_per_min": 0.7680385555354879
+     },
+     "fpm_le_2": {
+      "threshold": 0.995,
+      "recall_strong": 0.6702023178157533,
+      "recall_soft": 0.2345679012345679,
+      "recall_press": 0.5936775902019199,
+      "false_per_min": 1.3440674721871038
+     },
+     "fpm_le_3": {
+      "threshold": 0.99,
+      "recall_strong": 0.8049499116087213,
+      "recall_soft": 0.3786008230452675,
+      "recall_press": 0.7264150943396226,
+      "false_per_min": 2.3281168714669476
+     },
+     "fpm_le_5": {
+      "threshold": 0.97,
+      "recall_strong": 0.9121979964643488,
+      "recall_soft": 0.6049382716049383,
+      "recall_press": 0.8472360145647136,
+      "false_per_min": 4.344218079747604
+     }
+    },
+    "steady": {
+     "at_085": {
+      "recall_strong": 0.9752066115702479,
+      "recall_soft": 0.7719298245614035,
+      "recall_press": 0.9051339285714286,
+      "false_per_min": 8.040423767650978,
+      "n_strong": 726,
+      "n_soft": 114,
+      "n_press": 896
+     },
+     "per_folder_fpm_085": {
+      "ARM": 1.8236158249328809,
+      "BAND": 2.270362311985621,
+      "DRAG_AND_DROP": 0.0,
+      "FINGER": 31.990699971374443,
+      "MID_LONG_PRESS": 2.5218914185639227,
+      "SOFT_LONG_PRESS": 4.04897763314763,
+      "STRONG_LONG_PRESS": 2.774737556072821,
+      "SWIPE": 7.558306939245608,
+      "TAP": 2.4670584439819585,
+      "WRIST": 15.221251766752438
+     },
+     "fpm_le_1": {
+      "threshold": 0.997,
+      "recall_strong": 0.5055096418732782,
+      "recall_soft": 0.13157894736842105,
+      "recall_press": 0.4296875,
+      "false_per_min": 0.7802942896876476
+     },
+     "fpm_le_2": {
+      "threshold": 0.99,
+      "recall_strong": 0.8223140495867769,
+      "recall_soft": 0.3508771929824561,
+      "recall_press": 0.7109375,
+      "false_per_min": 1.8319952888318682
+     },
+     "fpm_le_3": {
+      "threshold": 0.99,
+      "recall_strong": 0.8223140495867769,
+      "recall_soft": 0.3508771929824561,
+      "recall_press": 0.7109375,
+      "false_per_min": 1.8319952888318682
+     },
+     "fpm_le_5": {
+      "threshold": 0.95,
+      "recall_strong": 0.9559228650137741,
+      "recall_soft": 0.6228070175438597,
+      "recall_press": 0.8638392857142857,
+      "false_per_min": 4.376433189987241
+     }
+    }
+   }
+  ]
+ }
+}

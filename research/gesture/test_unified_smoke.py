@@ -17,6 +17,7 @@ import tempfile
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "research" / "gesture"))
@@ -229,6 +230,81 @@ def fs_unit_checks():
     print("FS_UNIT_CHECKS_PASSED", flush=True)
 
 
+def cache_hash_compat_check(cache: Path):
+    """With soft labels off, the cache content hash equals the hash of the earlier cache format (two-column
+    tap_onsets.csv with confirmed onsets only, no sample weights): studies started before stay resumable."""
+    old = Path(tempfile.mkdtemp())
+    for f in cache.iterdir():
+        if f.is_file():
+            shutil.copyfile(f, old / f.name)
+    o = pd.read_csv(cache / "tap_onsets.csv")
+    o[o.kind == "strong"][["rec", "t_on"]].to_csv(old / "tap_onsets.csv", index=False)
+    with np.load(cache / "train_meta.npz") as z:
+        assert "w" in z.files and (z["w"] == 1).all()
+        np.savez(old / "train_meta.npz", **{k: z[k] for k in z.files if k != "w"})
+    assert g.cache_content_sha(old) == g.cache_content_sha(cache)
+    # ... while a real change of the objective onsets is detected.
+    o[o.kind == "strong"][["rec", "t_on"]].iloc[1:].to_csv(old / "tap_onsets.csv", index=False)
+    assert g.cache_content_sha(old) != g.cache_content_sha(cache)
+    shutil.rmtree(old)
+    print("CACHE_HASH_COMPAT_OK", flush=True)
+
+
+def validate_events_checks():
+    """validate_events.py on synthetic logs: a device that follows the replay rules agrees; one with another
+    refractory is detected and its refractory recovered; gold timing and the LP release are reproduced."""
+    import validate_events as VE
+    t = np.arange(0.0, 60000.0, 21.5); n = len(t)
+    d = np.zeros(n, bool)
+    onsets = []
+    for k, c in enumerate(np.arange(1000.0, 59000.0, 1100.0)):
+        i = int(np.searchsorted(t, c)); d[i:i + 3] = True; onsets.append(t[i])
+        if k % 3 == 0:                                     # a second rising edge ~200 ms later
+            j = int(np.searchsorted(t, c + 200.0)); d[j:j + 2] = True
+    held = np.zeros(n, bool); q = np.zeros(n)
+    releases = []
+    for c in np.arange(2000.0, 58000.0, 4000.0):           # LP: press held 2 s, release probability 1 after it
+        a, b = int(np.searchsorted(t, c)), int(np.searchsorted(t, c + 2000.0))
+        q[b:b + 40] = 1.0
+        rel = R.lp_declared_release(np.round(q[a:] * 20), t[a:], t[a], 0.5); releases.append(rel)
+        held[a:int(np.searchsorted(t, rel))] = True
+
+    class Fake:
+        def decision(self, X):
+            return X[:, 0] > 0.5
+
+        def value_q20(self, X):
+            return np.round(X[:, 1] * 20).astype(np.int64)
+
+    tmp = Path(tempfile.mkdtemp())
+
+    def log(name, device):
+        f = tmp / name
+        pd.DataFrame(dict(Timestamp=(1_700_000_000_000 + t).astype(np.int64), f0=d.astype(np.float32),
+                          f1=q.astype(np.float32), DEV=device.astype(int))).to_csv(f, index=False)
+        return f
+
+    def device_taps(refractory):
+        x = np.zeros(n, bool)
+        for e in VE.tap_events(d, t, refractory):
+            x[int(np.searchsorted(t, e))] = True
+        return x
+
+    same = VE.firmware_tap(Fake(), ["f0", "f1"], [log("same.csv", device_taps(R.TAP_REFRACTORY_MS))], "DEV", 30.0)
+    assert same["agreement_f1"] == 1.0 and same["verdict"].startswith("replay rules agree"), same
+    other = VE.firmware_tap(Fake(), ["f0", "f1"], [log("other.csv", device_taps(300))], "DEV", 30.0)
+    assert other["agreement_f1"] < 0.98 and "disagree" in other["verdict"], other
+    assert other["best_fit_f1"] == 1.0 and other["best_fit_refractory_ms"] > 200, other
+    gold = pd.DataFrame(dict(recording="same", t_ms=np.asarray(onsets) + 20.0))
+    gr = VE.gold_tap(Fake(), ["f0", "f1"], [tmp / "same.csv"], gold)
+    doubles = len(range(0, len(onsets), 3))               # the second edges are 200 ms > refractory: false events
+    assert gr["recall"] == 1.0 and gr["false_events"] == doubles and abs(gr["latency_ms_median"] + 20.0) < 1e-6, gr
+    lp = VE.firmware_lp(Fake(), ["f0", "f1"], [log("lp.csv", held)], "DEV", 0.5, 30.0)
+    assert lp["presses"] == len(releases) and lp["release_within_tol"] == 1.0, lp
+    shutil.rmtree(tmp)
+    print("VALIDATE_EVENTS_CHECKS_PASSED", flush=True)
+
+
 def select_originals(source, category, per_person):
     files = sorted((source / category).glob("*.csv.gz"))
     selected, seen = [], set()
@@ -278,8 +354,7 @@ def real_source_smoke():
     g.TRIALS_PER_MODEL = 4; g.TOP_K_PER_MODEL = 3; g.CV_FOLDS = 2
     import feature_selection as FS
     FS.INNER_FOLDS = 2; FS.SCREEN_PARAMS["n_estimators"] = 20; FS.REPEATS_GROUP = 1     # small data, fast ranker
-    if g.FEATURE_SELECTION:
-        g.EVAL_MIN_FRAMES = 150          # short smoke recordings: enough events at this gate (default 500)
+    g.EVAL_MIN_FRAMES = 150              # short smoke recordings: enough events at this gate (default 500)
     g.MODEL_BUDGET_KB = 8; g.ALT_BUDGET_KB = 6           # small budgets keep the smoke fast
     g.REPLAY_LP_TAPS_PER_RECORDING = 2
     fake = Path(tempfile.mkdtemp())
@@ -293,19 +368,26 @@ def real_source_smoke():
         assert report["class_one"] == ("RELEASE/REST" if task == "lp" else "TAP/SWIPE onset")
         assert report["budgets"] == [8192, 6144]
         assert report["lean8"]["enabled"] is True
-        if g.FEATURE_SELECTION:
-            assert report["experiment"] == "v3" and report["lean8"]["eval_min_frames"] == g.EVAL_MIN_FRAMES
-            fs = report["feature_selection"]; assert fs and fs["default_k"] == len(report["selected"]["features"]), fs
-            for f in ("fold_0_ranking.csv", "fold_1_ranking.csv", "selection_stability.json", "final_selected_features.json",
-                      "correlation_clusters.json", "selected_features_by_trial.json", "report.md"):
-                assert (out / "feature_selection" / f).is_file(), f
-            held = json.loads((out / "holdout_report.json").read_text())
-            assert [c["features_development"] for c in held["candidates"]] == \
-                   [c["features_holdout_candidate"] for c in report["candidates"]]
-            if task == "tap":
-                assert report["tap_target"]["source"].startswith("FALLBACK") and report["tap_target"]["value"] == 1.0
-        else:
-            assert report["lean8"]["min_frames"] == g.LEAN8_MIN_FRAMES
+        assert report["experiment"] == "v3" and report["lean8"]["eval_min_frames"] == g.EVAL_MIN_FRAMES
+        fs = report["feature_selection"]; assert fs and fs["default_k"] == len(report["selected"]["features"]), fs
+        for f in ("fold_0_ranking.csv", "fold_1_ranking.csv", "selection_stability.json", "final_selected_features.json",
+                  "correlation_clusters.json", "selected_features_by_trial.json", "report.md"):
+            assert (out / "feature_selection" / f).is_file(), f
+        held = json.loads((out / "holdout_report.json").read_text())
+        assert [c["features_development"] for c in held["candidates"]] == \
+               [c["features_holdout_candidate"] for c in report["candidates"]]
+        if task == "tap":
+            assert report["tap_target"]["source"].startswith("FALLBACK") and report["tap_target"]["value"] == 1.0
+            assert report["tap_soft_labels"] is None                     # soft labels are off by default
+            # Labeller-independent reference: every real pointer press of the TAP/SWIPE recordings.
+            hold = report["selected"]["holdout_c_header"]
+            assert hold is None or ("recall_press" in hold and "recall_strong" in hold), hold
+            assert "recall_press" in (out / "COMPARISON.md").read_text()
+            onsets = pd.read_csv(out / "cache" / "tap_onsets.csv")
+            assert list(onsets.columns) == ["rec", "t_on", "kind", "lo", "hi"]
+            assert set(onsets.kind) <= {"strong", "press"} and (onsets.kind == "press").any()
+            assert (onsets.hi > onsets.lo).all()
+            cache_hash_compat_check(out / "cache")
         gate = report["dataset"]["counts"]["lean8_gate"]
         assert 0 < gate["train_rows_used"] <= gate["train_rows_built"], gate
         assert "Steady state only" in (out / "COMPARISON.md").read_text()
@@ -352,7 +434,12 @@ def real_source_smoke():
             pass
         b = g.replay_baselines(task, data, rpl, te, out)[0]
         assert b["status"] == "replayed" and (b["holdout"] is None or b["holdout"]["objective_score"] >= 0), b
-        if task == "lp" and g.FEATURE_SELECTION:
+        # Acceptance (report only): one row per rule with a verdict when both sides were replayed.
+        acc = g.acceptance(task, report["candidates"], [b])
+        assert all(isinstance(r["pass"], bool) and r["baseline"] == "copy_of_new_default" for r in acc), acc
+        assert {r["metric"] for r in acc} <= {m for m, _, _ in g.ACCEPTANCE[task]}, acc
+        assert "acceptance" in report
+        if task == "lp":
             # Leakage: changing the labels of the validation and held-out people must not change a fold's ranking.
             pf = g.prepared_folds(data, rpl, tr, task)[0]
             r1 = FS.fit_fold_ranker(g, g.R, data, rpl, pf["tr"], task, seed=0, cache_dir=None, log=lambda *a: None)
@@ -362,7 +449,7 @@ def real_source_smoke():
             assert r1["order"] == r2["order"] and r1["mean_importance"] == r2["mean_importance"]
             FS.validate_fold_local(r1, pf["val_groups"]); FS.validate_fold_local(r1, set(data["group"][te]))
             print("FS_LEAKAGE_CHECK_PASSED", flush=True)
-        print("UNIFIED_V2_REAL_SOURCE_OK", task, json.dumps(report["dataset"]), report["selected"]["static_bytes"], flush=True)
+        print("UNIFIED_REAL_SOURCE_OK", task, json.dumps(report["dataset"]), report["selected"]["static_bytes"], flush=True)
     combined = g.OUTPUT / "both_models.c"
     combined.write_text('#include "TAP_SWIPE.h"\n#include "LONG_PRESS.h"\n'
                         'float both_models(const t_core *p_core) {\n'
@@ -385,5 +472,6 @@ def real_source_smoke():
 if __name__ == "__main__":
     lean8_checks()
     unit_checks()
+    validate_events_checks()
     if "--unit-only" not in sys.argv:
         real_source_smoke()

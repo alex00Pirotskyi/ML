@@ -192,6 +192,7 @@ class TapCounts:
     def __init__(self):
         self.onsets = 0; self.hits = 0; self.false = 0; self.neg_ms = 0.0; self.latency = []
         self.folder = {}
+        self.extra = {}            # name -> [windows, windows with an event]: extra recall references (reported only)
 
     def _f(self, name):
         return self.folder.setdefault(name, dict(onsets=0, hits=0, false=0, neg_ms=0.0))
@@ -202,6 +203,8 @@ class TapCounts:
         for k, v in other.folder.items():
             f = self._f(k)
             for key in f: f[key] += v[key]
+        for k, (n, h) in other.extra.items():
+            e = self.extra.setdefault(k, [0, 0]); e[0] += n; e[1] += h
         return self
 
     def report(self, target=None):
@@ -219,11 +222,15 @@ class TapCounts:
                     negative_minutes=self.neg_ms / 60000.0, false_per_min=fpm,
                     latency_ms_median=float(np.median(lat)) if len(lat) else None,
                     latency_ms_p90=float(np.percentile(lat, 90)) if len(lat) else None,
-                    objective_score=float(score), false_per_min_target=target, per_folder=folders)
+                    objective_score=float(score), false_per_min_target=target, per_folder=folders,
+                    **{f"recall_{k}": (h / n if n else float("nan")) for k, (n, h) in sorted(self.extra.items())},
+                    **{f"n_{k}": n for k, (n, h) in sorted(self.extra.items())})
 
 
-def tap_replay_recording(decision, t_ms, label, onsets, folder, counts: TapCounts):
-    """One recording. decision: bool per row; label: tap_label per row; onsets: confirmed onset times (ms)."""
+def tap_replay_recording(decision, t_ms, label, onsets, folder, counts: TapCounts, extra=None):
+    """One recording. decision: bool per row; label: tap_label per row; onsets: confirmed onset times (ms).
+    extra: optional {name: (lo_ms, hi_ms) arrays}: reference windows whose recall is REPORTED (a window counts
+    as found if any kept event falls inside it); they never change hits, false events or the objective."""
     d = np.asarray(decision, bool); t = np.asarray(t_ms, np.float64); lab = np.asarray(label)
     if not len(d):
         return counts
@@ -245,6 +252,15 @@ def tap_replay_recording(decision, t_ms, label, onsets, folder, counts: TapCount
     spare = kept[~used]
     false = int((lab[spare] >= 0).sum()) if len(spare) else 0
     counts.false += false; f["false"] += false
+    if extra:
+        for name, (lo, hi) in extra.items():
+            lo = np.asarray(lo, np.float64); hi = np.asarray(hi, np.float64)
+            if len(et) and len(lo):
+                i = np.searchsorted(et, lo, side="left")
+                found = (i < len(et)) & (et[np.minimum(i, len(et) - 1)] <= hi)
+            else:
+                found = np.zeros(len(lo), bool)
+            e = counts.extra.setdefault(name, [0, 0]); e[0] += int(len(lo)); e[1] += int(found.sum())
     dt = np.diff(np.r_[t, t[-1] + (np.median(np.diff(t)) if len(t) > 1 else 0.0)])
     dt = np.clip(dt, 0, 50)
     neg = float(dt[lab == 0].sum())

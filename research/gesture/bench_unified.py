@@ -93,7 +93,7 @@ def frozen_params(task, study=None, limit=None):
     else:
         storage = "sqlite:///" + str(Path(study).resolve())
         names = optuna.study.get_all_study_names(storage)
-        name = next(n for n in names if n.startswith(f"unified_v2_{task}"))
+        name = next(n for n in names if n.startswith((f"unified_v2_{task}", f"unified_v3_{task}")))
         st = optuna.load_study(study_name=name, storage=storage)
         rows = [t.params for t in st.trials if t.state == optuna.trial.TrialState.COMPLETE]
     return rows[:limit] if limit else rows
@@ -139,8 +139,8 @@ def run(task, out_json, study=None, limit=None):
     rows = frozen_params(task, study, limit)
     if os.environ.get("MUDRA_BENCH_ONLY_ALL") == "1":
         rows = [p for p in rows if p.get("feature_set", "all_available") == "all_available"]
-    if getattr(g, "FEATURE_SELECTION", False):
-        # v3 has no named feature sets: the all-feature trials become K = every available field.
+    if getattr(g, "FEATURE_SELECTION", hasattr(g, "fold_rankings")):
+        # v3 (no FEATURE_SELECTION flag since the v2 path was removed) has no named feature sets: the all-feature trials become K = every available field.
         rows = [dict({k: v for k, v in p.items() if k != "feature_set"}, n_features=len(data["columns"]))
                 for p in rows if p.get("feature_set", "all_available") == "all_available" or "n_features" in p]
     for params in rows:
