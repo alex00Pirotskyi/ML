@@ -465,6 +465,52 @@ def feature_effects(X, meta, features, schema, windows):
     return pd.DataFrame(rows)
 
 
+def subtype_effects(X, meta, features, schema, windows):
+    """Within-folder subtype contrasts (e.g. SoftTap vs MidTap), still recording-level only."""
+    ix = schema["index"]
+    stats = list(MODEL_GLOBAL)
+    for w in windows:
+        stats += [f"w{w}_median_p90", f"w{w}_std_p90", f"w{w}_range_p90"]
+    rows = []
+    m = meta.reset_index(drop=True)
+    for cls in sorted(m["class"].unique()):
+        in_class = np.flatnonzero(m["class"].to_numpy() == cls)
+        subtypes = sorted(m.iloc[in_class]["subtype"].unique())
+        if len(subtypes) < 2:
+            continue
+        for sub in subtypes:
+            pos = in_class[m.iloc[in_class]["subtype"].to_numpy() == sub]
+            neg = in_class[m.iloc[in_class]["subtype"].to_numpy() != sub]
+            if len(pos) < 2 or len(neg) < 2:
+                continue
+            local = []
+            for j, feature in enumerate(features):
+                for stat in stats:
+                    col = ix[(j, stat)]
+                    a = X[pos, col].astype(float)
+                    b = X[neg, col].astype(float)
+                    a, b = a[np.isfinite(a)], b[np.isfinite(b)]
+                    if len(a) < 2 or len(b) < 2:
+                        continue
+                    try:
+                        u, pv = mannwhitneyu(a, b, alternative="two-sided", method="asymptotic")
+                        delta = 2.0 * float(u) / (len(a) * len(b)) - 1.0
+                    except Exception:
+                        pv, delta = np.nan, np.nan
+                    local.append({
+                        "class": cls, "subtype": sub, "feature": feature, "family": family(feature),
+                        "stat": stat, "n_subtype_recordings": len(a), "n_other_subtype_recordings": len(b),
+                        "subtype_median": float(np.median(a)), "other_subtype_median": float(np.median(b)),
+                        "median_difference": float(np.median(a) - np.median(b)),
+                        "cliffs_delta": float(delta), "p_value": float(pv),
+                    })
+            if local:
+                for row, qv in zip(local, bh([x["p_value"] for x in local])):
+                    row["q_value"] = float(qv)
+                rows.extend(local)
+    return pd.DataFrame(rows)
+
+
 def paired_effects(X, meta, features, schema, windows, min_pairs=5):
     """Paired participant contrasts, with participant medians aggregated once per class."""
     ix = schema["index"]
@@ -552,13 +598,16 @@ def within_class_corr(X, meta, features, schema):
     for j in range(A.shape[1]):
         good = np.isfinite(A[:, j])
         A[~good, j] = np.median(A[good, j]) if good.any() else 0.0
-    residual = np.zeros_like(A)
+    residual_parts = []
     for cls in sorted(meta["class"].unique()):
         idx = np.flatnonzero(meta["class"].to_numpy() == cls)
         if len(idx) < 3:
             continue
         ranks = rankdata(A[idx], axis=0, method="average")
-        residual[idx] = ranks - ranks.mean(axis=0, keepdims=True)
+        residual_parts.append(ranks - ranks.mean(axis=0, keepdims=True))
+    if not residual_parts:
+        return np.eye(len(features), dtype=np.float64)
+    residual = np.vstack(residual_parts)
     corr = np.corrcoef(residual, rowvar=False)
     corr = np.nan_to_num(corr, nan=0.0, posinf=0.0, neginf=0.0)
     np.fill_diagonal(corr, 1.0)
