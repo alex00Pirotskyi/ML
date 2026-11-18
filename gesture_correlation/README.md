@@ -164,6 +164,7 @@ Results are written under gesture_correlation/results by default and are not com
 | run_manifest.json | Dataset fingerprint, inputs, class counts, feature schema and run settings |
 | recordings.csv | One row per unique recording, including class, subtype, participant and acquisition diagnostics |
 | class_summary.csv | Counts, participants, duration and sampling-rate diagnostics by class |
+| feature_availability.csv | Union of p_core fields and how many recordings contain each field |
 | subtype_summary.csv | Counts by filename subtype |
 | cache/recording_descriptors.npz | Cached recording-level feature matrix |
 | descriptor_schema.json | Exact mapping from pooled descriptors back to p_core columns |
