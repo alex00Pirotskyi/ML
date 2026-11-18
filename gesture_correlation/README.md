@@ -168,6 +168,7 @@ Results are written under gesture_correlation/results by default and are not com
 | cache/recording_descriptors.npz | Cached recording-level feature matrix |
 | descriptor_schema.json | Exact mapping from pooled descriptors back to p_core columns |
 | feature_effects.csv.gz | One-vs-rest effect sizes and corrected p-values |
+| subtype_feature_effects.csv.gz | Within-folder subtype contrasts, e.g. SoftTap vs MidTap |
 | paired_participant_effects.csv.gz | Participant-paired class contrasts |
 | feature_correlation_pairs.csv | All pairwise feature correlations, sorted by absolute value |
 | feature_correlation_clusters.csv | Data-driven correlation clusters |
