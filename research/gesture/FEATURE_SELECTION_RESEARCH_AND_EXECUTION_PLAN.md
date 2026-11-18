@@ -220,12 +220,13 @@ Top-K ranking alone can miss features that are useful only in combination. The i
 - propose adding a feature outside the current subset;
 - propose removing a selected feature;
 - propose swapping a selected feature with an unselected feature;
-- evaluate each proposal with the same person-grouped training/validation discipline and exact replay objective;
+- evaluate these proposals only inside the inner group-cross-fitting partitions of the outer fold's training people;
+- freeze the refined subset/ranking before scoring the outer validation people;
 - retain changes only when the inner selection criterion supports them.
 
-All 150 columns remain eligible for these moves. The refinement must not be restricted to a manually chosen family or to features with a particular name.
+**Never use the outer validation fold to perform floating add/drop/swap.** It is reserved for scoring the already-selected fold pipeline. All 150 columns remain eligible for these moves. The refinement must not be restricted to a manually chosen family or to features with a particular name.
 
-Use the ranked top-K subset to make the search tractable; use the wrapper replay score to decide. The final reported subset must be the exact subset that was trained and exported, not a post-hoc list assembled from feature importance.
+Use the ranked top-K subset to make the search tractable; use the wrapper replay score on inner selection people to decide. The final reported subset must be the exact subset that was trained and exported, not a post-hoc list assembled from feature importance.
 
 ## 5. Validation design and leakage controls
 
