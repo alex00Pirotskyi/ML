@@ -854,7 +854,8 @@ def plots(meta, corr, features, effects, metrics, out):
 
 
 def report(out, roots, lean8, raw_count, duplicates, conflicts, features, windows, meta,
-           class_df, subtype_df, effects, paired, corr_pairs, clusters, metrics, importance, skipped, fp):
+           class_df, subtype_df, effects, subtype_effect_df, paired, corr_pairs, clusters,
+           metrics, importance, skipped, fp):
     classes = sorted(meta["class"].unique())
     lines = [
         "# Gesture correlation research",
@@ -922,6 +923,25 @@ def report(out, roots, lean8, raw_count, duplicates, conflicts, features, window
             if not imp.empty:
                 lines += ["Model gain importance (diagnostic, not causal):", "",
                           markdown_table(imp, ["feature", "family", "gain_share", "gain_rank", "folds_present"], 10), ""]
+
+    lines += ["## Differences between filename subtypes", "",
+              "Within each broad folder class, these tests compare one filename subtype with the other subtypes in the same folder. "
+              "For example, SoftTap vs MidTap is compared inside TAP recordings rather than against unrelated classes.", ""]
+    if not subtype_effect_df.empty:
+        for cls in ("TAP", "SWIPE"):
+            subcls = subtype_effect_df[subtype_effect_df["class"] == cls]
+            if subcls.empty:
+                continue
+            for subtype_name in sorted(subcls["subtype"].unique()):
+                sub = subcls[subcls["subtype"] == subtype_name].copy()
+                sub["abs_delta"] = sub["cliffs_delta"].abs()
+                sub = sub.sort_values(["q_value", "abs_delta"], ascending=[True, False]).drop_duplicates("feature").head(8)
+                lines += [f"### {cls} / {subtype_name}", "",
+                          markdown_table(sub, ["feature", "stat", "n_subtype_recordings",
+                                               "n_other_subtype_recordings", "median_difference",
+                                               "cliffs_delta", "q_value"], 8), ""]
+    else:
+        lines += ["_No within-class subtype comparisons had enough recordings._", ""]
 
     lines += ["## Paired participant contrasts", "",
               "These compare participant-level medians for two classes only where the same filename-derived participant has both classes.", ""]
@@ -1030,6 +1050,10 @@ def main():
     effects = feature_effects(X, meta, features, schema, args.windows_ms)
     if not effects.empty:
         effects.to_csv(out / "feature_effects.csv.gz", index=False, compression="gzip")
+    log("SUBTYPE_EFFECTS_BEGIN")
+    subtype_effect_df = subtype_effects(X, meta, features, schema, args.windows_ms)
+    if not subtype_effect_df.empty:
+        subtype_effect_df.to_csv(out / "subtype_feature_effects.csv.gz", index=False, compression="gzip")
     log("PAIRED_EFFECTS_BEGIN")
     paired = paired_effects(X, meta, features, schema, args.windows_ms, args.min_paired_participants)
     if not paired.empty:
@@ -1046,7 +1070,8 @@ def main():
 
     plots(meta, corr, features, effects, metrics, out)
     report(out, roots, lean8, len(raw), duplicates, conflicts, features, args.windows_ms,
-           meta, class_df, subtype_df, effects, paired, corr_pairs, clusters, metrics, importance, skipped, fp)
+           meta, class_df, subtype_df, effects, subtype_effect_df, paired, corr_pairs, clusters,
+           metrics, importance, skipped, fp)
 
     manifest = {
         "version": VERSION, "created_utc": datetime.now(timezone.utc).isoformat(),
