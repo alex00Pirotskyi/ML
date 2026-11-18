@@ -95,10 +95,12 @@ class GestureCorrelationTests(unittest.TestCase):
             c = root / "FINGER" / "c.csv.gz"
             for p in (a, b, c):
                 p.parent.mkdir(parents=True, exist_ok=True)
-            payload = b"same archive bytes"
+            payload = b"Timestamp,value\n0,1\n1,2\n"
             a.write_bytes(payload)
-            b.write_bytes(payload)
-            c.write_bytes(payload)
+            with gzip.open(b, "wb") as handle:
+                handle.write(payload)
+            with gzip.open(c, "wb") as handle:
+                handle.write(payload)
             rows = [
                 {"raw": a, "class": "TAP"},
                 {"raw": b, "class": "TAP"},
