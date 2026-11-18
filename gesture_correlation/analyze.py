@@ -65,9 +65,6 @@ DEFAULT_ROOTS = [ROOT / "DATA" / "DATA_TAP", ROOT / "DATA" / "DATA_LONG_PRESS"]
 VERSION = "1.0.0"
 GLOBAL_STATS = ("global_median", "global_std", "global_p10", "global_p90", "global_p99", "global_mad", "abs_d1_p50", "abs_d1_p90")
 WINDOW_STATS = ("median_p10", "median_p50", "median_p90", "median_p99", "std_p50", "std_p90", "range_p90")
-MODEL_GLOBAL = ("global_median", "global_std", "global_p10", "global_p90", "global_p99", "abs_d1_p90")
-MODEL_WINDOW = ("median_p90", "std_p90", "range_p90")
-PAIR_BASE = ("global_median", "global_std", "global_p90", "abs_d1_p90")
 META_STOP = {"horizontal", "vertical", "reverse", "default", "none", "noise", "left", "right", "lefthand", "righthand", "hand"}
 
 
