@@ -93,7 +93,9 @@ def subtype(p):
     out = []
     for token in parts:
         low = token.lower()
-        if low in META_STOP or re.fullmatch(r"\d+bpm", low):
+        if low in {"left", "right", "lefthand", "righthand", "hand", "noise"}:
+            continue
+        if low in {"horizontal", "vertical", "reverse", "default", "none"} or re.fullmatch(r"\d+bpm", low):
             break
         if re.fullmatch(r"\d{4}-\d{2}-\d{2}", token) or re.fullmatch(r"\d{1,2}-\d{2}-\d{2}", token):
             break
