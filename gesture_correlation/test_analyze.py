@@ -44,6 +44,36 @@ class GestureCorrelationTests(unittest.TestCase):
             "Nothing",
         )
 
+    def test_prepare_features_off_returns_rows_and_metadata(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "DATA_TAP"
+            raw = root / "TAP" / "person_MidTap.csv"
+            raw.parent.mkdir(parents=True)
+            raw.write_text("Timestamp,value\n0,1\n")
+            rows = [{"raw": raw, "root": root, "rel": Path("TAP/person_MidTap.csv")}]
+            prepared, info = g.prepare_features(rows, [root], "off", 0)
+            self.assertIs(prepared, rows)
+            self.assertEqual(prepared[0]["feature"], raw)
+            self.assertFalse(info["lean8_used"])
+            self.assertEqual(info["parity"], "off")
+
+    def test_prepare_features_required_uses_existing_derived_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "DATA_TAP"
+            raw = root / "TAP" / "person_MidTap.csv"
+            derived_root = g.lean8_root(root)
+            derived = derived_root / "TAP" / "person_MidTap.csv"
+            raw.parent.mkdir(parents=True)
+            derived.parent.mkdir(parents=True)
+            raw.write_text("Timestamp,value\n0,1\n")
+            derived.write_text("Timestamp,value,lean8_features_ready\n0,1,1\n")
+            rows = [{"raw": raw, "root": root, "rel": Path("TAP/person_MidTap.csv")}]
+            prepared, info = g.prepare_features(rows, [root], "required", 0)
+            self.assertIs(prepared, rows)
+            self.assertEqual(prepared[0]["feature"], derived)
+            self.assertTrue(info["lean8_used"])
+            self.assertEqual(info["missing"], 0)
+
     def test_descriptor_schema_includes_every_input_feature(self):
         features = [
             "p_core->acc_psd[0][X][0]",
