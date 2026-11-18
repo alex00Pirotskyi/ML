@@ -39,9 +39,11 @@ import os
 import shutil
 import subprocess
 import sys
+import threading
 import time
 import weakref
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor, wait as wait_futures
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -71,6 +73,9 @@ RAW_SOURCE_TAP = ROOT / "DATA" / "DATA_TAP"
 RAW_SOURCE_LP = ROOT / "DATA" / "DATA_LONG_PRESS"
 SOURCE_TAP = ROOT / "DATA" / "DATA_TAP_LEAN8"          # derived: original lines + firmware Lean-8 columns
 SOURCE_LP = ROOT / "DATA" / "DATA_LONG_PRESS_LEAN8"
+# MUDRA_USE_LEAN8=0: the 24 Lean-8 fields are not model inputs (firmware built without NEW_CLOAD_FEATURES).
+# Rows, labels, frame gates and the held-out split stay identical (the frame counter comes from the derived
+# Lean-8 files either way), so a run without Lean-8 is a clean A/B against one with it.
 USE_LEAN8 = os.environ.get("MUDRA_USE_LEAN8", "1").strip().lower() not in ("0", "false", "no", "off")
 # Frame gates count Lean-8 handler calls since the recording (sensor stream) started (46.4 frames/s).
 # EVAL: rows the firmware runs the models on. model_execution() returns until lean_8_features_ready()
@@ -106,7 +111,8 @@ PRESS_WINDOW_MS = (150, 250)         # pointer-press reference: [min(press, onse
 TAP_TARGET_FALLBACK = 1.0
 LABEL_TAP = ROOT / "DATA" / "LABELS" / "DATA_TAP"
 LABEL_LP = ROOT / "DATA" / "LABELS" / "DATA_LONG_PRESS"
-OUTPUT = ROOT / "research" / "gesture" / "results_unified_v3_feature_selection"
+OUTPUT = ROOT / "research" / "gesture" / ("results_unified_v3_feature_selection" if USE_LEAN8
+                                          else "results_unified_v3_feature_selection_no_lean8")
 PREVIOUS_UNIFIED = ROOT / "research" / "gesture" / "results_unified_20261117"
 CLAUDE_LABELER = ROOT / "claude_labeling" / "label_gestures.py"
 TRIALS_PER_MODEL = 40
@@ -119,6 +125,12 @@ FIXED_THRESHOLD = 0.85                # TAP_SWIPE_predict(): onset when p >= 0.8
 LP_RELEASE_THRESHOLD = float(os.environ.get("MUDRA_LP_RELEASE_THRESHOLD", 0.5))
 # Thread count does not enter the models (LightGBM deterministic=True); benchmark with bench_unified.py threads.
 CPU_THREADS = int(os.environ.get("MUDRA_CPU_THREADS", 0)) or previous_tap.CPU_THREADS
+# The 3 CV folds of a trial (and the 3 fold feature rankings) run at the same time, each LightGBM with an equal
+# share of CPU_THREADS. One LightGBM on ~0.5M rows does not scale to dozens of threads, and the replay scoring
+# between fits is single-threaded, so one fold at a time left most of a large server idle. Trials stay
+# sequential (Optuna's sampler depends on their order). MUDRA_FOLD_WORKERS=1 restores one fold at a time.
+FOLD_WORKERS = max(1, min(CV_FOLDS, int(os.environ.get("MUDRA_FOLD_WORKERS", 0)) or CPU_THREADS // 8 or 1))
+FOLD_THREADS = max(1, CPU_THREADS // FOLD_WORKERS)
 SEED = 20261118
 VERIFIED_HASHES = True
 FILE_LIMIT_PER_FOLDER = None        # testing aid: use at most this many recordings per folder
@@ -174,10 +186,10 @@ BASELINES = dict(
 
 RAW_126 = tuple(previous_tap.FULL_126)
 LEAN8_24 = tuple(lean8.LEAN8_COLUMNS)
-ALL_FEATURES = RAW_126 + LEAN8_24
+ALL_FEATURES = RAW_126 + (LEAN8_24 if USE_LEAN8 else ())
 assert len(RAW_126) == 126 and len(set(RAW_126)) == 126
 assert len(LEAN8_24) == 24 and len(set(LEAN8_24)) == 24
-assert len(ALL_FEATURES) == 150 and len(set(ALL_FEATURES)) == 150
+assert len(ALL_FEATURES) == (150 if USE_LEAN8 else 126) and len(set(ALL_FEATURES)) == len(ALL_FEATURES)
 assert all(x.startswith("p_core->") for x in ALL_FEATURES)
 
 TAP_FOLDERS = frozenset(("TAP", "SWIPE"))
@@ -218,16 +230,30 @@ def study_name(task: str) -> str:
 
 
 class StageClock:
-    """Wall-clock seconds per named stage (time.perf_counter); never changes any result."""
+    """Wall-clock seconds per named stage (time.perf_counter); never changes any result.
+    seconds: summed over all threads; local(): this thread's seconds since local_reset() (per CV fold)."""
 
     def __init__(self):
         self.seconds = Counter()
+        self._lock = threading.Lock()
+        self._local = threading.local()
 
     def reset(self):
-        self.seconds = Counter()
+        with self._lock:
+            self.seconds = Counter()
+
+    def local_reset(self):
+        self._local.seconds = Counter()
+
+    def local(self):
+        return dict(getattr(self._local, "seconds", Counter()))
 
     def add(self, name, dt):
-        self.seconds[name] += dt
+        with self._lock:
+            self.seconds[name] += dt
+        mine = getattr(self._local, "seconds", None)
+        if mine is not None:
+            mine[name] += dt
 
     def __call__(self, name):
         clock = self
@@ -237,12 +263,22 @@ class StageClock:
                 self.t0 = time.perf_counter()
 
             def __exit__(self, *exc):
-                clock.seconds[name] += time.perf_counter() - self.t0
+                clock.add(name, time.perf_counter() - self.t0)
         return _Span()
 
 
 CLOCK = StageClock()
 TIMING_LOG = None                   # set per task: JSONL of per-trial stage timings
+_FOLD_POOL = None
+
+
+def fold_pool():
+    """Thread pool for concurrent CV folds (None = one fold at a time). LightGBM fit and predict release the
+    GIL; each fold uses its own model, gather buffer and counters."""
+    global _FOLD_POOL
+    if FOLD_WORKERS > 1 and _FOLD_POOL is None:
+        _FOLD_POOL = ThreadPoolExecutor(max_workers=FOLD_WORKERS, thread_name_prefix="cv-fold")
+    return _FOLD_POOL if FOLD_WORKERS > 1 else None
 
 
 def notice(*values):
@@ -354,8 +390,6 @@ def ensure_labels(root: Path, label_dir: Path) -> list[Path]:
 
 
 def _feature_root(raw_root: Path) -> Path:
-    if not USE_LEAN8:
-        return raw_root
     return SOURCE_TAP if raw_root == RAW_SOURCE_TAP else SOURCE_LP
 
 
@@ -518,7 +552,7 @@ def _fingerprint(task, records, columns):
             LP_TAP_RELEASE_STRIDE_MS, LP_HARD_STRIDE_MS, LP_BACKGROUND_STRIDE_MS],
         replay=[REPLAY_LP_TAPS_PER_RECORDING, REPLAY_LP_AFTER_RELEASE_MS]), sort_keys=True).encode())
     h.update(sha256(CLAUDE_LABELER).encode())
-    if USE_LEAN8:
+    if True:                                     # frame counter (and Lean-8 inputs when used) come from here
         h.update(lean8.GENERATOR_SHA.encode())
         fw = lean8.firmware_header()
         h.update((sha256(fw) if fw else "no-firmware-header").encode())
@@ -594,17 +628,12 @@ def build_task_data(task: str, records, out: Path):
             rows, kinds = sample_tap(t, y_train, lab["any_active"].to_numpy(np.int8), ev, soft_rows)
         else:
             rows, kinds = sample_lp(t, y, lab["hold_ms"].to_numpy(np.int32), folder, ev)
-        source_cols = set(columns) | {"Timestamp", "User"}
-        if USE_LEAN8:
-            source_cols.add(lean8.FRAMES_COLUMN)
+        source_cols = set(columns) | {"Timestamp", "User", lean8.FRAMES_COLUMN}
         df = pd.read_csv(source, compression="gzip", low_memory=False,
                          usecols=lambda c: c in source_cols)
         if len(df) != len(lab):
             raise ValueError(f"Row count mismatch: {source}")
-        if USE_LEAN8:
-            frames = df[lean8.FRAMES_COLUMN].to_numpy(np.int32)
-        else:
-            frames = np.full(len(df), np.iinfo(np.int32).max, np.int32)
+        frames = df[lean8.FRAMES_COLUMN].to_numpy(np.int32)
         if not np.array_equal(pd.to_numeric(df["Timestamp"], errors="raise").to_numpy(np.int64), ts):
             raise ValueError(f"Timestamp mismatch: {source}")
         X = df[columns].apply(pd.to_numeric, errors="raise").to_numpy(np.float32)
@@ -911,11 +940,13 @@ class _DumpPrefix:
 
 
 _SIZING = weakref.WeakKeyDictionary()       # per fitted model, never stored on the model (pickling, copies)
+_SIZING_LOCK = threading.Lock()
 
 
 def _sizing(model):
     """Per-model cache: full exact size and a prefix sizer that runs the unchanged exporter accounting."""
-    cache = _SIZING.get(model)
+    with _SIZING_LOCK:
+        cache = _SIZING.get(model)
     if cache is None:
         info = model.booster_.dump_model()["tree_info"]
         memo = {}
@@ -927,7 +958,8 @@ def _sizing(model):
                 memo[k] = int(export_plus._estimate_compact_tree_payload_legacy(m)["total_static_data_bytes"])
             return memo[k]
         cache = dict(full=static_bytes(model), prefix=prefix, n=model.booster_.num_trees())
-        _SIZING[model] = cache
+        with _SIZING_LOCK:
+            _SIZING[model] = cache
     return cache
 
 
@@ -964,7 +996,7 @@ def trees_within(model, budget: int) -> tuple[int, int]:
 
 
 # ============================================================================ replay scoring
-_GATHER_BUFFER = {}
+_GATHER_LOCAL = threading.local()          # one reusable gather buffer per thread (concurrent CV folds)
 
 
 def _gather(Xmm, batch, selected):
@@ -975,11 +1007,14 @@ def _gather(Xmm, batch, selected):
                                     dtype=np.float32)
     n = sum(b - a for a, b in batch)
     ncol = len(selected)
-    buf = _GATHER_BUFFER.get(ncol)
+    store = getattr(_GATHER_LOCAL, "buffers", None)
+    if store is None:
+        store = _GATHER_LOCAL.buffers = {}
+    buf = store.get(ncol)
     if buf is None or len(buf) < n:
-        _GATHER_BUFFER.clear()                      # keep at most one buffer (bounded memory)
+        store.clear()                               # keep at most one buffer per thread (bounded memory)
         buf = np.empty((max(n, 1), ncol), np.float32)
-        _GATHER_BUFFER[ncol] = buf
+        store[ncol] = buf
     X = buf[:n]
     pos = 0
     for a, b in batch:
@@ -1189,10 +1224,19 @@ def fold_rankings(data, rpl, train_ids, task):
     if key in _RANKINGS:
         return _RANKINGS[key]
     me = sys.modules[__name__]
+    folds = list(enumerate(prepared_folds(data, rpl, train_ids, task)))
+    pool = fold_pool()
+    threads = FOLD_THREADS if pool is not None else CPU_THREADS
+
+    def one(fold, pf):
+        return FS.fit_fold_ranker(me, R, data, rpl, pf["tr"], task, seed=fold, cache_dir=FS_CACHE_DIR,
+                                  tap_target=R.TAP_FALSE_PER_MIN_TARGET, log=lambda *a: notice(*a), threads=threads)
+    if pool is None:
+        ranked = [one(f, pf) for f, pf in folds]
+    else:
+        ranked = [fu.result() for fu in [pool.submit(one, f, pf) for f, pf in folds]]
     out = []
-    for fold, pf in enumerate(prepared_folds(data, rpl, train_ids, task)):
-        r = FS.fit_fold_ranker(me, R, data, rpl, pf["tr"], task, seed=fold, cache_dir=FS_CACHE_DIR,
-                               tap_target=R.TAP_FALSE_PER_MIN_TARGET, log=lambda *a: notice(*a))
+    for (fold, pf), r in zip(folds, ranked):
         FS.validate_fold_local(r, pf["val_groups"])
         out.append(r)
         notice("UNIFIED_FS_FOLD_RANKING", task, fold, r["seconds"], "s", r["ordered_features"][:8])
@@ -1235,45 +1279,58 @@ def objective(trial, data, rpl, train_ids, task, budgets):
     if n_features < n_all:
         with CLOCK("feature_ranking"):
             rankings = fold_rankings(data, rpl, train_ids, task)
-    sel_index = np.asarray(selected, dtype=np.intp)
-    selected_by_fold = []
+    selected_by_fold, sels = [], []
     for fold, pf in enumerate(prepared):
-        before = dict(CLOCK.seconds)
-        tr = pf["tr"]; val_groups = pf["val_groups"]
-        if rankings is not None:
-            selected = FS.select_top_k(rankings[fold], n_features)
-            sel_index = np.asarray(selected, dtype=np.intp)
-        selected_by_fold.append([data["columns"][j] for j in selected])
+        sel = FS.select_top_k(rankings[fold], n_features) if rankings is not None else selected
+        sels.append(sel)
+        selected_by_fold.append([data["columns"][j] for j in sel])
         if pf["classes"] != {0, 1}:
             raise optuna.TrialPruned("Missing class in person-grouped fold")
+    pool = fold_pool()
+    fold_params = dict(params, n_jobs=FOLD_THREADS) if pool is not None else params
+
+    def run_fold(pf, sel):
+        CLOCK.local_reset()
         with CLOCK("fold_prepare"):
-            X = data["X"][np.ix_(tr, sel_index)]          # == data["X"][tr][:, selected], one copy
+            X = data["X"][np.ix_(pf["tr"], np.asarray(sel, dtype=np.intp))]   # == data["X"][tr][:, sel], one copy
             w = fold_weights(pf, positive_weight)
         with CLOCK("fit"):
-            model = fit_model(X, pf["y"], w, params, primary)
+            model = fit_model(X, pf["y"], w, fold_params, primary)
         del X
         with CLOCK("size"):
             ks = {bud: trees_within(model, bud) for bud in budgets}
         fn = model_prob_fn(model, [k for k, _ in ks.values()], task)
-        res = (replay_tap_items if task == "tap" else replay_lp_items)(fn, rpl, pf["replay"], selected)
-        fold_rep = {}
-        for bud, (k, size) in ks.items():
-            c = res.get(k)
-            if c is not None:
-                totals[bud].add(c)
-            rep_ = c.report() if c is not None else {}
-            usable = bool(c is not None and (c.onsets if task == "tap" else (c.holds + c.taps)))
-            fold_rep[str(bud)] = dict(trees=k, bytes=size, usable=usable,
-                                      **{kk: vv for kk, vv in rep_.items() if kk != "per_folder"})
-        folds.append(dict(fold=fold, people=len(val_groups), fitted_trees=model.booster_.num_trees(), budgets=fold_rep))
-        fold_timing.append({k: round(v - before.get(k, 0.0), 3) for k, v in CLOCK.seconds.items()})
-        running = [f["budgets"][str(primary)]["objective_score"] for f in folds if f["budgets"][str(primary)]["usable"]]
-        with CLOCK("study_io"):
-            trial.report(float(np.mean(running)) if running else 0.0, fold)
-            prune = trial.should_prune()
-        if prune:
-            _log_timing(trial, task, t_start, fold_timing, pruned=True)
-            raise optuna.TrialPruned(f"fold {fold} below median")
+        res = (replay_tap_items if task == "tap" else replay_lp_items)(fn, rpl, pf["replay"], sel)
+        return ks, res, model.booster_.num_trees(), CLOCK.local()
+    if pool is None:              # one fold at a time: a pruned trial stops before computing the next fold
+        futures = None
+        results = (run_fold(pf, sel) for pf, sel in zip(prepared, sels))
+    else:                         # all folds at once; folds are reported (and pruned) in the same order
+        futures = [pool.submit(run_fold, pf, sel) for pf, sel in zip(prepared, sels)]
+        results = (fu.result() for fu in futures)
+    try:
+        for fold, (pf, (ks, res, fitted, timing)) in enumerate(zip(prepared, results)):
+            fold_rep = {}
+            for bud, (k, size) in ks.items():
+                c = res.get(k)
+                if c is not None:
+                    totals[bud].add(c)
+                rep_ = c.report() if c is not None else {}
+                usable = bool(c is not None and (c.onsets if task == "tap" else (c.holds + c.taps)))
+                fold_rep[str(bud)] = dict(trees=k, bytes=size, usable=usable,
+                                          **{kk: vv for kk, vv in rep_.items() if kk != "per_folder"})
+            folds.append(dict(fold=fold, people=len(pf["val_groups"]), fitted_trees=fitted, budgets=fold_rep))
+            fold_timing.append({k: round(v, 3) for k, v in timing.items()})
+            running = [f["budgets"][str(primary)]["objective_score"] for f in folds if f["budgets"][str(primary)]["usable"]]
+            with CLOCK("study_io"):
+                trial.report(float(np.mean(running)) if running else 0.0, fold)
+                prune = trial.should_prune()
+            if prune:
+                _log_timing(trial, task, t_start, fold_timing, pruned=True)
+                raise optuna.TrialPruned(f"fold {fold} below median")
+    finally:
+        if futures is not None:   # never leave a fold running into the next trial
+            wait_futures(futures)
     reports = {}
     for bud in budgets:
         pooled = totals[bud].report()
@@ -1301,7 +1358,7 @@ def objective(trial, data, rpl, train_ids, task, budgets):
 def _log_timing(trial, task, t_start, fold_timing, pruned):
     timing = dict(total=round(time.perf_counter() - t_start, 3),
                   stages={k: round(v, 3) for k, v in sorted(CLOCK.seconds.items())}, folds=fold_timing,
-                  cpu_threads=CPU_THREADS, pruned=pruned)
+                  cpu_threads=CPU_THREADS, fold_workers=FOLD_WORKERS, fold_threads=FOLD_THREADS, pruned=pruned)
     trial.set_user_attr("timing", timing)
     if TIMING_LOG is not None:
         with open(TIMING_LOG, "a") as f:
@@ -1512,8 +1569,7 @@ def export_candidates(data, rpl, task, stem, tr, te, picks, out: Path):
         rpl_sub = dict(rpl, X=_ColumnView(rpl["X"], ix))
         pre_reports.append(dict(role=role, trial=trial.number, features_development=subset,
                                 holdout_c_header=header_replay(hm, rpl_sub, held, task),
-                                holdout_c_header_steady_state=(header_replay(hm, rpl_sub, held, task, steady=True)
-                                                               if USE_LEAN8 else None),
+                                holdout_c_header_steady_state=header_replay(hm, rpl_sub, held, task, steady=True),
                                 holdout_model_bytes=b_pre, c_vs_python_parity=parity(hm, pre, rpl, held, ix, task, k_pre)))
     write_json(out / "holdout_report.json", dict(
         note="Frozen before any model or feature ranking was fitted on the held-out people; never used to choose.",
@@ -1590,8 +1646,7 @@ def replay_baselines(task, data, rpl, te, out: Path):
                              api=dict(value=hm.value_prefix, decision=hm.bool_prefix),
                              release_threshold=LP_BASELINE_RELEASE_THRESHOLD if task == "lp" else None,
                              holdout=header_replay(hm, rpl, held, task, lp_threshold=bthr),
-                             holdout_steady_state=(header_replay(hm, rpl, held, task, steady=True, lp_threshold=bthr)
-                                                   if USE_LEAN8 else None),
+                             holdout_steady_state=header_replay(hm, rpl, held, task, steady=True, lp_threshold=bthr),
                              all_people=header_replay(hm, rpl, everyone, task, lp_threshold=bthr),
                              note="all_people may include this baseline's own training data"))
         except Exception as exc:          # a baseline problem must never stop training
@@ -1604,7 +1659,7 @@ def replay_baselines(task, data, rpl, te, out: Path):
 
 def comparison_table(task, candidates, baselines):
     text = _comparison_rows(task, candidates, baselines, "holdout_c_header", "holdout")
-    if USE_LEAN8:
+    if True:
         text += (f"\nSteady state only (rows after {LEAN8_STEADY_FRAMES} Lean-8 frames, ~10.8 s, "
                  "i.e. lean_8_features_ready()):\n\n"
                  + _comparison_rows(task, candidates, baselines, "holdout_c_header_steady_state", "holdout_steady_state"))
@@ -1864,10 +1919,8 @@ def same_lean8_setting(saved) -> bool:
 
 
 def lean8_setting():
-    return dict(enabled=USE_LEAN8, train_min_frames=TRAIN_MIN_FRAMES if USE_LEAN8 else None,
-                eval_min_frames=EVAL_MIN_FRAMES if USE_LEAN8 else None,
-                steady_frames=LEAN8_STEADY_FRAMES if USE_LEAN8 else None,
-                generator_sha256=lean8.GENERATOR_SHA if USE_LEAN8 else None)
+    return dict(enabled=USE_LEAN8, train_min_frames=TRAIN_MIN_FRAMES, eval_min_frames=EVAL_MIN_FRAMES,
+                steady_frames=LEAN8_STEADY_FRAMES, generator_sha256=lean8.GENERATOR_SHA)
 
 
 def train_task(task: str, tap_files, lp_files):
@@ -1982,11 +2035,12 @@ def train_task(task: str, tap_files, lp_files):
 
 def main():
     t0 = time.monotonic()
-    notice("UNIFIED_TRAINER_START", "cpu_threads", CPU_THREADS, "tap_threshold", FIXED_THRESHOLD,
+    notice("UNIFIED_TRAINER_START", "cpu_threads", CPU_THREADS, "of", previous_tap.cpu_count(),
+           "fold_workers", FOLD_WORKERS, "x", FOLD_THREADS, "threads", "lean8_inputs", USE_LEAN8, "tap_threshold", FIXED_THRESHOLD,
            "lp_release_threshold", LP_RELEASE_THRESHOLD,
            "budget_kb", MODEL_BUDGET_KB, "alt_budget_kb", ALT_BUDGET_KB, "trials", TRIALS_PER_MODEL)
     lean8_manifest = None
-    if USE_LEAN8:
+    if True:                                     # also when Lean-8 is not a model input: frame gates
         lean8_manifest = lean8.ensure_datasets([(RAW_SOURCE_TAP, SOURCE_TAP), (RAW_SOURCE_LP, SOURCE_LP)],
                                                workers=CPU_THREADS)
     files_t = ensure_labels(RAW_SOURCE_TAP, LABEL_TAP)

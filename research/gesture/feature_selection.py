@@ -173,7 +173,7 @@ def ranking_key(data, task, outer_train_ids, columns, gate, tap_target, seed):
 
 
 def fit_fold_ranker(g, R, data, rpl, outer_train_ids, task, *, seed=0, cache_dir: Path | None = None,
-                    tap_target=None, log=print):
+                    tap_target=None, log=print, threads=None):
     """Feature ranking from the outer fold's TRAINING people only (see module docstring)."""
     columns = list(data["columns"])
     tap_target = R.TAP_FALSE_PER_MIN_TARGET if tap_target is None else float(tap_target)
@@ -197,7 +197,7 @@ def fit_fold_ranker(g, R, data, rpl, outer_train_ids, task, *, seed=0, cache_dir
             outer_train_ids, data["y"][outer_train_ids], groups[outer_train_ids])):
         tr = outer_train_ids[a]; val_people = set(groups[outer_train_ids[b]])
         assert not (val_people & set(groups[tr])), "inner split shares people"
-        params = dict(SCREEN_PARAMS, n_jobs=g.CPU_THREADS, random_state=g.SEED + i)
+        params = dict(SCREEN_PARAMS, n_jobs=threads or g.CPU_THREADS, random_state=g.SEED + i)
         model = g.lgb.LGBMClassifier(**params)
         model.fit(data["X"][tr], data["y"][tr], sample_weight=g.weights_for_task(data, tr, task, SCREEN_POSITIVE_WEIGHT[task]))
         ev = InnerReplay(g, R, rpl_eval, val_people, task, tap_target)

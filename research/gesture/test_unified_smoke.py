@@ -305,6 +305,38 @@ def validate_events_checks():
     print("VALIDATE_EVENTS_CHECKS_PASSED", flush=True)
 
 
+def fold_parallel_check():
+    """Concurrent CV folds give the same trees and the same objective as one fold at a time."""
+    import hashlib
+    import optuna
+    ft = g.canonical_files(g.RAW_SOURCE_TAP); fl = g.canonical_files(g.RAW_SOURCE_LP)
+    data, rpl, _ = g.build_task_data("tap", g.selected_sources("tap", ft, fl), g.OUTPUT / "tap")
+    tr, _ = g.split_heldout(data, "tap")
+    budgets = [g.budget_bytes(g.MODEL_BUDGET_KB)]
+    params = dict(n_features=len(data["columns"]) // 2, positive_weight=1.0, max_depth=4, num_leaves=15,
+                  n_estimators=40, learning_rate=0.1, min_child_samples=50, reg_lambda=1.0, reg_alpha=1e-3,
+                  colsample_bytree=0.8, subsample=0.8)
+    fit, seen = g.fit_model, []
+
+    def recording_fit(X, y, w, p, b):
+        m = fit(X, y, w, p, b)
+        seen.append(hashlib.sha256(m.booster_.model_to_string().split("\nparameters:")[0].encode()).hexdigest())
+        return m
+    g.fit_model = recording_fit
+    results = []
+    try:
+        for workers in (1, 2):
+            g.FOLD_WORKERS, g.FOLD_THREADS = workers, 1
+            seen.clear()
+            t = optuna.trial.FixedTrial(params)
+            results.append((g.objective(t, data, rpl, tr, "tap", budgets), sorted(seen),
+                            [f["budgets"][str(budgets[0])]["objective_score"] for f in t.user_attrs["folds"]]))
+    finally:
+        g.fit_model = fit
+    assert results[0] == results[1], results
+    print("FOLD_PARALLEL_EQUIVALENT", results[0][0], flush=True)
+
+
 def select_originals(source, category, per_person):
     files = sorted((source / category).glob("*.csv.gz"))
     selected, seen = [], set()
@@ -357,6 +389,7 @@ def real_source_smoke():
     g.EVAL_MIN_FRAMES = 150              # short smoke recordings: enough events at this gate (default 500)
     g.MODEL_BUDGET_KB = 8; g.ALT_BUDGET_KB = 6           # small budgets keep the smoke fast
     g.REPLAY_LP_TAPS_PER_RECORDING = 2
+    g.FOLD_WORKERS = 2; g.FOLD_THREADS = 1                # CV folds and fold rankings run concurrently
     fake = Path(tempfile.mkdtemp())
     g.BASELINES = dict(tap=[("missing_example", str(fake / "nope.h"))], lp=[("not_configured_example", "")])
     g.main()
@@ -462,6 +495,7 @@ def real_source_smoke():
     if p.returncode:
         raise RuntimeError("Combined firmware header C compile failed: " + p.stderr[-5000:])
     print("UNIFIED_V2_BOTH_HEADERS_COMPILE_TOGETHER", flush=True)
+    fold_parallel_check()
     man = json.loads((sample_root / "lean8_manifest.json").read_text())
     assert man["firmware_parity"]["status"] in ("passed", "not run"), man["firmware_parity"]
     derived = sorted(g.SOURCE_TAP.glob("TAP/*.csv.gz"))

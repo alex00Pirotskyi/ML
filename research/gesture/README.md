@@ -186,7 +186,7 @@ Environment variables:
 | `MUDRA_ALT_BUDGET_KB` | 24 | second budget; `none` or `0` disables it |
 | `MUDRA_TAP_BASELINE_HEADER` | `research/tap_real/results_claude_v2_optuna_126_thr085/models/TAP_SWIPE.h` | previous successful TAP model |
 | `MUDRA_LP_V20_HEADER` | not set | **LP v20 header; set this to get the v20 comparison** |
-| `MUDRA_USE_LEAN8` | 1 | 0 = raw126 only, read straight from the raw recordings |
+| `MUDRA_USE_LEAN8` | 1 | 0 = the 24 Lean-8 fields are not model inputs (firmware built with `NEW_CLOAD_FEATURES 0`). Rows, labels, frame gates and the held-out split stay identical, so it is a clean A/B. Output goes to `results_unified_v3_feature_selection_no_lean8/` and the study names carry `lean80` |
 | `MUDRA_LEAN8_FIRMWARE_HEADER` | `research/gesture/_lean8_reference/core_type_def.h` | firmware header for the C parity check (git-ignored; public repo) |
 | `MUDRA_LEAN8_PARITY_FILES` | 24 | recordings compared with the firmware C code on each generation (0 = off) |
 | `MUDRA_LEAN8_VERIFY_SOURCE_SHA` | 0 | 1 = also SHA-256 every source recording before reusing its derived file (size + mtime is the default check) |
@@ -196,7 +196,8 @@ Environment variables:
 | `MUDRA_TRAIN_MIN_FRAMES` | 50 | rows used as training examples, counted in Lean-8 frames (~1.1 s); the older name `MUDRA_LEAN8_MIN_FRAMES` is still read |
 | `MUDRA_TAP_FALSE_PER_MIN_TARGET` | baseline | TAP false-event budget: `baseline` = previous TAP header's rate on the development people, or a number |
 | `MUDRA_TAP_SOFT_LABELS` | off | a teacher score (e.g. 0.5): unconfirmed taps with at least that score become weighted positives and count in the objective. Measured not to help; part of the TAP study name when set |
-| `MUDRA_CPU_THREADS` | 80% of CPUs | LightGBM threads; does not change the models (deterministic=True). Choose with `bench_unified.py threads` |
+| `MUDRA_CPU_THREADS` | 80% of CPUs | all threads the trainer uses (CPUs the process may use, cgroup quota respected); does not change the models (deterministic=True) |
+| `MUDRA_FOLD_WORKERS` | 3 when `MUDRA_CPU_THREADS` ≥ 24 (2 when ≥ 16) | CV folds (and fold feature rankings) trained at the same time, each LightGBM with `MUDRA_CPU_THREADS / workers` threads. Same trees and scores as one fold at a time (smoke: `FOLD_PARALLEL_EQUIVALENT`); 1 = one fold at a time |
 
 ## Selection and outputs
 
