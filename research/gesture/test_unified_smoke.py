@@ -60,7 +60,9 @@ def unit_checks():
         b = int(kb * 1024); k, size = g.trees_within(m, b)
         assert size <= b and g.static_bytes(g.truncated(m, k)) == size
         assert k == m.booster_.num_trees() or g.static_bytes(g.truncated(m, k + 1)) > b
-    out = Path(tempfile.mkdtemp()); cols = list(g.ALL_RAW)
+    assert len(g.LEAN8_24) == 24
+    g.export_plus.validate_feature_schema_accessors(g.LEAN8_24)
+    out = Path(tempfile.mkdtemp()); cols = list(g.RAW_126)
     mk = g.truncated(m, g.trees_within(m, 24 * 1024)[0])
     h, size, _ = g.write_header(mk, cols, "TAP_SWIPE", out / "models", "tap", out)
     hm = R.HeaderModel(h, cols, out / "build", prefer="tap_swipe")
@@ -121,6 +123,7 @@ def real_source_smoke():
     original = sorted(tap_root.glob("TAP/*.csv.gz"))[0]
     with gzip.open(original, "rb") as stream, original.with_suffix("").open("wb") as dest:
         shutil.copyfileobj(stream, dest)
+    g.USE_LEAN8 = False
     g.SOURCE_TAP = tap_root; g.SOURCE_LP = lp_root
     g.LABEL_TAP = ROOT / "research" / "gesture" / "_smoke_labels" / "DATA_TAP"
     g.LABEL_LP = ROOT / "research" / "gesture" / "_smoke_labels" / "DATA_LONG_PRESS"
