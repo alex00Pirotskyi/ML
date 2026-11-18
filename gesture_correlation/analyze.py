@@ -188,17 +188,24 @@ def prepare_features(rows, roots, mode, parity_files):
 
 
 def common_columns(rows):
-    first = [c for c in pd.read_csv(rows[0]["feature"], nrows=0).columns if c.startswith("p_core->")]
-    common = set(first)
-    for i, r in enumerate(rows[1:], 1):
-        cols = set(c for c in pd.read_csv(r["feature"], nrows=0).columns if c.startswith("p_core->"))
-        common.intersection_update(cols)
+    order, counts = [], Counter()
+    for i, r in enumerate(rows, 1):
+        cols = [c for c in pd.read_csv(r["feature"], nrows=0).columns if c.startswith("p_core->")]
+        for col in cols:
+            if col not in counts:
+                order.append(col)
+            counts[col] += 1
         if i % 500 == 0:
-            log("SCHEMA_SCAN", i, "/", len(rows), "common", len(common))
-    cols = [c for c in first if c in common]
-    if not cols:
-        raise RuntimeError("No common p_core-> feature columns")
-    return cols
+            log("SCHEMA_SCAN", i, "/", len(rows), "union", len(order))
+    availability = pd.DataFrame([
+        {"feature": col, "files_present": counts[col], "files_total": len(rows),
+         "presence_fraction": counts[col] / len(rows), "used_in_analysis": counts[col] == len(rows)}
+        for col in order
+    ])
+    common = [col for col in order if counts[col] == len(rows)]
+    if not common:
+        raise RuntimeError("No p_core-> feature columns are present in every recording")
+    return common, availability
 
 
 def schema_for(features, windows):
@@ -853,7 +860,7 @@ def plots(meta, corr, features, effects, metrics, out):
         plt.close(fig)
 
 
-def report(out, roots, lean8, raw_count, duplicates, conflicts, features, windows, meta,
+def report(out, roots, lean8, raw_count, duplicates, conflicts, features, availability, windows, meta,
            class_df, subtype_df, effects, subtype_effect_df, paired, corr_pairs, clusters,
            metrics, importance, skipped, fp):
     classes = sorted(meta["class"].unique())
@@ -882,6 +889,14 @@ def report(out, roots, lean8, raw_count, duplicates, conflicts, features, window
         f"- Window scales (ms): {windows}",
         f"- Lean-8 status: {json.dumps(lean8, sort_keys=True)}",
         f"- Descriptor fingerprint: {fp}",
+        f"- p_core fields not common to every file: {int((~availability['used_in_analysis']).sum())}",
+        "",
+        "## Feature schema availability",
+        "",
+        "Only fields present in every recording are included in the analysis matrix. The complete union and per-field coverage are in feature_availability.csv; no missing field is silently hidden.",
+        "",
+        markdown_table(availability[availability["used_in_analysis"] == False].head(30),
+                       ["feature", "files_present", "files_total", "presence_fraction"], 30),
         "",
         "## Class inventory",
         "",
@@ -1032,7 +1047,11 @@ def main():
     pd.DataFrame(conflicts).to_csv(out / "duplicate_class_conflicts.csv", index=False)
 
     rows, lean8 = prepare_features(rows, roots, args.lean8, args.lean8_parity_files)
-    features = common_columns(rows)
+    features, availability = common_columns(rows)
+    availability.to_csv(out / "feature_availability.csv", index=False)
+    missing_schema = availability[availability["used_in_analysis"] == False]
+    if not missing_schema.empty:
+        log("FEATURE_SCHEMA_MISSING", len(missing_schema), "fields are not present in every recording; see feature_availability.csv")
     log("FEATURE_SCHEMA", len(features), "lean8", lean8.get("lean8_used"))
     X, meta, schema, fp = build_descriptors(rows, features, args.windows_ms, out, lean8, args.rebuild_cache)
     meta.to_csv(out / "recordings.csv", index=False)
@@ -1069,7 +1088,7 @@ def main():
         metrics, importance, skipped = grouped_models(X, meta, features, schema, args.windows_ms, out, args.folds, args.seed)
 
     plots(meta, corr, features, effects, metrics, out)
-    report(out, roots, lean8, len(raw), duplicates, conflicts, features, args.windows_ms,
+    report(out, roots, lean8, len(raw), duplicates, conflicts, features, availability, args.windows_ms,
            meta, class_df, subtype_df, effects, subtype_effect_df, paired, corr_pairs, clusters,
            metrics, importance, skipped, fp)
 
@@ -1079,6 +1098,7 @@ def main():
         "raw_files": len(raw), "unique_recordings": len(meta),
         "duplicates": len(duplicates), "conflicting_duplicate_hashes": len(conflicts),
         "feature_count": len(features), "feature_columns": features,
+        "feature_availability": availability.to_dict("records"),
         "windows_ms": args.windows_ms, "lean8": lean8,
         "classes": class_df.to_dict("records"), "participants": int(meta["participant"].nunique()),
         "descriptor_shape": list(X.shape), "fingerprint": fp,
