@@ -103,7 +103,7 @@ def sha256(path: Path) -> str:
     return h.hexdigest()
 
 
-GENERATOR_SHA = sha256(Path(__file__))
+GENERATOR_SHA = None                # numerical-algorithm hash, set below once the functions exist
 
 
 def firmware_header() -> Path | None:
@@ -282,6 +282,8 @@ def generate_tree(raw_root: Path, out_root: Path, workers: int = WORKERS) -> dic
         known = json.loads(manifest_file.read_text())
     except (OSError, ValueError):
         known = {}
+    if known.get("generator_sha") in LEGACY_EQUIVALENT_SHAS:
+        known["generator_sha"] = GENERATOR_SHA           # same numerical algorithm: keep the derived files
     if known.get("generator_sha") != GENERATOR_SHA:
         known = {"generator_sha": GENERATOR_SHA, "files": {}}
     todo, entries = [], known["files"]
@@ -290,8 +292,14 @@ def generate_tree(raw_root: Path, out_root: Path, workers: int = WORKERS) -> dic
         st = source.stat()
         stamp = [st.st_size, st.st_mtime_ns]
         dest = out_root / rel
-        if entries.get(rel, {}).get("source") == stamp and dest.is_file():
-            continue
+        entry = entries.get(rel, {})
+        if entry.get("source") == stamp and dest.is_file():
+            if not VERIFY_SOURCE_SHA:
+                continue
+            digest = sha256(source)                       # optional strong check, size + mtime are not proof
+            if entry.get("source_sha256") in (None, digest):
+                entry["source_sha256"] = digest
+                continue
         todo.append((source, dest, rel, stamp))
     done = 0
     if todo:
@@ -300,11 +308,14 @@ def generate_tree(raw_root: Path, out_root: Path, workers: int = WORKERS) -> dic
             for (source, dest, rel, stamp), (_, stats) in zip(todo, ex.map(_job, [(str(a), str(b)) for a, b, _, _ in todo],
                                                                            chunksize=8)):
                 entries[rel] = dict(source=stamp, **stats)
+                if VERIFY_SOURCE_SHA:
+                    entries[rel]["source_sha256"] = sha256(source)
                 done += 1
                 if done % 250 == 0:
                     print(f"LEAN8_GENERATE {raw_root.name} {done}/{len(todo)}", flush=True)
-                    manifest_file.write_text(json.dumps(known))
-        manifest_file.write_text(json.dumps(known))
+                    _write_manifest(manifest_file, known)
+    _write_manifest(manifest_file, known)
+    print(f"LEAN8_FILES {raw_root.name}: {len(files) - len(todo)} reused, {len(todo)} generated", flush=True)
     live = [entries[str(p.relative_to(raw_root))] for p in files]
     return {
         "source": str(raw_root), "output": str(out_root), "files": len(files), "regenerated": len(todo),
@@ -312,6 +323,39 @@ def generate_tree(raw_root: Path, out_root: Path, workers: int = WORKERS) -> dic
         "rows_ready_500": int(sum(e["ready_rows"] for e in live)),
         "recordings_reaching_500_frames": int(sum(e["frames"] >= HISTORY_10S for e in live)),
     }
+
+
+# ============================================================================ algorithm version
+ALGORITHM_FUNCTIONS = ("fw_log10_positive", "fw_psd_linear", "_trailing", "lean8_per_frame", "frame_rows", "compute",
+                       "_text_block", "generate_file")
+
+
+def algorithm_sha() -> str:
+    """Hash of everything that decides the derived bytes: the numerical/frame/format functions and their
+    constants. Comments elsewhere, progress messages, worker counts and parity code do not invalidate data."""
+    import inspect
+    h = hashlib.sha256()
+    for name in ALGORITHM_FUNCTIONS:
+        h.update(inspect.getsource(globals()[name]).encode())
+    h.update(PSD_LUT.tobytes())
+    h.update(json.dumps(dict(hz=UPDATE_HZ, h3=HISTORY_3S, h10=HISTORY_10S, q12=float(Q12), q12inv=float(Q12_INV),
+                             columns=EXTRA_COLUMNS, source=SOURCE_COLUMNS)).encode())
+    return h.hexdigest()
+
+
+GENERATOR_SHA = algorithm_sha()
+# Whole-file hashes used by earlier versions of this script whose numerical code is identical to the current
+# algorithm (verified by regenerating recordings byte-for-byte): their derived files are reused, not rebuilt.
+LEGACY_EQUIVALENT_SHAS = {
+    "14b60b6c03441cb9cf1977dd5678664c9be0db7fb8457db2d898b1a78d481fbc",   # commit 235a8b07
+}
+VERIFY_SOURCE_SHA = os.environ.get("MUDRA_LEAN8_VERIFY_SOURCE_SHA", "0") not in ("0", "", "false", "no")
+
+
+def _write_manifest(path: Path, obj) -> None:
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(json.dumps(obj))
+    os.replace(tmp, path)
 
 
 # ============================================================================ firmware C parity
@@ -438,7 +482,7 @@ def ensure_datasets(pairs=None, workers: int = WORKERS, parity_files: int = PARI
         "history_frames": dict(sd3=HISTORY_3S, min_max=HISTORY_10S, ready_after=HISTORY_10S),
         "summaries": summaries, "firmware_parity": parity,
     }
-    (Path(pairs[0][1]).parent / "lean8_manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    _write_manifest(Path(pairs[0][1]).parent / "lean8_manifest.json", manifest)
     return manifest
 
 

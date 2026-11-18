@@ -18,6 +18,8 @@
 /DATA/DATA_LONG_PRESS_LEAN8/
 /research/gesture/_lean8_build/
 /research/gesture/_lean8_reference/
+/research/gesture/_bench/
+/research/gesture/results_lean8_ablation/
 /DATA/lean8_manifest.json
 /research/gesture/_smoke_input/
 /research/gesture/_smoke_labels/

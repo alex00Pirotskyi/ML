@@ -290,10 +290,12 @@ class LpCounts:
                                 for k, v in sorted(self.folder.items())})
 
 
-def lp_declared_release(q, t_ms, start_ms):
-    """First time the ten-sample average of Q20 values (from the press start) reaches the threshold, else None."""
+def lp_declared_release(q, t_ms, start_ms, threshold=None):
+    """First time the ten-sample average of Q20 values (from the press start) reaches the threshold, else None.
+    threshold: firmware LP release threshold on the averaged probability (default FIXED_THRESHOLD)."""
     q = np.asarray(q, np.int64); t = np.asarray(t_ms, np.float64)
-    n = LP_AVERAGE_SAMPLES; need = int(round(FIXED_THRESHOLD * 20 * n))
+    thr = FIXED_THRESHOLD if threshold is None else float(threshold)
+    n = LP_AVERAGE_SAMPLES; need = int(round(thr * 20 * n))
     if len(q) < n:
         return None
     s = np.convolve(q, np.ones(n, np.int64), "valid")              # s[j] = sum q[j .. j+n-1]
@@ -303,9 +305,9 @@ def lp_declared_release(q, t_ms, start_ms):
     return float(end_t[j[0]]) if len(j) else None
 
 
-def lp_replay_press(q, t_ms, start_ms, release_ms, kind, folder, counts: LpCounts):
+def lp_replay_press(q, t_ms, start_ms, release_ms, kind, folder, counts: LpCounts, threshold=None):
     """q: Q20 release values for rows from the press start onwards; kind 'hold' or 'tap'."""
-    d = lp_declared_release(q, t_ms, start_ms)
+    d = lp_declared_release(q, t_ms, start_ms, threshold)
     f = counts.folder.setdefault(folder, dict(n=0, ok=0)); f["n"] += 1
     if kind == "hold":
         counts.holds += 1

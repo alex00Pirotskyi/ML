@@ -40,6 +40,7 @@ import shutil
 import subprocess
 import sys
 import time
+import weakref
 from collections import Counter
 from pathlib import Path
 
@@ -87,8 +88,12 @@ TRIALS_PER_MODEL = 40
 TOP_K_PER_MODEL = 5
 CV_FOLDS = 3
 TEST_FRACTION = 0.22
-FIXED_THRESHOLD = 0.85
-CPU_THREADS = previous_tap.CPU_THREADS
+FIXED_THRESHOLD = 0.85                # TAP_SWIPE_predict(): onset when p >= 0.85 (unchanged)
+# LONG_PRESS: firmware releases when the mean of the last 10 Q20 values >= this. Changing it is a NEW
+# experiment: the LP Optuna study name carries it, so an LP study run at another threshold is never resumed.
+LP_RELEASE_THRESHOLD = float(os.environ.get("MUDRA_LP_RELEASE_THRESHOLD", 0.5))
+# Thread count does not enter the models (LightGBM deterministic=True); benchmark with bench_unified.py threads.
+CPU_THREADS = int(os.environ.get("MUDRA_CPU_THREADS", 0)) or previous_tap.CPU_THREADS
 SEED = 20261118
 VERIFIED_HASHES = True
 FILE_LIMIT_PER_FOLDER = None        # testing aid: use at most this many recordings per folder
@@ -106,6 +111,13 @@ NUM_LEAVES = (8, 127)
 LEARNING_RATE = (0.02, 0.3)
 MIN_CHILD_SAMPLES = (10, 300)
 POSITIVE_WEIGHT = dict(tap=(0.2, 10.0), lp=(0.2, 20.0))
+if LP_RELEASE_THRESHOLD != 0.85:
+    # Measured: the LP replay optimum moves from threshold 1.0 (weight 6) to 0.85 (0.2) to 0.7 (0.05);
+    # a 0.5 release threshold needs release weights around 0.01, so the LP range must reach that low.
+    POSITIVE_WEIGHT["lp"] = (0.005, 20.0)
+LP_ANCHOR_POSITIVE_WEIGHT = 6.0 if LP_RELEASE_THRESHOLD >= 0.85 else 0.02
+# Earlier LP headers (v20, 2026-11-17) were made for a 0.85 firmware release; they are replayed at their own setting.
+LP_BASELINE_RELEASE_THRESHOLD = float(os.environ.get("MUDRA_LP_BASELINE_THRESHOLD", 0.85))
 
 # Training sample (times in ms, from the label files)
 TAP_BACKGROUND_STRIDE_MS = 40       # ordinary negatives: one row per 40 ms
@@ -161,6 +173,46 @@ TASKS = (
 )
 SAMPLE_KINDS = {0: "background", 1: "hard_near_press", 2: "hard_muscle_activity", 3: "positive",
                 4: "hold", 5: "release_after_press"}
+
+
+def task_threshold(task: str) -> float:
+    return FIXED_THRESHOLD if task == "tap" else LP_RELEASE_THRESHOLD
+
+
+def study_name(task: str) -> str:
+    """The TAP name is exactly what earlier runs used (resumable). LP carries a non-default release threshold."""
+    name = f"unified_v2_{task}_lean8{int(USE_LEAN8)}_min{LEAN8_MIN_FRAMES}"
+    if task == "lp" and LP_RELEASE_THRESHOLD != 0.85:
+        name += f"_rel{LP_RELEASE_THRESHOLD:.2f}"
+    return name
+
+
+class StageClock:
+    """Wall-clock seconds per named stage (time.perf_counter); never changes any result."""
+
+    def __init__(self):
+        self.seconds = Counter()
+
+    def reset(self):
+        self.seconds = Counter()
+
+    def add(self, name, dt):
+        self.seconds[name] += dt
+
+    def __call__(self, name):
+        clock = self
+
+        class _Span:
+            def __enter__(self):
+                self.t0 = time.perf_counter()
+
+            def __exit__(self, *exc):
+                clock.seconds[name] += time.perf_counter() - self.t0
+        return _Span()
+
+
+CLOCK = StageClock()
+TIMING_LOG = None                   # set per task: JSONL of per-trial stage timings
 
 
 def notice(*values):
@@ -450,7 +502,15 @@ def build_task_data(task: str, records, out: Path):
     if stamp.is_file() and json.loads(stamp.read_text()).get("fingerprint") == fp:
         notice("UNIFIED_CACHE_REUSED", task, cache)
         return load_cache(cache, columns)
+    previous_sha = None
     if cache.exists():
+        # A study may have run on this cache: remember its content so the study guard can verify the rebuild.
+        try:
+            if stamp.is_file():
+                old = json.loads((cache / "info.json").read_text())
+                previous_sha = old.get("content_sha256") or cache_content_sha(cache)
+        except Exception as exc:                 # incomplete cache: nothing to compare against
+            notice("UNIFIED_PREVIOUS_CACHE_UNREADABLE", repr(exc)[:200])
         shutil.rmtree(cache)                     # derived data only
     cache.mkdir(parents=True)
     events = {"tap": load_events(LABEL_TAP) if task == "tap" else None, "lp": load_events(LABEL_LP)}
@@ -558,9 +618,25 @@ def build_task_data(task: str, records, out: Path):
     pd.DataFrame(windows, columns=["rec", "kind", "start", "end", "start_ms", "release_ms"]).to_csv(
         cache / "lp_windows.csv", index=False)
     pd.DataFrame(onsets, columns=["rec", "t_on"]).to_csv(cache / "tap_onsets.csv", index=False)
-    write_json(cache / "info.json", dict(counts=dict(info)))
+    write_json(cache / "info.json", dict(counts=dict(info), previous_content_sha256=previous_sha))
     write_json(stamp, dict(fingerprint=fp))
     return load_cache(cache, columns)
+
+
+def cache_content_sha(cache: Path) -> str:
+    """SHA-256 of the cache CONTENT: array bytes (not .npz zip timestamps), replay matrix, plan tables."""
+    h = hashlib.sha256()
+    for npz in ("train_meta.npz", "replay_meta.npz"):
+        with np.load(cache / npz) as z:
+            for k in sorted(z.files):
+                a = np.ascontiguousarray(z[k])
+                h.update(f"{npz}:{k}:{a.dtype}:{a.shape}".encode()); h.update(a.tobytes())
+    for name in ("train_X.npy", "replay_X.f32", "recordings.csv", "lp_windows.csv", "tap_onsets.csv"):
+        h.update(name.encode())
+        with open(cache / name, "rb") as f:
+            for chunk in iter(lambda: f.read(1 << 24), b""):
+                h.update(chunk)
+    return h.hexdigest()
 
 
 def load_cache(cache: Path, columns):
@@ -588,7 +664,18 @@ def load_cache(cache: Path, columns):
     rpl = dict(X=replay_X, t=rp["t"], label=rp["label"], frames=fr,
                ready=fr >= LEAN8_MIN_FRAMES, steady=fr >= LEAN8_STEADY_FRAMES, recs=recs, windows=windows,
                onsets={int(k): g.t_on.to_numpy(float) for k, g in onsets.groupby("rec")} if len(onsets) else {})
-    info = json.loads((cache / "info.json").read_text())["counts"]
+    info_all = json.loads((cache / "info.json").read_text())
+    if "content_sha256" not in info_all:            # first use of this cache (or a cache from older code)
+        t0 = time.perf_counter()
+        info_all["content_sha256"] = cache_content_sha(cache)
+        write_json(cache / "info.json", info_all)
+        notice("UNIFIED_CACHE_CONTENT_SHA", info_all["content_sha256"][:16], round(time.perf_counter() - t0, 1), "s")
+    info = info_all["counts"]
+    data["content_sha256"] = info_all["content_sha256"]
+    data["previous_content_sha256"] = info_all.get("previous_content_sha256")
+    if data["previous_content_sha256"]:
+        notice("UNIFIED_CACHE_REBUILD", "identical content" if data["previous_content_sha256"] == data["content_sha256"]
+               else "CONTENT CHANGED", data["previous_content_sha256"][:16], "->", data["content_sha256"][:16])
     gate_info.update(usable_coverage(rpl))
     info["lean8_gate"] = gate_info
     notice("UNIFIED_LEAN8_GATE", json.dumps(gate_info))
@@ -687,9 +774,8 @@ def truncated(model, k: int):
     return m
 
 
-def trees_within(model, budget: int) -> tuple[int, int]:
-    """Largest number of leading trees whose exported C model fits the budget, and its exact bytes.
-    Exported size only grows with the tree count, so a binary search on the exact size is exact."""
+def trees_within_reference(model, budget: int) -> tuple[int, int]:
+    """Original exact search: every probe truncates the model and runs the exporter's size accounting."""
     n = model.booster_.num_trees()
     full = static_bytes(model)
     if full <= budget:
@@ -711,14 +797,123 @@ def trees_within(model, budget: int) -> tuple[int, int]:
     return lo, size(lo)
 
 
+class _DumpPrefix:
+    """Booster stand-in whose dump_model() is the first k trees of ONE dump of the fitted booster.
+    export_plus's LightGBM size accounting reads only dump_model()["tree_info"]."""
+
+    def __init__(self, tree_info, k):
+        self._dump = {"tree_info": tree_info[:k]}
+
+    def dump_model(self, *args, **kwargs):
+        return self._dump
+
+
+_SIZING = weakref.WeakKeyDictionary()       # per fitted model, never stored on the model (pickling, copies)
+
+
+def _sizing(model):
+    """Per-model cache: full exact size and a prefix sizer that runs the unchanged exporter accounting."""
+    cache = _SIZING.get(model)
+    if cache is None:
+        info = model.booster_.dump_model()["tree_info"]
+        memo = {}
+
+        def prefix(k):
+            if k not in memo:
+                m = copy.copy(model)
+                m._Booster = _DumpPrefix(info, k)
+                memo[k] = int(export_plus._estimate_compact_tree_payload_legacy(m)["total_static_data_bytes"])
+            return memo[k]
+        cache = dict(full=static_bytes(model), prefix=prefix, n=model.booster_.num_trees())
+        _SIZING[model] = cache
+    return cache
+
+
+SIZING_FALLBACKS = Counter()
+
+
+def trees_within(model, budget: int) -> tuple[int, int]:
+    """Largest number of leading trees whose exported C model fits the budget, and its exact bytes.
+
+    Same answer as trees_within_reference(): the binary search runs on the exporter's own accounting of a
+    single dump, and the chosen k (fits) and k + 1 (does not fit) are re-checked with the original
+    truncate-and-measure path. Any disagreement falls back to the original search."""
+    sz = _sizing(model)
+    n, full = sz["n"], sz["full"]
+    if full <= budget:
+        return n, full
+    size = sz["prefix"]
+    lo, hi = 1, n - 1
+    if size(lo) > budget:
+        return trees_within_reference(model, budget)       # raises the original error
+    while lo < hi:
+        mid = (lo + hi + 1) // 2
+        if size(mid) <= budget:
+            lo = mid
+        else:
+            hi = mid - 1
+    exact_k = static_bytes(truncated(model, lo))
+    exact_next = full if lo + 1 == n else static_bytes(truncated(model, lo + 1))
+    if exact_k != size(lo) or exact_k > budget or exact_next <= budget:
+        SIZING_FALLBACKS["prefix_disagreed"] += 1
+        notice("UNIFIED_SIZING_FALLBACK", lo, exact_k, size(lo), exact_next, budget)
+        return trees_within_reference(model, budget)
+    return lo, exact_k
+
+
 # ============================================================================ replay scoring
-def _ranges_predict(booster_fns, Xmm, ranges, selected, chunk=250_000):
-    """Yield (range, outputs per fn) for contiguous replay ranges, batching small ranges."""
+_GATHER_BUFFER = {}
+
+
+def _gather(Xmm, batch, selected):
+    """Rows of the batch ranges, selected columns only, C-contiguous float32 (same bytes as
+    np.concatenate([Xmm[a:b] ...])[:, selected]); one buffer per column count, reused across calls."""
+    if isinstance(selected, slice):            # one-off header replay (column views): original gather
+        return np.ascontiguousarray(np.concatenate([np.asarray(Xmm[a:b]) for a, b in batch])[:, selected],
+                                    dtype=np.float32)
+    n = sum(b - a for a, b in batch)
+    ncol = len(selected)
+    buf = _GATHER_BUFFER.get(ncol)
+    if buf is None or len(buf) < n:
+        _GATHER_BUFFER.clear()                      # keep at most one buffer (bounded memory)
+        buf = np.empty((max(n, 1), ncol), np.float32)
+        _GATHER_BUFFER[ncol] = buf
+    X = buf[:n]
+    pos = 0
+    for a, b in batch:
+        np.take(Xmm[a:b], selected, axis=1, out=X[pos:pos + b - a], mode="clip")
+        pos += b - a
+    return X
+
+
+def _ranges_predict_reference(booster_fns, Xmm, ranges, selected, chunk=250_000):
+    """Original implementation (kept for the equivalence tests)."""
     batch, size = [], 0
     def flush(batch):
         X = np.concatenate([np.asarray(Xmm[a:b]) for a, b in batch])[:, selected]
         X = np.ascontiguousarray(X, dtype=np.float32)
         outs = [fn(X) for fn in booster_fns]
+        pos = 0
+        for a, b in batch:
+            yield (a, b), [({k: v[pos:pos + b - a] for k, v in o.items()} if isinstance(o, dict)
+                            else o[pos:pos + b - a]) for o in outs]
+            pos += b - a
+    for a, b in ranges:
+        batch.append((a, b)); size += b - a
+        if size >= chunk:
+            yield from flush(batch); batch, size = [], 0
+    if batch:
+        yield from flush(batch)
+
+
+def _ranges_predict(booster_fns, Xmm, ranges, selected, chunk=250_000):
+    """Yield (range, outputs per fn) for contiguous replay ranges, batching small ranges."""
+    batch, size = [], 0
+    def flush(batch):
+        with CLOCK("replay_gather"):
+            X = _gather(Xmm, batch, selected)
+        with CLOCK("replay_predict"):
+            outs = [fn(X) for fn in booster_fns]
         pos = 0
         for a, b in batch:
             yield (a, b), [({k: v[pos:pos + b - a] for k, v in o.items()} if isinstance(o, dict)
@@ -776,13 +971,11 @@ def usable_coverage(rpl):
     return out
 
 
-def replay_tap(prob_fn, rpl, groups, selected):
-    """Replay only from firmware-ready rows; warm-up can never create a false TAP event."""
+def prepare_tap_replay(rpl, groups):
+    """Per-recording TAP replay plan for these people (trial-invariant): usable row span + countable onsets."""
     recs = rpl["recs"]; pick = recs[recs.group.isin(groups)]
-    counts = {}
     ready = rpl.get("ready")
-    ranges = []
-    by_start = {}
+    items = []
     for i, r in pick.iterrows():
         a, b = int(r.start), int(r.end)
         if ready is not None:
@@ -792,39 +985,95 @@ def replay_tap(prob_fn, rpl, groups, selected):
             a += int(np.flatnonzero(local)[0])
         if a >= b:
             continue
-        ranges.append((a, b))
-        by_start[a] = (int(i), r)
-    for (a, b), (outs,) in _ranges_predict([prob_fn], rpl["X"], ranges, selected):
-        ri, r = by_start[a]
-        for name, p in outs.items():
-            d = p if p.dtype == bool else (p >= FIXED_THRESHOLD)
-            # Onsets before the gate opens cannot be detected by any model: not counted as misses.
-            ons = np.asarray(rpl["onsets"].get(ri, []), np.float64)
-            ons = ons[ons >= float(rpl["t"][a]) + R.TAP_HIT_BEFORE_MS]
-            R.tap_replay_recording(d, rpl["t"][a:b], rpl["label"][a:b], ons,
-                                   r.folder, counts.setdefault(name, R.TapCounts()))
-    return counts
+        # Onsets before the gate opens cannot be detected by any model: not counted as misses.
+        ons = np.asarray(rpl["onsets"].get(int(i), []), np.float64)
+        ons = ons[ons >= float(rpl["t"][a]) + R.TAP_HIT_BEFORE_MS]
+        items.append((a, b, r.folder, ons))
+    return items
 
 
-def replay_lp(q_fn, rpl, groups, selected):
-    """q_fn(X) -> dict name -> Q20 integer arrays. Returns name -> LpCounts."""
+def prepare_lp_replay(rpl, groups):
+    """Press windows of these people whose start row is usable (trial-invariant)."""
     w = rpl["windows"]
     if not len(w):
-        return {}
+        return []
     recs = rpl["recs"]
     keep = w[np.isin(recs.group.to_numpy(object)[w.rec.to_numpy(int)], list(groups))]
     ready = rpl.get("ready")
     if ready is not None and len(keep):
         keep = keep[np.asarray(ready[keep.start.to_numpy(int)], dtype=bool)]
+    return [(int(r.start), int(r.end), r.start_ms, r.release_ms, r.kind, recs.folder.iloc[int(r.rec)])
+            for r in keep.itertuples()]
+
+
+def replay_tap_items(prob_fn, rpl, items, selected):
+    """prob_fn(X) -> dict name -> probability (or decision) arrays. Returns name -> TapCounts."""
     counts = {}
-    ranges = list(zip(keep.start.astype(int), keep.end.astype(int)))
-    meta = {int(r.start): r for r in keep.itertuples()}
-    for (a, b), (outs,) in _ranges_predict([q_fn], rpl["X"], ranges, selected):
-        r = meta[a]; folder = recs.folder.iloc[int(r.rec)]
-        for name, q in outs.items():
-            R.lp_replay_press(q, rpl["t"][a:b], r.start_ms, r.release_ms, r.kind, folder,
-                              counts.setdefault(name, R.LpCounts()))
+    preds = _ranges_predict([prob_fn], rpl["X"], [(a, b) for a, b, _, _ in items], selected)
+    for (a, b, folder, ons), ((a_, b_), (outs,)) in zip(items, preds):
+        with CLOCK("replay_score"):
+            for name, p in outs.items():
+                d = p if p.dtype == bool else (p >= FIXED_THRESHOLD)
+                R.tap_replay_recording(d, rpl["t"][a:b], rpl["label"][a:b], ons,
+                                       folder, counts.setdefault(name, R.TapCounts()))
     return counts
+
+
+def replay_lp_items(q_fn, rpl, items, selected, threshold=None):
+    """q_fn(X) -> dict name -> Q20 integer arrays. Returns name -> LpCounts (release at LP_RELEASE_THRESHOLD)."""
+    threshold = LP_RELEASE_THRESHOLD if threshold is None else threshold
+    counts = {}
+    preds = _ranges_predict([q_fn], rpl["X"], [(a, b) for a, b, *_ in items], selected)
+    for (a, b, start_ms, release_ms, kind, folder), (_, (outs,)) in zip(items, preds):
+        with CLOCK("replay_score"):
+            for name, q in outs.items():
+                R.lp_replay_press(q, rpl["t"][a:b], start_ms, release_ms, kind, folder,
+                                  counts.setdefault(name, R.LpCounts()), threshold=threshold)
+    return counts
+
+
+def replay_tap(prob_fn, rpl, groups, selected):
+    """Replay only from firmware-ready rows; warm-up can never create a false TAP event."""
+    return replay_tap_items(prob_fn, rpl, prepare_tap_replay(rpl, groups), selected)
+
+
+def replay_lp(q_fn, rpl, groups, selected, threshold=None):
+    """q_fn(X) -> dict name -> Q20 integer arrays. Returns name -> LpCounts."""
+    return replay_lp_items(q_fn, rpl, prepare_lp_replay(rpl, groups), selected, threshold)
+
+
+# ============================================================================ trial-invariant fold preparation
+_PREPARED = {}
+
+
+def prepared_folds(data, rpl, train_ids, task):
+    """The CV folds, their base sample weights and replay plans, computed once per dataset/split.
+
+    Only the positive-class multiplier depends on the trial; it is applied exactly as weights_for_task()
+    applies it (last step, in place, float32)."""
+    key = (task, id(data), id(rpl), hashlib.sha256(np.ascontiguousarray(train_ids).tobytes()).hexdigest())
+    if key in _PREPARED:
+        return _PREPARED[key]
+    folds = []
+    t0 = time.perf_counter()
+    for fold, (a, b) in enumerate(GroupKFold(n_splits=CV_FOLDS).split(
+            train_ids, data["y"][train_ids], data["group"][train_ids])):
+        tr = train_ids[a]
+        val_groups = set(data["group"][train_ids[b]])
+        y = data["y"][tr]
+        folds.append(dict(tr=tr, y=y, val_groups=val_groups, classes=set(np.unique(y).tolist()),
+                          base_w=weights_for_task(data, tr, task, 1.0), positive=(y == 1),
+                          replay=(prepare_tap_replay if task == "tap" else prepare_lp_replay)(rpl, val_groups)))
+    _PREPARED.clear()
+    _PREPARED[key] = folds
+    notice("UNIFIED_FOLDS_PREPARED", task, len(folds), round(time.perf_counter() - t0, 2), "s")
+    return folds
+
+
+def fold_weights(fold, positive_weight):
+    w = fold["base_w"].copy()
+    w[fold["positive"]] *= float(positive_weight)
+    return w.astype(np.float32)
 
 
 def model_prob_fn(model, ks, task):
@@ -836,6 +1085,8 @@ def model_prob_fn(model, ks, task):
 
 # ============================================================================ Optuna objective
 def objective(trial, data, rpl, train_ids, task, budgets):
+    t_start = time.perf_counter()
+    CLOCK.reset()
     name = trial.suggest_categorical("feature_set", list(data["feature_sets"]))
     selected = [data["columns"].index(x) for x in data["feature_sets"][name]]
     lo, hi = POSITIVE_WEIGHT[task]
@@ -844,17 +1095,26 @@ def objective(trial, data, rpl, train_ids, task, budgets):
     primary = budgets[0]
     totals = {b: (R.TapCounts() if task == "tap" else R.LpCounts()) for b in budgets}
     folds = []
+    fold_timing = []
     t0 = time.monotonic()
-    for fold, (a, b) in enumerate(GroupKFold(n_splits=CV_FOLDS).split(
-            train_ids, data["y"][train_ids], data["group"][train_ids])):
-        tr = train_ids[a]; val_groups = set(data["group"][train_ids[b]])
-        if set(np.unique(data["y"][tr])) != {0, 1}:
+    with CLOCK("fold_prepare"):
+        prepared = prepared_folds(data, rpl, train_ids, task)
+    sel_index = np.asarray(selected, dtype=np.intp)
+    for fold, pf in enumerate(prepared):
+        before = dict(CLOCK.seconds)
+        tr = pf["tr"]; val_groups = pf["val_groups"]
+        if pf["classes"] != {0, 1}:
             raise optuna.TrialPruned("Missing class in person-grouped fold")
-        model = fit_model(data["X"][tr][:, selected], data["y"][tr],
-                          weights_for_task(data, tr, task, positive_weight), params, primary)
-        ks = {bud: trees_within(model, bud) for bud in budgets}
+        with CLOCK("fold_prepare"):
+            X = data["X"][np.ix_(tr, sel_index)]          # == data["X"][tr][:, selected], one copy
+            w = fold_weights(pf, positive_weight)
+        with CLOCK("fit"):
+            model = fit_model(X, pf["y"], w, params, primary)
+        del X
+        with CLOCK("size"):
+            ks = {bud: trees_within(model, bud) for bud in budgets}
         fn = model_prob_fn(model, [k for k, _ in ks.values()], task)
-        res = (replay_tap if task == "tap" else replay_lp)(fn, rpl, val_groups, selected)
+        res = (replay_tap_items if task == "tap" else replay_lp_items)(fn, rpl, pf["replay"], selected)
         fold_rep = {}
         for bud, (k, size) in ks.items():
             c = res.get(k)
@@ -865,9 +1125,13 @@ def objective(trial, data, rpl, train_ids, task, budgets):
             fold_rep[str(bud)] = dict(trees=k, bytes=size, usable=usable,
                                       **{kk: vv for kk, vv in rep_.items() if kk != "per_folder"})
         folds.append(dict(fold=fold, people=len(val_groups), fitted_trees=model.booster_.num_trees(), budgets=fold_rep))
+        fold_timing.append({k: round(v - before.get(k, 0.0), 3) for k, v in CLOCK.seconds.items()})
         running = [f["budgets"][str(primary)]["objective_score"] for f in folds if f["budgets"][str(primary)]["usable"]]
-        trial.report(float(np.mean(running)) if running else 0.0, fold)
-        if trial.should_prune():
+        with CLOCK("study_io"):
+            trial.report(float(np.mean(running)) if running else 0.0, fold)
+            prune = trial.should_prune()
+        if prune:
+            _log_timing(trial, task, t_start, fold_timing, pruned=True)
             raise optuna.TrialPruned(f"fold {fold} below median")
     reports = {}
     for bud in budgets:
@@ -883,11 +1147,22 @@ def objective(trial, data, rpl, train_ids, task, budgets):
     trial.set_user_attr("folds", folds)
     trial.set_user_attr("cv", reports)
     trial.set_user_attr("seconds", round(time.monotonic() - t0, 1))
-    trial.set_user_attr("fixed_decision_threshold", FIXED_THRESHOLD)
+    trial.set_user_attr("fixed_decision_threshold", task_threshold(task))
     for bud in budgets:
         trial.set_user_attr(f"score_{bud}", reports[str(bud)]["objective_score"])
         trial.set_user_attr(f"max_bytes_{bud}", max(f["budgets"][str(bud)]["bytes"] for f in folds))
+    _log_timing(trial, task, t_start, fold_timing, pruned=False)
     return float(reports[str(primary)]["objective_score"])
+
+
+def _log_timing(trial, task, t_start, fold_timing, pruned):
+    timing = dict(total=round(time.perf_counter() - t_start, 3),
+                  stages={k: round(v, 3) for k, v in sorted(CLOCK.seconds.items())}, folds=fold_timing,
+                  cpu_threads=CPU_THREADS, pruned=pruned)
+    trial.set_user_attr("timing", timing)
+    if TIMING_LOG is not None:
+        with open(TIMING_LOG, "a") as f:
+            f.write(json.dumps(dict(task=task, trial=getattr(trial, "number", None), **timing)) + "\n")
 
 
 # ============================================================================ header export and checks (unchanged API)
@@ -966,7 +1241,7 @@ def write_header(model, subset, stem, folder: Path, task, outdir: Path):
                         "positive_class_id": 1,
                         "positive_semantics": ("RELEASE/REST" if task == "lp" else "TAP/SWIPE ONSET"),
                         "source": "Claude unified labels, original p_core fields only"})
-    info = dict(group_name=stem, selected_indices=list(range(len(subset))), decision_threshold=FIXED_THRESHOLD,
+    info = dict(group_name=stem, selected_indices=list(range(len(subset))), decision_threshold=task_threshold(task),
                 target_class_id=1, preprocessing="none", params=model.get_params())
     header = folder / (stem + ".h")
     saved = export_plus.export_to_c_header(dict(model=model, preprocessing="none", indices=list(range(len(subset)))),
@@ -979,7 +1254,7 @@ def write_header(model, subset, stem, folder: Path, task, outdir: Path):
 
 
 # ============================================================================ evaluation on held-out people
-def header_replay(hm: R.HeaderModel, rpl, groups, task, steady=False):
+def header_replay(hm: R.HeaderModel, rpl, groups, task, steady=False, lp_threshold=None):
     if steady:
         rpl = dict(rpl, ready=rpl["steady"])
     if task == "tap":
@@ -987,7 +1262,7 @@ def header_replay(hm: R.HeaderModel, rpl, groups, task, steady=False):
         res = replay_tap(fn, rpl, groups, slice(None))
     else:
         fn = lambda X: {"h": hm.value_q20(X)}
-        res = replay_lp(fn, rpl, groups, slice(None))
+        res = replay_lp(fn, rpl, groups, slice(None), lp_threshold)
     c = res.get("h")
     return c.report() if c is not None else None
 
@@ -1119,6 +1394,7 @@ class _ColumnView:
 
 def replay_baselines(task, data, rpl, te, out: Path):
     held = set(data["group"][te]); everyone = set(data["group"])
+    bthr = LP_BASELINE_RELEASE_THRESHOLD if task == "lp" else None
     rows = []
     for name, path in BASELINES[task]:
         if not path:
@@ -1138,9 +1414,11 @@ def replay_baselines(task, data, rpl, te, out: Path):
                                prefer=("tap_swipe" if task == "tap" else "long_press"))
             rows.append(dict(name=name, status="replayed", path=str(p), sha256=digest,
                              api=dict(value=hm.value_prefix, decision=hm.bool_prefix),
-                             holdout=header_replay(hm, rpl, held, task),
-                             holdout_steady_state=header_replay(hm, rpl, held, task, steady=True) if USE_LEAN8 else None,
-                             all_people=header_replay(hm, rpl, everyone, task),
+                             release_threshold=LP_BASELINE_RELEASE_THRESHOLD if task == "lp" else None,
+                             holdout=header_replay(hm, rpl, held, task, lp_threshold=bthr),
+                             holdout_steady_state=(header_replay(hm, rpl, held, task, steady=True, lp_threshold=bthr)
+                                                   if USE_LEAN8 else None),
+                             all_people=header_replay(hm, rpl, everyone, task, lp_threshold=bthr),
                              note="all_people may include this baseline's own training data"))
         except Exception as exc:          # a baseline problem must never stop training
             rows.append(dict(name=name, status="not replayable", path=str(p), error=repr(exc)[:600]))
@@ -1171,11 +1449,107 @@ def _comparison_rows(task, candidates, baselines, ckey, bkey):
         lines.append(f"| new {c['role']} (trial {c['trial']}){mark} | {c['static_bytes']} | " + " | ".join(fmt(h.get(k)) for k in key) + " |")
     for b in baselines:
         h = b.get(bkey) or {}
-        lines.append(f"| baseline {b['name']} ({b['status']}) | - | " + " | ".join(fmt(h.get(k)) for k in key) + " |")
+        at = f", release {b['release_threshold']}" if b.get("release_threshold") else ""
+        lines.append(f"| baseline {b['name']} ({b['status']}{at}) | - | " + " | ".join(fmt(h.get(k)) for k in key) + " |")
     return head + "\n".join(lines) + "\n"
 
 
+# ============================================================================ study safety + reproducibility
+def backup_study_db(db: Path, out: Path):
+    """Consistent copy of an existing Optuna SQLite study (SQLite backup API) before it is resumed."""
+    if not db.is_file():
+        return None
+    import sqlite3
+    dst = out / "backups" / f"{db.stem}_{time.strftime('%Y%m%dT%H%M%S')}.sqlite3"
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    src = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+    try:
+        with sqlite3.connect(dst) as copy_:
+            src.backup(copy_)
+    finally:
+        src.close()
+    notice("UNIFIED_STUDY_BACKUP", str(dst))
+    return dst
+
+
+def guard_study_data(study, data, out: Path, backup):
+    """Fail closed if a resumed study was run on different data; snapshot the study before new trials."""
+    trials = study.trials
+    if trials:
+        snap = [dict(number=t.number, state=t.state.name, params=t.params, value=t.value,
+                     intermediate=t.intermediate_values) for t in trials]
+        write_json(out / f"study_snapshot_{time.strftime('%Y%m%dT%H%M%S')}.json",
+                   dict(study=study.study_name, backup=str(backup) if backup else None, trials=snap))
+    want = data.get("content_sha256")
+    have = study.user_attrs.get("data_content_sha256")
+    if have is None:
+        # Study from code without this guard: its trials ran on the cache that existed before any rebuild.
+        have = (data.get("previous_content_sha256") if trials else None) or want
+        study.set_user_attr("data_content_sha256", have)
+        study.set_user_attr("data_content_adopted_at_trials", len(trials))
+    if have != want:
+        raise RuntimeError(f"Study {study.study_name} was run on different training/replay data "
+                           f"(study {have[:16]}..., cache {want[:16]}...). Refusing to resume; restore the "
+                           f"original data/labels or start a new study (move {out}).")
+
+
+def _git(*args):
+    try:
+        return subprocess.run(["git", "-C", str(ROOT), *args], text=True, capture_output=True, timeout=20).stdout.strip()
+    except Exception:
+        return None
+
+
+def write_run_manifest(out: Path, task, data, budgets, study):
+    import platform
+    def read(path, key):
+        try:
+            for line in Path(path).read_text().splitlines():
+                if line.startswith(key):
+                    return line.split(":", 1)[1].strip()
+        except OSError:
+            return None
+    lscpu = None
+    try:
+        lscpu = subprocess.run(["lscpu"], text=True, capture_output=True, timeout=10).stdout
+    except Exception:
+        pass
+    fw = lean8.firmware_header() if USE_LEAN8 else None
+    fp_file = out / "cache" / "fingerprint.json"
+    write_json(out / "run_manifest.json", dict(
+        written=time.strftime("%Y-%m-%dT%H:%M:%S%z"), task=task, commit=_git("rev-parse", "HEAD"),
+        dirty=bool(_git("status", "--porcelain", "--untracked-files=no")),
+        versions=dict(python=sys.version.split()[0], numpy=np.__version__, pandas=pd.__version__,
+                      lightgbm=lgb.__version__, optuna=optuna.__version__, platform=platform.platform()),
+        cpu=dict(logical=os.cpu_count(), affinity=len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else None,
+                 model=read("/proc/cpuinfo", "model name"), lscpu=lscpu, lightgbm_threads=CPU_THREADS),
+        memory_total=read("/proc/meminfo", "MemTotal"),
+        disk_free_gb=round(shutil.disk_usage(out).free / 1e9, 1),
+        hashes=dict(lean8_algorithm=lean8.GENERATOR_SHA if USE_LEAN8 else None,
+                    firmware_header=sha256(fw) if fw else None, labeler=sha256(CLAUDE_LABELER),
+                    cache_fingerprint=json.loads(fp_file.read_text()).get("fingerprint") if fp_file.is_file() else None,
+                    data_content=data.get("content_sha256")),
+        study=dict(name=study.study_name, trials=len(study.trials), requested=TRIALS_PER_MODEL, folds=CV_FOLDS),
+        feature_sets=list(data["feature_sets"]), budgets_bytes=budgets, threshold=task_threshold(task),
+        lean8=lean8_setting(), search=dict(n_estimators=N_ESTIMATORS, max_depth=MAX_DEPTH, num_leaves=NUM_LEAVES,
+                                           learning_rate=LEARNING_RATE, min_child_samples=MIN_CHILD_SAMPLES,
+                                           positive_weight=POSITIVE_WEIGHT[task]),
+        replay_rules={k: getattr(R, k) for k in dir(R) if k.startswith(("TAP_", "LP_"))}))
+
+
 # ============================================================================ one task
+def same_lean8_setting(saved) -> bool:
+    """Saved Lean-8 setting equals the current one; generator hashes of numerically identical earlier
+    generator versions (lean8.LEGACY_EQUIVALENT_SHAS) count as equal."""
+    if not isinstance(saved, dict):
+        return False
+    now = lean8_setting()
+    a, b = dict(saved), dict(now)
+    if a.get("generator_sha256") in getattr(lean8, "LEGACY_EQUIVALENT_SHAS", ()):
+        a["generator_sha256"] = b["generator_sha256"]
+    return a == b
+
+
 def lean8_setting():
     return dict(enabled=USE_LEAN8, min_frames=LEAN8_MIN_FRAMES if USE_LEAN8 else None,
                 steady_frames=LEAN8_STEADY_FRAMES if USE_LEAN8 else None,
@@ -1192,31 +1566,38 @@ def train_task(task: str, tap_files, lp_files):
         budgets = budgets[:1]
     if summary_file.is_file():
         saved = json.loads(summary_file.read_text())
-        if (saved.get("status") == "success" and saved.get("fixed_threshold") == FIXED_THRESHOLD
-                and saved.get("budgets") == budgets and saved.get("lean8") == lean8_setting()
+        if (saved.get("status") == "success" and saved.get("fixed_threshold") == task_threshold(task)
+                and saved.get("budgets") == budgets and same_lean8_setting(saved.get("lean8"))
                 and (out / "models" / (stem + ".h")).is_file()):
             notice("UNIFIED_COMPLETE_REUSED", task, str(out))
             return saved
-        raise ValueError("Existing output does not match this configuration: " + str(out))
+        raise ValueError("Existing output does not match this configuration (threshold, budgets or Lean-8 "
+                         "settings changed); move it away to start a new experiment: " + str(out))
     out.mkdir(parents=True, exist_ok=True)
     data, rpl, info = build_task_data(task, selected_sources(task, tap_files, lp_files), out)
     tr, te = split_heldout(data, task)
     notice("UNIFIED_TRAIN_BEGIN", json.dumps({
         "task": task, "subjects": len(set(data["group"])), "train_rows": len(tr), "holdout_rows": len(te),
         "holdout_people": sorted(set(data["group"][te])), "budgets_bytes": budgets,
-        "class_one": definition["class_one"], "fixed_threshold": FIXED_THRESHOLD}))
+        "class_one": definition["class_one"], "fixed_threshold": task_threshold(task)}))
     write_json(out / "split.json", dict(train_groups=sorted(set(data["group"][tr])),
                                          heldout_groups=sorted(set(data["group"][te])), seed=SEED + int(task == "lp")))
+    db = out / "optuna_study.sqlite3"
+    backup = backup_study_db(db, out)
+    global TIMING_LOG
+    TIMING_LOG = out / "timing.jsonl"
     study = optuna.create_study(
         direction="maximize",
         sampler=optuna.samplers.TPESampler(seed=SEED + int(task == "lp"), multivariate=True, n_startup_trials=10),
         pruner=optuna.pruners.MedianPruner(n_startup_trials=8, n_warmup_steps=0),
         storage="sqlite:///" + str((out / "optuna_study.sqlite3").resolve()),
-        study_name=f"unified_v2_{task}_lean8{int(USE_LEAN8)}_min{LEAN8_MIN_FRAMES}", load_if_exists=True)
+        study_name=study_name(task), load_if_exists=True)
+    guard_study_data(study, data, out, backup)
+    write_run_manifest(out, task, data, budgets, study)
     if len(study.trials) == 0:
         # A known-good anchor (the research student) and a deep-tree anchor, inside the budget.
-        # LP needs confident release probabilities for a 0.85 average, hence the larger positive weight.
-        pw0 = 6.0 if task == "lp" else 1.0
+        # LP anchors start at a release weight that puts the replay optimum near the release threshold.
+        pw0 = LP_ANCHOR_POSITIVE_WEIGHT if task == "lp" else 1.0
         study.enqueue_trial(dict(feature_set="all_available", positive_weight=pw0, max_depth=6, num_leaves=15,
                                  n_estimators=160, learning_rate=0.1, min_child_samples=100, reg_lambda=1.0,
                                  reg_alpha=1e-3, colsample_bytree=0.8, subsample=0.8))
@@ -1249,13 +1630,13 @@ def train_task(task: str, tap_files, lp_files):
     (out / "COMPARISON.md").write_text(f"# {task}: held-out people, replayed through the C headers\n\n" + table)
     notice(table)
     write_json(out / "models" / (stem + "_model_info.json"),
-               dict(selected=default, skipped=skipped, fixed_threshold=FIXED_THRESHOLD, stable_header=stem + ".h",
+               dict(selected=default, skipped=skipped, fixed_threshold=task_threshold(task), stable_header=stem + ".h",
                     api=stem + "_predict(&m_feat_core)", budgets_bytes=budgets,
                     rationale="Best grouped-CV replay score inside the primary model-data budget, "
                               "skipping candidates that never fire / never release on held-out people"))
     done = [t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE]
     summary = dict(status="success", task=task, model_header=stem + ".h", class_one=definition["class_one"],
-                   class_zero=definition["class_zero"], fixed_threshold=FIXED_THRESHOLD, threshold_tuned=False,
+                   class_zero=definition["class_zero"], fixed_threshold=task_threshold(task), threshold_tuned=False,
                    budgets=budgets, lean8=lean8_setting(), selected=default, skipped=skipped, candidates=candidates,
                    baselines=baselines,
                    trials=len(done), pruned=len([t for t in study.trials if t.state == optuna.trial.TrialState.PRUNED]),
@@ -1272,7 +1653,8 @@ def train_task(task: str, tap_files, lp_files):
 
 def main():
     t0 = time.monotonic()
-    notice("UNIFIED_TRAINER_START", "cpu_threads", CPU_THREADS, "fixed_threshold", FIXED_THRESHOLD,
+    notice("UNIFIED_TRAINER_START", "cpu_threads", CPU_THREADS, "tap_threshold", FIXED_THRESHOLD,
+           "lp_release_threshold", LP_RELEASE_THRESHOLD,
            "budget_kb", MODEL_BUDGET_KB, "alt_budget_kb", ALT_BUDGET_KB, "trials", TRIALS_PER_MODEL)
     lean8_manifest = None
     if USE_LEAN8:

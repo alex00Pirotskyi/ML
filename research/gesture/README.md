@@ -55,8 +55,14 @@ after the TAP model has started a press.
 
 ## Replay metrics (what Optuna optimizes)
 
-Every trial is scored by replaying whole recordings of the validation people through the model at the
-fixed threshold 0.85, in the firmware's arithmetic (`research/gesture/replay.py`).
+Every trial is scored by replaying whole recordings of the validation people through the model at fixed
+firmware thresholds, in the firmware's arithmetic (`research/gesture/replay.py`):
+
+- TAP onset at p ≥ **0.85**.
+- LP release when the 10-sample Q20 mean is ≥ **0.5** (`MUDRA_LP_RELEASE_THRESHOLD`; was 0.85 until
+  2026-11-18).
+
+Optuna never tunes a threshold.
 
 **TAP:** each rising edge of `TAP_SWIPE_predict` is an event, with a 150 ms refractory.
 
@@ -72,7 +78,9 @@ Latency is also reported.
 
 1. Start at the press start (from the TAP model).
 2. Feed `LONG_PRESS_predict_value()` (Q20 steps) into a 10-sample moving average.
-3. Release is declared when the average ≥ 0.85.
+3. Release is declared when the average ≥ the LP release threshold (0.5 by default). **The firmware's
+   release comparison must use the same value**: mean of the 10 values ≥ 0.5, i.e. a sum of the 10 Q20
+   codes ≥ 100.
 
 The following counts are taken:
 
@@ -106,7 +114,7 @@ work for some people. The pooled score is also stored.
 | num_leaves | 8–127, and ≤ 2^depth |
 | learning_rate | 0.02–0.3 |
 | min_child_samples | 10–300 |
-| positive weight | TAP 0.2–10, LP 0.2–20 |
+| positive weight | TAP 0.2–10; LP 0.005–20 at a 0.5 release (0.2–20 at 0.85) |
 | feature subsets | of the 126 p_core features |
 | colsample / subsample / L1 / L2 | also searched |
 
@@ -136,11 +144,22 @@ Environment variables:
 | `MUDRA_LEAN8_MIN_FRAMES` | 50 | rows are used once the Lean-8 handler has run this many EMG frames (~1.1 s); 500 = `lean_8_features_ready()` (~10.8 s, keeps only ~14% of taps) |
 | `MUDRA_LEAN8_FIRMWARE_HEADER` | `research/gesture/_lean8_reference/core_type_def.h` | firmware header for the C parity check (git-ignored; public repo) |
 | `MUDRA_LEAN8_PARITY_FILES` | 24 | recordings compared with the firmware C code on each generation (0 = off) |
+| `MUDRA_LEAN8_VERIFY_SOURCE_SHA` | 0 | 1 = also SHA-256 every source recording before reusing its derived file (size + mtime is the default check) |
+| `MUDRA_LP_RELEASE_THRESHOLD` | 0.5 | firmware LP release threshold on the 10-sample Q20 mean; part of the LP study name |
+| `MUDRA_LP_BASELINE_THRESHOLD` | 0.85 | release threshold used to replay the LP baselines |
+| `MUDRA_CPU_THREADS` | 80% of CPUs | LightGBM threads; does not change the models (deterministic=True). Choose with `bench_unified.py threads` |
 
 ## Selection and outputs
 
 - 40 trials per model (TPE, median pruner after fold 1). Two anchors are queued first: 15 leaves/depth 6
-  and 63 leaves/depth 10. LP anchors use positive weight 6.
+  and 63 leaves/depth 10.
+  - TAP anchors use positive weight 1.
+  - LP anchors use 0.02 at a 0.5 release threshold. Measured: the LP replay optimum sits at threshold
+    1.0 / 0.95 / 0.85 / 0.7 for weights 6 / 1.5 / 0.2 / 0.05.
+- Study names:
+  - TAP: `unified_v2_tap_lean81_min50`, unchanged, so a running study resumes.
+  - LP: `unified_v2_lp_lean81_min50_rel0.50`. It carries the release threshold, so an LP study run at
+    0.85 is never resumed under 0.5.
 - The top 5 by CV score inside the primary budget, plus the best inside 24 KB, are exported. For each one:
   - It is refit without the held-out people (22%, never used for CV).
   - It is exported to C and replayed **through the compiled header**, with C-vs-Python parity checked.
@@ -157,8 +176,28 @@ results_unified_v2/
     models/candidates/rank_01..05, budget_24kb/   every exported candidate
     models/*.json, *.pkl                     per-candidate audit (CV, held-out, parity, params)
     summary.json, COMPARISON.md, optuna_study.sqlite3 (resumable)
+    timing.jsonl                             per-trial stage seconds (fit, size, replay gather/predict/score)
+    run_manifest.json                        commit, versions, CPU/memory, hashes, search space, constants
+    backups/optuna_study_<time>.sqlite3      SQLite-API copy taken before every resume
+    study_snapshot_<time>.json               trials (params, values, fold scores) before new trials start
     cache/                                   training rows + replay matrix (rebuilt if data/labels change)
 ```
+
+### Resuming a running study after a code update
+
+1. Stop the trainer between trials, or let it finish.
+2. `git pull`, then start it again with the same command and environment.
+
+On start the trainer:
+
+- Copies the SQLite study into `backups/` and writes a snapshot of every trial.
+- Records the dataset's content hash in the study. On later runs it **refuses to resume** if the training
+  or replay data differ.
+- If the cache is rebuilt, hashes the old cache first and logs whether the rebuild is identical
+  (`UNIFIED_CACHE_REBUILD identical content`).
+
+The TAP study name, search space, feature sets, seeds, sampler and pruner are unchanged, so Optuna
+continues the same 40-trial study.
 
 ## Baselines (read-only)
 
@@ -166,6 +205,10 @@ The previous successful TAP model and LP v20 are not retrained and not modified:
 and after. Each is compiled and replayed on the same held-out people with the same metrics, as rows in
 `COMPARISON.md`. A missing or not-configured baseline is reported, never fatal. The previous unified
 (2026-11-17) headers are compared too.
+
+LP baselines are replayed at the release threshold they were built for: 0.85
+(`MUDRA_LP_BASELINE_THRESHOLD`). New LP models are replayed at 0.5. Each is therefore compared at its own
+firmware setting.
 
 ## Lean-8 features
 
@@ -191,10 +234,10 @@ All the details are in `LEAN8_UNIFIED_WORKFLOW.md`.
 
 ## Firmware polarity (unchanged)
 
-| Task | class 1 (p ≥ 0.85) | class 0 |
-|---|---|---|
-| TAP_SWIPE | TAP/SWIPE onset | no onset |
-| LONG_PRESS | **RELEASE/REST** | **still HELD** |
+| Task | class 1 | class 0 | Firmware decision |
+|---|---|---|---|
+| TAP_SWIPE | TAP/SWIPE onset | no onset | p ≥ 0.85 |
+| LONG_PRESS | **RELEASE/REST** | **still HELD** | mean of 10 Q20 values ≥ 0.5 (`LONG_PRESS_THRESHOLD` 0.5f) |
 
     bool onset = TAP_SWIPE_predict(&m_feat_core);
     float release_q = LONG_PRESS_predict_value(&m_feat_core);   // Q20 steps, average 10 of these
@@ -214,6 +257,17 @@ All the details are in `LEAN8_UNIFIED_WORKFLOW.md`.
 
 Expect roughly 1.5–3 h per model for 40 trials on 2 CPUs, less with more cores. The study is resumable:
 rerunning continues the sqlite study.
+
+## Speed and equivalence harness
+
+`research/gesture/bench_unified.py` implements the measurement and parity side of
+`TRAINING_PERFORMANCE_OPTIMIZATION_PLAN.md`. Its implementation status and results are at the top of
+that file.
+
+    python research/gesture/bench_unified.py run tap new.json [--study results_unified_v2/tap/optuna_study.sqlite3 --limit 5]
+    python research/gesture/bench_unified.py compare old.json new.json      # ALL_EQUIVALENT or a list of mismatches
+    python research/gesture/bench_unified.py stages tap                     # old vs optimized time per changed stage
+    python research/gesture/bench_unified.py threads tap 8,16,24,32,48,64,76  # time + exact-model check per thread count
 
 ## Limitations
 

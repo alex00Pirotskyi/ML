@@ -171,7 +171,8 @@ Production policy is unchanged:
 - TAP starts a press. LP cannot start one.
 - LP predicts RELEASE/REST.
 - The firmware averages 10 LP Q20 values.
-- The release threshold is 0.85.
+- The LP release threshold is 0.5 (10-sample Q20 mean ≥ 0.5; was 0.85 until 2026-11-18). The TAP onset
+  threshold stays 0.85.
 - LP stays binary.
 
 ## 6. Never model inputs

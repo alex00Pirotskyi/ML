@@ -121,6 +121,10 @@ def unit_checks():
     rep = c.report(); assert rep["hold_kept"] == 1.0 and rep["timely_release"] == 0.0 and rep["objective_score"] == 0.0
     assert R.lp_declared_release(np.array([20] * 9 + [0]), np.arange(10) * 5.0, 0.0) is not None
     assert R.lp_declared_release(np.array([20] * 8 + [0, 0]), np.arange(10) * 5.0, 0.0) is None
+    # LP release threshold is explicit: 0.5 releases when the ten-sample mean reaches 0.5 (sum of Q20 >= 100).
+    assert R.lp_declared_release(np.array([10] * 10), np.arange(10) * 5.0, 0.0, threshold=0.5) is not None
+    assert R.lp_declared_release(np.array([10] * 9 + [9]), np.arange(10) * 5.0, 0.0, threshold=0.5) is None
+    assert R.lp_declared_release(np.array([10] * 10), np.arange(10) * 5.0, 0.0) is None    # default stays 0.85
     # Positive weight must change class weighting (it was inert in the old V6 helper).
     yy = np.array([0] * 8 + [1] * 8, dtype=np.int8)
     d = {"y": yy, "w": np.ones(16, np.float32), "file": np.array(["one"] * 8 + ["two"] * 8, dtype=object),
@@ -136,6 +140,37 @@ def unit_checks():
         b = int(kb * 1024); k, size = g.trees_within(m, b)
         assert size <= b and g.static_bytes(g.truncated(m, k)) == size
         assert k == m.booster_.num_trees() or g.static_bytes(g.truncated(m, k + 1)) > b
+    # Optimized sizing == original truncate-and-measure search, incl. the >64-node metadata layout and the
+    # root-index width change; every prefix size equals the exporter's own accounting of the truncated model.
+    big = lgb.LGBMClassifier(n_estimators=80, num_leaves=127, max_depth=10, min_child_samples=5, verbosity=-1, n_jobs=2,
+                             max_bin=127).fit(X, y)
+    for model in (m, big):
+        for b in (2048, 6144, 8192, 24 * 1024, 32 * 1024, 32 * 1024 + 7, 10 ** 6):
+            try:
+                ref = g.trees_within_reference(model, b)
+            except ValueError:
+                ref = "too small"
+            try:
+                got = g.trees_within(model, b)
+            except ValueError:
+                got = "too small"
+            assert ref == got, (b, ref, got)
+        sz = g._sizing(model)
+        for k in range(1, model.booster_.num_trees() + 1, 7):
+            assert sz["prefix"](k) == g.static_bytes(g.truncated(model, k)), k
+    assert not g.SIZING_FALLBACKS, g.SIZING_FALLBACKS
+    # Replay gather: selected columns only, identical bytes to concatenate-then-select; predictions identical.
+    Xmm = np.random.default_rng(3).normal(size=(5000, 40)).astype(np.float32)
+    ranges = [(0, 7), (10, 900), (900, 905), (1200, 4999)]
+    for sel in ([3, 0, 39, 7], list(range(40)), slice(None)):
+        ref = np.ascontiguousarray(np.concatenate([Xmm[a:b] for a, b in ranges])[:, sel], np.float32)
+        got = g._gather(Xmm, ranges, sel)
+        assert got.flags.c_contiguous and got.dtype == np.float32 and np.array_equal(ref.view(np.uint32), got.view(np.uint32))
+        fn = lambda Z: {"s": Z.sum(axis=1), "f": Z[:, 0] * 3}
+        new = list(g._ranges_predict([fn], Xmm, ranges, sel, chunk=700))
+        old = list(g._ranges_predict_reference([fn], Xmm, ranges, sel, chunk=700))
+        assert [r for r, _ in new] == [r for r, _ in old]
+        assert all(np.array_equal(a[0][k], b[0][k]) for (_, a), (_, b) in zip(new, old) for k in ("s", "f"))
     assert len(g.LEAN8_24) == 24
     g.export_plus.validate_feature_schema_accessors(g.LEAN8_24)
     out = Path(tempfile.mkdtemp()); cols = list(g.RAW_126)
@@ -225,7 +260,8 @@ def real_source_smoke():
     for task, stem in (("tap", "TAP_SWIPE"), ("lp", "LONG_PRESS")):
         out = g.OUTPUT / task
         report = json.loads((out / "summary.json").read_text())
-        assert report["status"] == "success" and report["fixed_threshold"] == 0.85 and report["threshold_tuned"] is False
+        assert report["status"] == "success" and report["fixed_threshold"] == g.task_threshold(task)
+        assert report["threshold_tuned"] is False and g.task_threshold("tap") == 0.85
         assert report["class_one"] == ("RELEASE/REST" if task == "lp" else "TAP/SWIPE onset")
         assert report["budgets"] == [8192, 6144]
         assert report["lean8"]["enabled"] is True and report["lean8"]["min_frames"] == g.LEAN8_MIN_FRAMES
@@ -249,7 +285,7 @@ def real_source_smoke():
         h = out / "models" / (stem + ".h"); text = h.read_text()
         assert f"#define {stem}_predict {stem.lower()}_predict" in text
         assert f"#define {stem}_predict_value {stem.lower()}_predict_value" in text
-        assert f"#define {stem}_THRESHOLD 0.850000024f" in text
+        assert f"#define {stem}_THRESHOLD {g.export_plus._c_float(g.task_threshold(task))}" in text, stem
         assert "V6_RANK" not in text and "v6_rank" not in text
         names = list(json.loads((out / "models" / (stem + "_feature_schema.json")).read_text())["feature_map"].values())
         assert names and all(s.startswith("p_core->") for s in names)
@@ -262,6 +298,18 @@ def real_source_smoke():
         data, rpl, _ = g.build_task_data(task, g.selected_sources(task, g.canonical_files(g.RAW_SOURCE_TAP),
                                                                    g.canonical_files(g.RAW_SOURCE_LP)), out)
         tr, te = g.split_heldout(data, task)
+        # Trial-invariant fold weights == the original per-trial computation, at several positive weights.
+        for pf in g.prepared_folds(data, rpl, tr, task):
+            for pw in (0.005, 0.37, 1.0, 6.0, 19.5):
+                assert np.array_equal(g.fold_weights(pf, pw).view(np.uint32),
+                                      g.weights_for_task(data, pf["tr"], task, pw).view(np.uint32)), (task, pw)
+        # Study guard: a resumed study with other data is refused.
+        st = g.optuna.create_study(direction="maximize")
+        st.set_user_attr("data_content_sha256", "0" * 64)
+        try:
+            g.guard_study_data(st, data, Path(tempfile.mkdtemp()), None); raise AssertionError("guard did not fire")
+        except RuntimeError:
+            pass
         b = g.replay_baselines(task, data, rpl, te, out)[0]
         assert b["status"] == "replayed" and b["holdout"]["objective_score"] >= 0, b
         print("UNIFIED_V2_REAL_SOURCE_OK", task, json.dumps(report["dataset"]), report["selected"]["static_bytes"], flush=True)
