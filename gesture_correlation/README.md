@@ -43,7 +43,7 @@ By default, both recording roots are scanned:
 - DATA/DATA_TAP
 - DATA/DATA_LONG_PRESS
 
-The second root contains some TAP/SWIPE recordings also present in the first root. Exact byte-identical archive copies are deduplicated across both roots. If an identical archive appears under conflicting class folders, all copies of that hash are excluded and reported rather than assigning an arbitrary label.
+The second root contains some TAP/SWIPE recordings also present in the first root. Recordings are deduplicated by the SHA-256 of their uncompressed CSV payload, so a plain .csv and its .csv.gz copy count as one recording. If identical sensor data appears under conflicting class folders, all copies of that content hash are excluded and reported rather than assigning an arbitrary label.
 
 Current repository folder taxonomy includes:
 
@@ -152,7 +152,7 @@ Useful options:
 | --skip-models | Run descriptive statistics/correlation without classifiers |
 | --rebuild-cache | Recompute recording descriptors |
 
-The script caches the expensive recording-level descriptor matrix. A rerun with unchanged input archives, feature files, schema and window sizes reuses it. Use --rebuild-cache to force recomputation.
+The script caches the expensive recording-level descriptor matrix. A rerun with unchanged source CSV content, feature files, schema and window sizes reuses it. Use --rebuild-cache to force recomputation.
 
 ## Outputs
 
