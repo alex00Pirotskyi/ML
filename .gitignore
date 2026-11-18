@@ -26,3 +26,6 @@
 /research/gesture/_smoke_results/
 .venv/
 __pycache__/
+
+# Filename-supervised gesture correlation research outputs
+/gesture_correlation/results/
