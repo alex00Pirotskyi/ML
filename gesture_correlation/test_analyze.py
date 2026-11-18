@@ -108,6 +108,34 @@ class GestureCorrelationTests(unittest.TestCase):
             self.assertEqual(len(duplicates), 1)
             self.assertEqual(len(conflicts), 1)
 
+    def test_paired_participant_effects_and_subtype_effects(self):
+        features = ["p_core->acc_psd[0][X][0]", "p_core->emg_psd[0][CH1][0]"]
+        schema = g.schema_for(features, [100])
+        rng = np.random.default_rng(7)
+        X = rng.normal(size=(15, len(schema["names"]))).astype(np.float32)
+        meta = pd.DataFrame({
+            "class": ["TAP"] * 10 + ["FINGER"] * 5,
+            "subtype": ["MidTap"] * 5 + ["SoftTap"] * 5 + ["IndexFinger"] * 5,
+            "participant": [f"person{i}" for i in range(5)] * 3,
+        })
+        paired = g.paired_effects(X, meta, features, schema, [100], min_pairs=3)
+        self.assertFalse(paired.empty)
+        self.assertTrue((paired["n_paired_participants"] == 5).all())
+        subtype = g.subtype_effects(X, meta, features, schema, [100])
+        self.assertFalse(subtype.empty)
+        self.assertEqual(set(subtype["class"]), {"TAP"})
+
+    def test_within_class_correlation_shape(self):
+        features = ["p_core->acc_psd[0][X][0]", "p_core->emg_psd[0][CH1][0]", "p_core->wl[CH1]"]
+        schema = g.schema_for(features, [100])
+        rng = np.random.default_rng(11)
+        X = rng.normal(size=(12, len(schema["names"]))).astype(np.float32)
+        meta = pd.DataFrame({"class": ["TAP"] * 6 + ["FINGER"] * 6})
+        corr = g.within_class_corr(X, meta, features, schema)
+        self.assertEqual(corr.shape, (3, 3))
+        self.assertTrue(np.isfinite(corr).all())
+        self.assertTrue(np.allclose(np.diag(corr), 1.0))
+
     def test_bh_adjustment_is_bounded_and_monotonic_in_rank_order(self):
         p = np.asarray([0.04, 0.001, 0.02, np.nan])
         q = g.bh(p)
