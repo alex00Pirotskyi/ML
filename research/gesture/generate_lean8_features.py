@@ -6,7 +6,7 @@
 Source (never modified):  DATA/DATA_TAP, DATA/DATA_LONG_PRESS
 Derived (git-ignored):    DATA/DATA_TAP_LEAN8, DATA/DATA_LONG_PRESS_LEAN8
 
-Each derived .csv.gz keeps every original line byte-for-byte and appends 27 columns:
+Each derived .csv or .csv.gz keeps every original line byte-for-byte and appends 27 columns:
 
     the 24 firmware fields  p_core->cload_lean_8.{lw,Pm,r01,r32,sd3,min10,rise10,max10}[CH1..CH3]
     lean8_frames            number of lean_8_features_handler() calls so far in this recording
@@ -240,8 +240,11 @@ def _text_block(features: pd.DataFrame) -> list[str]:
 
 def generate_file(source: Path, dest: Path) -> dict:
     """Append the Lean-8 columns to every original line (original bytes unchanged)."""
-    with gzip.open(source, "rb") as f:
-        raw = f.read()
+    if source.name.endswith(".gz"):
+        with gzip.open(source, "rb") as f:
+            raw = f.read()
+    else:
+        raw = source.read_bytes()
     df = pd.read_csv(io.BytesIO(raw), usecols=lambda c: c in set(SOURCE_COLUMNS), low_memory=False)
     feats = compute(df)
     if not np.isfinite(feats[list(LEAN8_COLUMNS)].to_numpy(np.float64)).all():
@@ -260,8 +263,12 @@ def generate_file(source: Path, dest: Path) -> dict:
     body = [lines[0] + "," + ",".join(EXTRA_COLUMNS)] + [a + "," + b for a, b in zip(lines[1:], block)]
     dest.parent.mkdir(parents=True, exist_ok=True)
     tmp = dest.with_name(dest.name + ".tmp")
-    with gzip.open(tmp, "wb", compresslevel=6) as f:
-        f.write((newline.join(body) + newline).encode("utf-8"))
+    payload = (newline.join(body) + newline).encode("utf-8")
+    if dest.name.endswith(".gz"):
+        with gzip.open(tmp, "wb", compresslevel=6) as f:
+            f.write(payload)
+    else:
+        tmp.write_bytes(payload)
     os.replace(tmp, dest)
     fr = feats[FRAMES_COLUMN].to_numpy()
     return dict(rows=len(df), frames=int(fr[-1]) if len(fr) else 0, ready_rows=int((fr >= HISTORY_10S).sum()))
@@ -273,7 +280,10 @@ def _job(args):
 
 
 def generate_tree(raw_root: Path, out_root: Path, workers: int = WORKERS) -> dict:
-    files = sorted(raw_root.glob("*/*.csv.gz"))
+    files = sorted(
+        p for p in raw_root.rglob("*")
+        if p.is_file() and (p.name.endswith(".csv.gz") or p.name.endswith(".csv"))
+    )
     if not files:
         raise ValueError(f"No recordings under {raw_root}")
     out_root.mkdir(parents=True, exist_ok=True)
@@ -465,7 +475,10 @@ def ensure_datasets(pairs=None, workers: int = WORKERS, parity_files: int = PARI
     summaries = [generate_tree(Path(a), Path(b), workers) for a, b in pairs]
     sample = []
     for raw, _ in pairs:
-        fs = sorted(Path(raw).glob("*/*.csv.gz"))
+        fs = sorted(
+            p for p in Path(raw).rglob("*")
+            if p.is_file() and (p.name.endswith(".csv.gz") or p.name.endswith(".csv"))
+        )
         if fs:
             step = max(1, len(fs) // max(1, parity_files // len(pairs)))
             sample += fs[::step][: max(1, parity_files // len(pairs))]
