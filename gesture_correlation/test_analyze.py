@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import gzip
+import importlib.util
 import sys
 import tempfile
 import unittest
@@ -135,6 +136,48 @@ class GestureCorrelationTests(unittest.TestCase):
         self.assertEqual(corr.shape, (3, 3))
         self.assertTrue(np.isfinite(corr).all())
         self.assertTrue(np.allclose(np.diag(corr), 1.0))
+
+    def test_lean8_generator_accepts_plain_and_gzip_csv(self):
+        generator_path = HERE.parent / "research" / "gesture" / "generate_lean8_features.py"
+        spec = importlib.util.spec_from_file_location("test_lean8_generator", generator_path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        spec.loader.exec_module(module)
+
+        n = 510
+        data = {"Timestamp": np.arange(n, dtype=np.int64) * 20}
+        for ch in (1, 2, 3):
+            data[f"p_core->wl[CH{ch}]"] = 1000 + np.arange(n) % 17
+            for z in range(5):
+                data[f"p_core->emg_psd[0][CH{ch}][{z}]"] = 100 + np.arange(n) + z
+                data[f"p_core->emg_psd_mean[CH{ch}][{z}]"] = 200 + np.arange(n) + z
+        df = pd.DataFrame(data)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for compressed in (False, True):
+                suffix = ".csv.gz" if compressed else ".csv"
+                source = root / f"source{suffix}"
+                dest = root / f"derived{suffix}"
+                if compressed:
+                    with gzip.open(source, "wt") as handle:
+                        df.to_csv(handle, index=False)
+                else:
+                    df.to_csv(source, index=False)
+
+                stats = module.generate_file(source, dest)
+                if compressed:
+                    with gzip.open(dest, "rt") as handle:
+                        result = pd.read_csv(handle)
+                else:
+                    result = pd.read_csv(dest)
+
+                self.assertEqual(len(result), n)
+                self.assertIn("p_core->cload_lean_8.lw[CH1]", result.columns)
+                self.assertIn("lean8_features_ready", result.columns)
+                self.assertEqual(int(result["lean8_features_ready"].iloc[498]), 0)
+                self.assertEqual(int(result["lean8_features_ready"].iloc[499]), 1)
+                self.assertEqual(stats["frames"], n)
 
     def test_bh_adjustment_is_bounded_and_monotonic_in_rank_order(self):
         p = np.asarray([0.04, 0.001, 0.02, np.nan])
