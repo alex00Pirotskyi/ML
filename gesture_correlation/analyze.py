@@ -152,7 +152,7 @@ def prepare_features(rows, roots, mode, parity_files):
     if mode == "off":
         for r in rows:
             r["feature"] = r["raw"]
-        return {"lean8_used": False, "mode": mode, "parity": "off"}
+        return rows, {"lean8_used": False, "mode": mode, "parity": "off"}
 
     def derived(r):
         return lean8_root(r["root"]) / r["rel"]
@@ -185,10 +185,10 @@ def prepare_features(rows, roots, mode, parity_files):
         log("LEAN8_PREPARE", "using raw firmware features because derived Lean-8 tree is incomplete")
         for r in rows:
             r["feature"] = r["raw"]
-        return {"lean8_used": False, "mode": mode, "generated": generated, "missing": len(remaining), "parity": parity}
+        return rows, {"lean8_used": False, "mode": mode, "generated": generated, "missing": len(remaining), "parity": parity}
     for r in rows:
         r["feature"] = derived(r)
-    return {"lean8_used": True, "mode": mode, "generated": generated, "missing": 0, "parity": parity}
+    return rows, {"lean8_used": True, "mode": mode, "generated": generated, "missing": 0, "parity": parity}
 
 
 def common_columns(rows):
