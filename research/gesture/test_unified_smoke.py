@@ -2,9 +2,11 @@
 """Checks for the unified trainer v2. Never runs a full user Optuna experiment.
 
 1. Unit checks: TAP event replay, LP ten-sample press replay, exact budget trimming,
-   C-header replay == Python, class weighting.
-2. Real-source smoke: a small set of real recordings through labels, sampling, replay
-   CV, budget-trimmed C export, held-out C replay and baseline replay.
+   C-header replay == Python, class weighting, Lean-8 emulator == a literal port of the
+   firmware handler (and == the firmware C code when its header is available locally),
+   export/compile/replay of a model that uses Lean-8 fields.
+2. Real-source smoke: a small set of real recordings through Lean-8 generation, labels,
+   sampling, replay CV, budget-trimmed C export, held-out C replay and baseline replay.
 """
 import gzip
 import json
@@ -20,6 +22,80 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "research" / "gesture"))
 import train_unified as g
 import replay as R
+import generate_lean8_features as L8
+
+
+def lean8_handler_reference(wl_frames, psd_mean_frames):
+    """Literal Python port of lean_8_features_handler (ring buffer, running integer sums,
+    rescan on expiry), independent of the vectorised emulator."""
+    N10, N3 = L8.HISTORY_10S, L8.HISTORY_3S
+    hist = np.zeros((N10, 3), np.int64); sum3 = [0, 0, 0]; sumsq3 = [0, 0, 0]
+    first = [0, 0, 0]; mn = [0, 0, 0]; mx = [0, 0, 0]; head = 0; seen = 0
+    inv = np.float32(1.0) / (np.float32(N3) * np.float32(N3) * np.float32(4096) * np.float32(4096))
+    out = np.zeros((len(wl_frames), 8, 3), np.float32)
+    for f in range(len(wl_frames)):
+        expire3 = (head + N10 - N3) % N10
+        for ch in range(3):
+            lw = L8.fw_log10_positive(np.array([np.float32(wl_frames[f, ch]) + np.float32(1.0)], np.float32))[0]
+            q = min(int(np.float32(lw * np.float32(4096.0) + np.float32(0.5))), 65535)
+            leaving10 = int(hist[head, ch]); leaving3 = int(hist[expire3, ch]) if seen >= N3 else 0
+            hist[head, ch] = q
+            if seen == 0:
+                first[ch] = mn[ch] = mx[ch] = q
+            elif seen < N10:
+                mn[ch] = min(mn[ch], q); mx[ch] = max(mx[ch], q)
+            elif leaving10 in (mn[ch], mx[ch]):
+                mn[ch] = int(hist[:, ch].min()); mx[ch] = int(hist[:, ch].max())
+            else:
+                mn[ch] = min(mn[ch], q); mx[ch] = max(mx[ch], q)
+            sum3[ch] += q; sumsq3[ch] += q * q
+            if seen >= N3:
+                sum3[ch] -= leaving3; sumsq3[ch] -= leaving3 * leaving3
+            ts, tq = sum3[ch], sumsq3[ch]
+            if seen + 1 < N3:
+                pad = N3 - seen - 1; ts += pad * first[ch]; tq += pad * first[ch] * first[ch]
+            var = np.float32(tq * N3 - ts * ts) * inv
+            sd = np.float32(np.sqrt(var))
+            min10 = np.float32(mn[ch]) * np.float32(1 / 4096); max10 = np.float32(mx[ch]) * np.float32(1 / 4096)
+            x = L8.fw_psd_linear(psd_mean_frames[f, ch])
+            power = np.where(x > np.float32(1e-4), x, np.float32(1e-4)); total = np.float32(0)
+            for z in range(5):
+                total = np.float32(total + x[z])
+            total = max(total, np.float32(1e-4))
+            lg = lambda v: L8.fw_log10_positive(np.array([v], np.float32))[0]
+            out[f, :, ch] = (lw, np.float32(10) * lg(total), np.float32(10) * lg(power[0] / power[1]),
+                             np.float32(10) * lg(power[3] / power[2]), sd, min10,
+                             (lw - min10) if lw > min10 else np.float32(0), max10)
+        seen = min(seen + 1, N10); head = (head + 1) % N10
+    return out.reshape(len(wl_frames), 24)
+
+
+def lean8_checks():
+    rng = np.random.default_rng(5)
+    n = 1300                                    # > 500 frames: warm-up, expiry rescans and steady state
+    base = np.cumsum(rng.normal(0, 40, n)); wl = np.clip(np.stack([base + 900, base * 0.3 + 400, 2000 - base], 1), 0, None)
+    wl[700:760] = 6000; wl[1000:1010, 1] = 0                 # bursts, a zero WL, ramps
+    wl = np.round(wl).astype(np.int64)
+    psd = rng.integers(0, 9000, size=(n, 3, 5)); psd[50:60, 2, :] = 0   # include zero-power zones
+    ours = L8.lean8_per_frame(wl, psd)
+    ref = lean8_handler_reference(wl, psd)
+    assert np.array_equal(ours, ref), np.abs(ours - ref).max(axis=0)
+    # Frame detection: PSD changes every 3 rows; one frame logged split (PSD first, WL next row).
+    rows = 30; P = np.repeat(np.arange(10), 3)[:, None].repeat(15, 1); W = np.repeat(np.arange(10), 3)[:, None].repeat(3, 1)
+    W[9] = W[8]                                            # frame 3 (rows 9-11): WL lands on row 10
+    fr = L8.frame_rows(P, W)
+    assert fr.tolist() == [0, 3, 6, 10, 12, 15, 18, 21, 24, 27], fr
+    fw = L8.firmware_header()
+    if fw is not None:
+        files = sorted(g.RAW_SOURCE_TAP.glob("TAP/*.csv.gz"))[:3] + sorted(g.RAW_SOURCE_LP.glob("MID_LONG_PRESS/*.csv.gz"))[:2]
+        par = L8.parity_check(files, fw)
+        assert par["status"] == "passed" and par["max_abs_diff"] == 0.0, par
+        lit = L8.FirmwareLean8(fw).run(wl, psd)[0]
+        assert np.array_equal(lit, ours)
+        print("LEAN8_FIRMWARE_C_PARITY_OK", par["frames"], "frames", flush=True)
+    else:
+        print("LEAN8_FIRMWARE_C_PARITY_SKIPPED (no local firmware header)", flush=True)
+    print("LEAN8_EMULATOR_CHECKS_PASSED", flush=True)
 
 
 def unit_checks():
@@ -80,6 +156,17 @@ def unit_checks():
     assert chosen["role"] == "rank_02" and skipped[0]["role"] == "rank_01", (chosen, skipped)
     assert (tmp / "models" / "X.h").read_text() == "rank_02"
     assert (tmp / "models" / "budget_6kb" / "X.h").read_text() == "budget_6kb"
+    # A model that uses Lean-8 fields exports, compiles against the 150-field t_core and replays exactly.
+    cols = list(g.ALL_FEATURES)
+    X8 = rng.normal(size=(20000, len(cols))).astype(np.float32)
+    lw1 = cols.index("p_core->cload_lean_8.lw[CH1]"); r01 = cols.index("p_core->cload_lean_8.rise10[CH3]")
+    y8 = (X8[:, lw1] + X8[:, r01] + 0.3 * X8[:, 0] + rng.normal(size=20000) > 0.5).astype(int)
+    m8 = lgb.LGBMClassifier(n_estimators=60, num_leaves=15, verbosity=-1, n_jobs=2, max_bin=127).fit(X8, y8)
+    h8, _, chk = g.write_header(m8, cols, "LONG_PRESS", out / "lean8_models", "lp", out)
+    assert "cload_lean_8.lw[CH1]" in h8.read_text() and chk["status"] == "passed", chk
+    hm8 = R.HeaderModel(h8, cols, out / "build8", prefer="long_press")
+    p8 = m8.predict_proba(X8[:4000])[:, 1]
+    assert (hm8.value_q20(X8[:4000]) == R.q20(p8)).all()
     print("UNIFIED_V2_UNIT_CHECKS_PASSED", flush=True)
 
 
@@ -112,19 +199,20 @@ def real_source_smoke():
             shutil.rmtree(d)
     tap_root = sample_root / "DATA_TAP"; lp_root = sample_root / "DATA_LONG_PRESS"
     for folder, n in (("TAP", 22), ("SWIPE", 22), ("FINGER", 18), ("ARM", 16), ("WRIST", 14), ("BAND", 10)):
-        for p in select_originals(g.SOURCE_TAP, folder, n):
+        for p in select_originals(g.RAW_SOURCE_TAP, folder, n):
             put_sample(p, tap_root)
     for folder, n in (("SOFT_LONG_PRESS", 35), ("MID_LONG_PRESS", 35), ("STRONG_LONG_PRESS", 20),
                       ("DRAG_AND_DROP", 35), ("LONG_PRESS", 4), ("CONNECTED", 16), ("DISCONNECTED", 16),
                       ("LOOSE", 16), ("TABLE", 9), ("TAP", 12), ("SWIPE", 12)):
-        for p in select_originals(g.SOURCE_LP, folder, n):
+        for p in select_originals(g.RAW_SOURCE_LP, folder, n):
             put_sample(p, lp_root)
     # A local uncompressed sibling must not double a recording.
     original = sorted(tap_root.glob("TAP/*.csv.gz"))[0]
     with gzip.open(original, "rb") as stream, original.with_suffix("").open("wb") as dest:
         shutil.copyfileobj(stream, dest)
-    g.USE_LEAN8 = False
-    g.SOURCE_TAP = tap_root; g.SOURCE_LP = lp_root
+    g.USE_LEAN8 = True
+    g.RAW_SOURCE_TAP = tap_root; g.RAW_SOURCE_LP = lp_root
+    g.SOURCE_TAP = sample_root / "DATA_TAP_LEAN8"; g.SOURCE_LP = sample_root / "DATA_LONG_PRESS_LEAN8"
     g.LABEL_TAP = ROOT / "research" / "gesture" / "_smoke_labels" / "DATA_TAP"
     g.LABEL_LP = ROOT / "research" / "gesture" / "_smoke_labels" / "DATA_LONG_PRESS"
     g.OUTPUT = ROOT / "research" / "gesture" / "_smoke_results"
@@ -140,6 +228,11 @@ def real_source_smoke():
         assert report["status"] == "success" and report["fixed_threshold"] == 0.85 and report["threshold_tuned"] is False
         assert report["class_one"] == ("RELEASE/REST" if task == "lp" else "TAP/SWIPE onset")
         assert report["budgets"] == [8192, 6144]
+        assert report["lean8"]["enabled"] is True and report["lean8"]["min_frames"] == g.LEAN8_MIN_FRAMES
+        gate = report["dataset"]["counts"]["lean8_gate"]
+        assert 0 < gate["train_rows_used"] <= gate["train_rows_built"], gate
+        assert "Steady state only" in (out / "COMPARISON.md").read_text()
+        assert all("holdout_c_header_steady_state" in c for c in report["candidates"])
         roles = [c["role"] for c in report["candidates"]]
         assert roles[0] == "rank_01" and "budget_6kb" in roles, roles
         sel = report["selected"]; assert sel["role"].startswith("rank_") and sel.get("default") is True, sel
@@ -166,8 +259,8 @@ def real_source_smoke():
         copy = fake / task / (stem + ".h"); copy.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(h, copy)
         g.BASELINES[task] = [("copy_of_new_default", str(copy))]
-        data, rpl, _ = g.build_task_data(task, g.selected_sources(task, g.canonical_files(g.SOURCE_TAP),
-                                                                   g.canonical_files(g.SOURCE_LP)), out)
+        data, rpl, _ = g.build_task_data(task, g.selected_sources(task, g.canonical_files(g.RAW_SOURCE_TAP),
+                                                                   g.canonical_files(g.RAW_SOURCE_LP)), out)
         tr, te = g.split_heldout(data, task)
         b = g.replay_baselines(task, data, rpl, te, out)[0]
         assert b["status"] == "replayed" and b["holdout"]["objective_score"] >= 0, b
@@ -184,10 +277,15 @@ def real_source_smoke():
     if p.returncode:
         raise RuntimeError("Combined firmware header C compile failed: " + p.stderr[-5000:])
     print("UNIFIED_V2_BOTH_HEADERS_COMPILE_TOGETHER", flush=True)
+    man = json.loads((sample_root / "lean8_manifest.json").read_text())
+    assert man["firmware_parity"]["status"] in ("passed", "not run"), man["firmware_parity"]
+    derived = sorted(g.SOURCE_TAP.glob("TAP/*.csv.gz"))
+    assert derived and not any(p.is_symlink() for p in derived)
     print("UNIFIED_V2_REAL_DATA_SMOKE_PASSED", flush=True)
 
 
 if __name__ == "__main__":
+    lean8_checks()
     unit_checks()
     if "--unit-only" not in sys.argv:
         real_source_smoke()

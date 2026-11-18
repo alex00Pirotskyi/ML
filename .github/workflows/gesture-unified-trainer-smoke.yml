@@ -7,6 +7,7 @@ on:
       - 'research/gesture/train_unified.py'
       - 'research/gesture/test_unified_smoke.py'
       - 'research/gesture/replay.py'
+      - 'research/gesture/generate_lean8_features.py'
       - '.github/workflows/gesture-unified-trainer-smoke.yml'
   workflow_dispatch:
 
@@ -49,7 +50,7 @@ jobs:
         run: python -m pip install --disable-pip-version-check numpy pandas scipy scikit-learn lightgbm optuna joblib
       - name: Compile and execute real-source two-model smoke
         run: |
-          python -m py_compile research/gesture/train_unified.py research/gesture/replay.py research/gesture/test_unified_smoke.py
+          python -m py_compile research/gesture/train_unified.py research/gesture/replay.py research/gesture/generate_lean8_features.py research/gesture/test_unified_smoke.py
           python -u research/gesture/test_unified_smoke.py
       - uses: actions/upload-artifact@v4
         if: always()

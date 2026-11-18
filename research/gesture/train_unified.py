@@ -67,9 +67,17 @@ export_plus = v6.export_plus
 # Intentionally no CLI. Change these constants (or the MUDRA_* environment variables) if needed.
 RAW_SOURCE_TAP = ROOT / "DATA" / "DATA_TAP"
 RAW_SOURCE_LP = ROOT / "DATA" / "DATA_LONG_PRESS"
-SOURCE_TAP = ROOT / "DATA" / "DATA_TAP_LEAN8"
+SOURCE_TAP = ROOT / "DATA" / "DATA_TAP_LEAN8"          # derived: original lines + firmware Lean-8 columns
 SOURCE_LP = ROOT / "DATA" / "DATA_LONG_PRESS_LEAN8"
-USE_LEAN8 = True
+USE_LEAN8 = os.environ.get("MUDRA_USE_LEAN8", "1").strip().lower() not in ("0", "false", "no", "off")
+# A row is used for training and replay once the firmware has called lean_8_features_handler this many
+# times since the recording (sensor stream) started. 50 frames ~ 1.1 s skips the least reliable first
+# second and keeps the firmware's own warm-up values after it (nearest-edge sd3, partial min/max).
+# 500 = lean_8_features_ready() (~10.8 s at the measured 46.4 frames/s): most recordings are shorter,
+# so only ~14% of labelled taps and ~73% of holds would remain. Held-out metrics are ALSO reported
+# for rows with >= LEAN8_STEADY_FRAMES (fully warm history), whatever this setting is.
+LEAN8_MIN_FRAMES = int(os.environ.get("MUDRA_LEAN8_MIN_FRAMES", 50))
+LEAN8_STEADY_FRAMES = lean8.HISTORY_10S
 LABEL_TAP = ROOT / "DATA" / "LABELS" / "DATA_TAP"
 LABEL_LP = ROOT / "DATA" / "LABELS" / "DATA_LONG_PRESS"
 OUTPUT = ROOT / "research" / "gesture" / "results_unified_v2"
@@ -263,27 +271,31 @@ def ensure_labels(root: Path, label_dir: Path) -> list[Path]:
     return files
 
 
-def _feature_file(raw: Path, raw_root: Path, feature_root: Path) -> Path:
+def _feature_root(raw_root: Path) -> Path:
     if not USE_LEAN8:
-        return raw
-    return feature_root / raw.relative_to(raw_root)
+        return raw_root
+    return SOURCE_TAP if raw_root == RAW_SOURCE_TAP else SOURCE_LP
+
+
+def _feature_file(raw: Path, raw_root: Path, feature_root: Path) -> Path:
+    return _feature_root(raw_root) / raw.relative_to(raw_root)
 
 
 def selected_sources(task: str, tap_files: list[Path], lp_files: list[Path]):
     rows = []
     if task == "tap":
         rows.extend(
-            (_feature_file(p, RAW_SOURCE_TAP, SOURCE_TAP), SOURCE_TAP if USE_LEAN8 else RAW_SOURCE_TAP, LABEL_TAP)
+            (_feature_file(p, RAW_SOURCE_TAP, SOURCE_TAP), _feature_root(RAW_SOURCE_TAP), LABEL_TAP)
             for p in tap_files if p.parent.name in TAP_CLASSES
         )
         # Long-press starts/releases are UNKNOWN in unified tap labels; the rest are negatives.
         rows.extend(
-            (_feature_file(p, RAW_SOURCE_LP, SOURCE_LP), SOURCE_LP if USE_LEAN8 else RAW_SOURCE_LP, LABEL_LP)
+            (_feature_file(p, RAW_SOURCE_LP, SOURCE_LP), _feature_root(RAW_SOURCE_LP), LABEL_LP)
             for p in lp_files if p.parent.name in HOLD_FOLDERS
         )
     else:
         rows.extend(
-            (_feature_file(p, RAW_SOURCE_LP, SOURCE_LP), SOURCE_LP if USE_LEAN8 else RAW_SOURCE_LP, LABEL_LP)
+            (_feature_file(p, RAW_SOURCE_LP, SOURCE_LP), _feature_root(RAW_SOURCE_LP), LABEL_LP)
             for p in lp_files if p.parent.name in LP_CLASSES
         )
     if FILE_LIMIT_PER_FOLDER:                      # testing aid: evenly spread, so many people are kept
@@ -321,6 +333,9 @@ def feature_sets(columns: list[str]) -> dict[str, list[str]]:
         sets["raw126"] = list(RAW_126)
     if set(LEAN8_24).issubset(have):
         sets["lean8_24"] = list(LEAN8_24)
+        instant = [c for c in LEAN8_24 if any(f".{k}[" in c for k in ("lw", "Pm", "r01", "r32"))]
+        if set(RAW_126).issubset(have):
+            sets["raw126_lean8_instant12"] = list(RAW_126) + instant
     for k, fs in previous_tap.FEATURE_SETS.items():
         if k == "full126":
             continue
@@ -409,7 +424,7 @@ def sample_lp(t, y, hold_ms, folder, ev):
 # ============================================================================ dataset + replay cache
 def _fingerprint(task, records, columns):
     h = hashlib.sha256()
-    h.update(json.dumps(dict(task=task, columns=columns, version=3,
+    h.update(json.dumps(dict(task=task, columns=columns, version=4, lean8=USE_LEAN8,
         tap=[TAP_BACKGROUND_STRIDE_MS, TAP_HARD_WINDOW_MS, TAP_HARD_STRIDE_MS, TAP_ACTIVE_STRIDE_MS,
              TAP_POSITIVE_STRIDE_MS],
         lp=[LP_HOLD_STRIDE_MS, LP_EARLY_HOLD_MS, LP_RELEASE_WINDOW_MS, LP_TAP_RELEASE_WINDOW_MS,
@@ -417,8 +432,9 @@ def _fingerprint(task, records, columns):
         replay=[REPLAY_LP_TAPS_PER_RECORDING, REPLAY_LP_AFTER_RELEASE_MS]), sort_keys=True).encode())
     h.update(sha256(CLAUDE_LABELER).encode())
     if USE_LEAN8:
-        h.update(sha256(lean8.__file__).encode())
-        h.update(sha256(lean8.REFERENCE_HEADER).encode())
+        h.update(lean8.GENERATOR_SHA.encode())
+        fw = lean8.firmware_header()
+        h.update((sha256(fw) if fw else "no-firmware-header").encode())
     for p, root, labels in records:
         st = p.stat(); lab = sidecar(p, root, labels).stat()
         h.update(f"{p.relative_to(ROOT)}|{st.st_size}|{lab.st_size}|{int(lab.st_mtime)}".encode())
@@ -440,9 +456,9 @@ def build_task_data(task: str, records, out: Path):
     events = {"tap": load_events(LABEL_TAP) if task == "tap" else None, "lp": load_events(LABEL_LP)}
     ncol = len(columns)
     raw = open(cache / "replay_X.f32", "wb"); nrep = 0
-    T = dict(X=[], y=[], kind=[], rec=[], t=[])
+    T = dict(X=[], y=[], kind=[], rec=[], t=[], frames=[])
     recs = []          # per recording metadata
-    rp_t, rp_lab, rp_ready = [], [], []
+    rp_t, rp_lab, rp_frames = [], [], []
     windows = []       # LP press windows
     onsets = []        # TAP confirmed onsets: (rec index, t_on)
     info = Counter()
@@ -450,7 +466,7 @@ def build_task_data(task: str, records, out: Path):
         label_file = sidecar(source, root, labels_root)
         folder = source.parent.name
         rel = source.relative_to(root).as_posix()
-        ev_all = (events["tap"] if root == SOURCE_TAP else events["lp"]) if task == "tap" else events["lp"]
+        ev_all = (events["tap"] if root in (SOURCE_TAP, RAW_SOURCE_TAP) else events["lp"]) if task == "tap" else events["lp"]
         ev = ev_all.get(rel) if ev_all is not None else None
         lab = pd.read_csv(label_file, compression="gzip", low_memory=False,
                           usecols=["Timestamp", "tap_label", "hold_label", "hold_ms", "any_active"])
@@ -473,15 +489,15 @@ def build_task_data(task: str, records, out: Path):
             rows, kinds = sample_lp(t, y, lab["hold_ms"].to_numpy(np.int32), folder, ev)
         source_cols = set(columns) | {"Timestamp", "User"}
         if USE_LEAN8:
-            source_cols.add(lean8.READY_COLUMN)
+            source_cols.add(lean8.FRAMES_COLUMN)
         df = pd.read_csv(source, compression="gzip", low_memory=False,
                          usecols=lambda c: c in source_cols)
         if len(df) != len(lab):
             raise ValueError(f"Row count mismatch: {source}")
         if USE_LEAN8:
-            ready = df[lean8.READY_COLUMN].to_numpy(np.uint8).astype(bool)
+            frames = df[lean8.FRAMES_COLUMN].to_numpy(np.int32)
         else:
-            ready = np.ones(len(df), dtype=bool)
+            frames = np.full(len(df), np.iinfo(np.int32).max, np.int32)
         if not np.array_equal(pd.to_numeric(df["Timestamp"], errors="raise").to_numpy(np.int64), ts):
             raise ValueError(f"Timestamp mismatch: {source}")
         X = df[columns].apply(pd.to_numeric, errors="raise").to_numpy(np.float32)
@@ -493,7 +509,7 @@ def build_task_data(task: str, records, out: Path):
         # ---- replay rows
         if task == "tap":
             start = nrep; raw.write(X.tobytes()); nrep += len(X)
-            rp_t.append(t.astype(np.float32)); rp_lab.append(y); rp_ready.append(ready)
+            rp_t.append(t.astype(np.float32)); rp_lab.append(y); rp_frames.append(frames)
             if ev is not None and len(ev):
                 for o in ev[(ev.type == "tap_press") & (ev.labeled == 1)].t_on.dropna():
                     onsets.append((ri, float(o)))
@@ -517,19 +533,14 @@ def build_task_data(task: str, records, out: Path):
                 if q.sum() < R.LP_AVERAGE_SAMPLES:
                     continue
                 a, b = np.flatnonzero(q)[[0, -1]]
-                raw.write(X[a:b + 1].tobytes()); rp_t.append(t[a:b + 1].astype(np.float32)); rp_ready.append(ready[a:b + 1])
+                raw.write(X[a:b + 1].tobytes()); rp_t.append(t[a:b + 1].astype(np.float32)); rp_frames.append(frames[a:b + 1])
                 windows.append(dict(rec=ri, kind=kind_, start=nrep, end=nrep + (b + 1 - a), start_ms=s, release_ms=r))
                 nrep += b + 1 - a
         # ---- training sample
-        if USE_LEAN8:
-            keep_rows = ready[rows]
-            rows = rows[keep_rows]
-            kinds = kinds[keep_rows]
-            if not len(rows):
-                info["warmup_only_recordings"] += 1
         if len(rows):
             T["X"].append(X[rows]); T["y"].append(y[rows]); T["kind"].append(kinds)
             T["rec"].append(np.full(len(rows), ri, np.int32)); T["t"].append(t[rows].astype(np.float32))
+            T["frames"].append(frames[rows])
         info["read_sources"] += 1; info[folder + "_files"] += 1
         if i % 300 == 0:
             notice("UNIFIED_DATASET_EXTRACT", task, i, len(records), sum(len(a) for a in T["y"]), "replay_rows", nrep)
@@ -539,10 +550,10 @@ def build_task_data(task: str, records, out: Path):
     rec_df = pd.DataFrame(recs)
     np.save(cache / "train_X.npy", np.concatenate(T["X"]).astype(np.float32))
     np.savez(cache / "train_meta.npz", y=np.concatenate(T["y"]), kind=np.concatenate(T["kind"]),
-             rec=np.concatenate(T["rec"]), t=np.concatenate(T["t"]))
+             rec=np.concatenate(T["rec"]), t=np.concatenate(T["t"]), frames=np.concatenate(T["frames"]))
     np.savez(cache / "replay_meta.npz", t=np.concatenate(rp_t) if rp_t else np.zeros(0, np.float32),
              label=np.concatenate(rp_lab) if rp_lab else np.zeros(0, np.int8),
-             ready=np.concatenate(rp_ready) if rp_ready else np.zeros(0, np.bool_), n=nrep, ncol=ncol)
+             frames=np.concatenate(rp_frames) if rp_frames else np.zeros(0, np.int32), n=nrep, ncol=ncol)
     rec_df.to_csv(cache / "recordings.csv", index=False)
     pd.DataFrame(windows, columns=["rec", "kind", "start", "end", "start_ms", "release_ms"]).to_csv(
         cache / "lp_windows.csv", index=False)
@@ -562,15 +573,25 @@ def load_cache(cache: Path, columns):
                 if n else np.zeros((0, ncol), np.float32))
     windows = pd.read_csv(cache / "lp_windows.csv")
     onsets = pd.read_csv(cache / "tap_onsets.csv")
-    rec = m["rec"]
-    data = dict(X=X, y=m["y"].astype(np.int8), kind=m["kind"], t=m["t"],
+    gate = m["frames"] >= LEAN8_MIN_FRAMES
+    gate_info = dict(min_frames=LEAN8_MIN_FRAMES, steady_frames=LEAN8_STEADY_FRAMES, lean8=USE_LEAN8,
+                     train_rows_built=int(len(gate)), train_rows_used=int(gate.sum()),
+                     positives_built=int((m["y"] == 1).sum()), positives_used=int(((m["y"] == 1) & gate).sum()))
+    if not gate.all():
+        X = X[gate]
+    rec = m["rec"][gate]
+    data = dict(X=X, y=m["y"][gate].astype(np.int8), kind=m["kind"][gate], t=m["t"][gate],
                 group=recs.group.to_numpy(object)[rec], file=recs.file.to_numpy(object)[rec],
                 category=recs.folder.to_numpy(object)[rec], rec=rec,
                 w=np.ones(len(rec), np.float32), columns=list(columns), feature_sets=feature_sets(list(columns)))
-    rpl = dict(X=replay_X, t=rp["t"], label=rp["label"], ready=rp["ready"].astype(bool),
-               recs=recs, windows=windows,
+    fr = rp["frames"]
+    rpl = dict(X=replay_X, t=rp["t"], label=rp["label"], frames=fr,
+               ready=fr >= LEAN8_MIN_FRAMES, steady=fr >= LEAN8_STEADY_FRAMES, recs=recs, windows=windows,
                onsets={int(k): g.t_on.to_numpy(float) for k, g in onsets.groupby("rec")} if len(onsets) else {})
     info = json.loads((cache / "info.json").read_text())["counts"]
+    gate_info.update(usable_coverage(rpl))
+    info["lean8_gate"] = gate_info
+    notice("UNIFIED_LEAN8_GATE", json.dumps(gate_info))
     notice("UNIFIED_DATA", json.dumps(dict(train_rows=int(len(data["y"])), positives=int((data["y"] == 1).sum()),
            negatives=int((data["y"] == 0).sum()), replay_rows=n, recordings=len(recs),
            train_GB=round(X.nbytes / 1e9, 2), replay_GB=round(n * ncol * 4 / 1e9, 2),
@@ -724,6 +745,37 @@ def raw_fns(model, k_list):
     return run
 
 
+def _first_usable(rpl, a, b, mask_name="ready"):
+    m = rpl.get(mask_name)
+    if m is None:
+        return a
+    local = np.flatnonzero(np.asarray(m[a:b], dtype=bool))
+    return a + int(local[0]) if len(local) else None
+
+
+def usable_coverage(rpl):
+    """How much labelled material the frame gate leaves (all people)."""
+    out = {}
+    for name in ("ready", "steady"):
+        recs = rpl["recs"]
+        if (recs.start >= 0).any():                                  # TAP replay: whole recordings
+            total = used = 0
+            for i, r in recs.iterrows():
+                ons = rpl["onsets"].get(int(i), [])
+                total += len(ons)
+                a = _first_usable(rpl, int(r.start), int(r.end), name)
+                if a is not None:
+                    used += int((np.asarray(ons) >= float(rpl["t"][a]) + R.TAP_HIT_BEFORE_MS).sum())
+            out[f"tap_onsets_{name}"] = f"{used}/{total}"
+        w = rpl["windows"]
+        if len(w):
+            m = np.asarray(rpl[name])[w.start.to_numpy(int)]
+            for kind in ("hold", "tap"):
+                k = (w.kind == kind).to_numpy()
+                out[f"lp_{kind}_windows_{name}"] = f"{int((m & k).sum())}/{int(k.sum())}"
+    return out
+
+
 def replay_tap(prob_fn, rpl, groups, selected):
     """Replay only from firmware-ready rows; warm-up can never create a false TAP event."""
     recs = rpl["recs"]; pick = recs[recs.group.isin(groups)]
@@ -738,13 +790,18 @@ def replay_tap(prob_fn, rpl, groups, selected):
             if not local.any():
                 continue
             a += int(np.flatnonzero(local)[0])
+        if a >= b:
+            continue
         ranges.append((a, b))
         by_start[a] = (int(i), r)
     for (a, b), (outs,) in _ranges_predict([prob_fn], rpl["X"], ranges, selected):
         ri, r = by_start[a]
         for name, p in outs.items():
             d = p if p.dtype == bool else (p >= FIXED_THRESHOLD)
-            R.tap_replay_recording(d, rpl["t"][a:b], rpl["label"][a:b], rpl["onsets"].get(ri, []),
+            # Onsets before the gate opens cannot be detected by any model: not counted as misses.
+            ons = np.asarray(rpl["onsets"].get(ri, []), np.float64)
+            ons = ons[ons >= float(rpl["t"][a]) + R.TAP_HIT_BEFORE_MS]
+            R.tap_replay_recording(d, rpl["t"][a:b], rpl["label"][a:b], ons,
                                    r.folder, counts.setdefault(name, R.TapCounts()))
     return counts
 
@@ -856,9 +913,34 @@ def uppercase_alias(header: Path, stem: str) -> None:
     header.write_text(source, encoding="utf-8", newline="\n")
 
 
+def compile_header_150(header: Path, name: str, output: Path) -> dict:
+    """C syntax smoke against a synthetic t_core with all 150 fields (126 raw + cload_lean_8)."""
+    cc = shutil.which("cc") or shutil.which("gcc")
+    if not cc:
+        return {"status": "not_available", "reason": "No C compiler"}
+    stub = output / "c_compiler_check"
+    stub.mkdir(parents=True, exist_ok=True)
+    (stub / "core_type_def.h").write_text(R.CORE_TYPE_DEF)
+    probe = stub / "all150_feature_probe.c"
+    probe.write_text('#include "core_type_def.h"\nfloat probe_all_150(const t_core *p_core) {\n  return '
+                     + " +\n    ".join(f"(float)({v})" for v in ALL_FEATURES) + ";\n}\n")
+    unit = stub / (name + ".c")
+    unit.write_text('#include "' + header.name + '"\n'
+                    "int model_compiles(void) { t_core data={0}; return " + name + "_predict(&data); }\n")
+    for src in (probe, unit):
+        cmd = [cc, "-std=c11", "-O2", "-c", str(src), "-I", str(stub), "-I", str(header.parent),
+               "-o", str(stub / (src.stem + ".o"))]
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=90)
+        if p.returncode:
+            raise RuntimeError("150-field synthetic C compile failed: " + (p.stderr or p.stdout)[-3000:])
+    return {"status": "passed", "compiler": cc,
+            "scope": "synthetic 150-field t_core (126 raw + cload_lean_8); not the firmware ABI or ARM build",
+            "object_bytes": (stub / (name + ".o")).stat().st_size}
+
+
 def check_header(header: Path, stem: str, output: Path) -> dict:
     uppercase_alias(header, stem)
-    check = previous_tap.compile_header_126(header, stem.lower(), output)
+    check = compile_header_150(header, stem.lower(), output)
     if check["status"] != "passed":
         raise RuntimeError(f"C compiler not available / syntax failed: {check}")
     stub = output / "c_compiler_check"
@@ -897,7 +979,9 @@ def write_header(model, subset, stem, folder: Path, task, outdir: Path):
 
 
 # ============================================================================ evaluation on held-out people
-def header_replay(hm: R.HeaderModel, rpl, groups, task):
+def header_replay(hm: R.HeaderModel, rpl, groups, task, steady=False):
+    if steady:
+        rpl = dict(rpl, ready=rpl["steady"])
     if task == "tap":
         fn = lambda X: {"h": hm.decision(X)}
         res = replay_tap(fn, rpl, groups, slice(None))
@@ -995,6 +1079,7 @@ def export_candidates(data, rpl, task, stem, tr, te, picks, out: Path):
         sel = [cols.index(c) for c in subset]
         rpl_sub = dict(rpl, X=_ColumnView(rpl["X"], sel))
         holdout_c = header_replay(hm, rpl_sub, held, task)
+        holdout_steady = header_replay(hm, rpl_sub, held, task, steady=True) if USE_LEAN8 else None
         par = parity(hm, pre, rpl, held, sel, task, k_pre)
         # 2) final model on every person, trimmed to the budget, exported with the stable API
         final = fit_model(data["X"][:, ix], y, weights_for_task(data, every, task, pw), params, budget)
@@ -1008,6 +1093,8 @@ def export_candidates(data, rpl, task, stem, tr, te, picks, out: Path):
         report = dict(role=role, trial=trial.number, budget_bytes=budget, static_bytes=size, trees=k_fin,
                       params=params, positive_weight=pw, features=subset, header=str(header.relative_to(out)),
                       cv=trial.user_attrs["cv"].get(str(budget)), holdout_c_header=holdout_c,
+                      holdout_c_header_steady_state=holdout_steady,
+                      lean8_features_used=[c for c in subset if "cload_lean_8" in c],
                       holdout_model_bytes=b_pre, c_vs_python_parity=par, c_stub=checked,
                       limitations=["Silver labels from an offline teacher, not physical event truth",
                                    "Replay timing rules are documented assumptions about the firmware",
@@ -1052,6 +1139,7 @@ def replay_baselines(task, data, rpl, te, out: Path):
             rows.append(dict(name=name, status="replayed", path=str(p), sha256=digest,
                              api=dict(value=hm.value_prefix, decision=hm.bool_prefix),
                              holdout=header_replay(hm, rpl, held, task),
+                             holdout_steady_state=header_replay(hm, rpl, held, task, steady=True) if USE_LEAN8 else None,
                              all_people=header_replay(hm, rpl, everyone, task),
                              note="all_people may include this baseline's own training data"))
         except Exception as exc:          # a baseline problem must never stop training
@@ -1063,22 +1151,37 @@ def replay_baselines(task, data, rpl, te, out: Path):
 
 
 def comparison_table(task, candidates, baselines):
+    text = _comparison_rows(task, candidates, baselines, "holdout_c_header", "holdout")
+    if USE_LEAN8:
+        text += (f"\nSteady state only (rows after {LEAN8_STEADY_FRAMES} Lean-8 frames, ~10.8 s, "
+                 "i.e. lean_8_features_ready()):\n\n"
+                 + _comparison_rows(task, candidates, baselines, "holdout_c_header_steady_state", "holdout_steady_state"))
+    return text
+
+
+def _comparison_rows(task, candidates, baselines, ckey, bkey):
     key = (["recall", "false_per_min", "latency_ms_median", "objective_score"] if task == "tap"
            else ["hold_kept", "timely_release", "tap_released", "release_latency_ms_median", "objective_score"])
     head = "| Model | Bytes | " + " | ".join(key) + " |\n|" + " --- |" * (len(key) + 2) + "\n"
     fmt = lambda v: "-" if v is None or (isinstance(v, float) and v != v) else (f"{v:.3f}" if isinstance(v, float) else str(v))
     lines = []
     for c in candidates:
-        h = c.get("holdout_c_header") or {}
+        h = c.get(ckey) or {}
         mark = " **default**" if c.get("default") else ""
         lines.append(f"| new {c['role']} (trial {c['trial']}){mark} | {c['static_bytes']} | " + " | ".join(fmt(h.get(k)) for k in key) + " |")
     for b in baselines:
-        h = b.get("holdout") or {}
+        h = b.get(bkey) or {}
         lines.append(f"| baseline {b['name']} ({b['status']}) | - | " + " | ".join(fmt(h.get(k)) for k in key) + " |")
     return head + "\n".join(lines) + "\n"
 
 
 # ============================================================================ one task
+def lean8_setting():
+    return dict(enabled=USE_LEAN8, min_frames=LEAN8_MIN_FRAMES if USE_LEAN8 else None,
+                steady_frames=LEAN8_STEADY_FRAMES if USE_LEAN8 else None,
+                generator_sha256=lean8.GENERATOR_SHA if USE_LEAN8 else None)
+
+
 def train_task(task: str, tap_files, lp_files):
     definition = next(v for v in TASKS if v["name"] == task)
     stem = definition["header"]
@@ -1090,7 +1193,8 @@ def train_task(task: str, tap_files, lp_files):
     if summary_file.is_file():
         saved = json.loads(summary_file.read_text())
         if (saved.get("status") == "success" and saved.get("fixed_threshold") == FIXED_THRESHOLD
-                and saved.get("budgets") == budgets and (out / "models" / (stem + ".h")).is_file()):
+                and saved.get("budgets") == budgets and saved.get("lean8") == lean8_setting()
+                and (out / "models" / (stem + ".h")).is_file()):
             notice("UNIFIED_COMPLETE_REUSED", task, str(out))
             return saved
         raise ValueError("Existing output does not match this configuration: " + str(out))
@@ -1108,7 +1212,7 @@ def train_task(task: str, tap_files, lp_files):
         sampler=optuna.samplers.TPESampler(seed=SEED + int(task == "lp"), multivariate=True, n_startup_trials=10),
         pruner=optuna.pruners.MedianPruner(n_startup_trials=8, n_warmup_steps=0),
         storage="sqlite:///" + str((out / "optuna_study.sqlite3").resolve()),
-        study_name="unified_v2_" + task, load_if_exists=True)
+        study_name=f"unified_v2_{task}_lean8{int(USE_LEAN8)}_min{LEAN8_MIN_FRAMES}", load_if_exists=True)
     if len(study.trials) == 0:
         # A known-good anchor (the research student) and a deep-tree anchor, inside the budget.
         # LP needs confident release probabilities for a 0.85 average, hence the larger positive weight.
@@ -1152,7 +1256,8 @@ def train_task(task: str, tap_files, lp_files):
     done = [t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE]
     summary = dict(status="success", task=task, model_header=stem + ".h", class_one=definition["class_one"],
                    class_zero=definition["class_zero"], fixed_threshold=FIXED_THRESHOLD, threshold_tuned=False,
-                   budgets=budgets, selected=default, skipped=skipped, candidates=candidates, baselines=baselines,
+                   budgets=budgets, lean8=lean8_setting(), selected=default, skipped=skipped, candidates=candidates,
+                   baselines=baselines,
                    trials=len(done), pruned=len([t for t in study.trials if t.state == optuna.trial.TrialState.PRUNED]),
                    dataset=dict(train_rows=int(len(data["y"])), replay_rows=int(len(rpl["X"])),
                                 recordings=int(len(rpl["recs"])), subjects=len(set(data["group"])), counts=info),
@@ -1169,17 +1274,19 @@ def main():
     t0 = time.monotonic()
     notice("UNIFIED_TRAINER_START", "cpu_threads", CPU_THREADS, "fixed_threshold", FIXED_THRESHOLD,
            "budget_kb", MODEL_BUDGET_KB, "alt_budget_kb", ALT_BUDGET_KB, "trials", TRIALS_PER_MODEL)
+    lean8_manifest = None
     if USE_LEAN8:
-        lean8.ensure_datasets()
-        files_t = ensure_labels(RAW_SOURCE_TAP, LABEL_TAP)
-        files_l = ensure_labels(RAW_SOURCE_LP, LABEL_LP)
-    else:
-        files_t = ensure_labels(SOURCE_TAP, LABEL_TAP)
-        files_l = ensure_labels(SOURCE_LP, LABEL_LP)
+        lean8_manifest = lean8.ensure_datasets([(RAW_SOURCE_TAP, SOURCE_TAP), (RAW_SOURCE_LP, SOURCE_LP)],
+                                               workers=CPU_THREADS)
+    files_t = ensure_labels(RAW_SOURCE_TAP, LABEL_TAP)
+    files_l = ensure_labels(RAW_SOURCE_LP, LABEL_LP)
     a = train_task("tap", files_t, files_l)
     b = train_task("lp", files_t, files_l)
     write_json(OUTPUT / "UNIFIED_SUMMARY.json",
-               dict(status="success", tap=a, lp=b, elapsed_s=round(time.monotonic() - t0, 1), baseline_unchanged=True))
+               dict(status="success", tap=a, lp=b, elapsed_s=round(time.monotonic() - t0, 1), baseline_unchanged=True,
+                    lean8=dict(enabled=USE_LEAN8, min_frames=LEAN8_MIN_FRAMES, steady_frames=LEAN8_STEADY_FRAMES,
+                               firmware_parity=(lean8_manifest or {}).get("firmware_parity"),
+                               generator_sha256=(lean8_manifest or {}).get("generator_sha256"))))
     comp = "".join((OUTPUT / t / "COMPARISON.md").read_text() + "\n" for t in ("tap", "lp"))
     (OUTPUT / "COMPARISON.md").write_text(comp)
     notice("UNIFIED_BOTH_READY", str(OUTPUT / "tap" / "models" / "TAP_SWIPE.h"), str(OUTPUT / "lp" / "models" / "LONG_PRESS.h"))

@@ -5,9 +5,13 @@ Run from the repository root:
     git pull --ff-only
     python -u research/gesture/train_unified.py
 
-There are no command-line flags. The script reuses or generates Claude's unified labels
-(`claude_labeling/label_gestures.py`). It trains two separate binary LightGBM models with Optuna and
-exports C headers with the stable firmware API:
+There are no command-line flags. The script:
+
+1. Refreshes the firmware Lean-8 features (`generate_lean8_features.py`, incremental, bit-exact with the
+   firmware handler; see **LEAN8_UNIFIED_WORKFLOW.md**).
+2. Reuses or generates Claude's unified labels (`claude_labeling/label_gestures.py`).
+3. Trains two separate binary LightGBM models with Optuna on raw126 and/or Lean-8 fields.
+4. Exports C headers with the stable firmware API:
 
     research/gesture/results_unified_v2/tap/models/TAP_SWIPE.h
     research/gesture/results_unified_v2/lp/models/LONG_PRESS.h
@@ -128,6 +132,10 @@ Environment variables:
 | `MUDRA_ALT_BUDGET_KB` | 24 | second budget; `none` or `0` disables it |
 | `MUDRA_TAP_BASELINE_HEADER` | `research/tap_real/results_claude_v2_optuna_126_thr085/models/TAP_SWIPE.h` | previous successful TAP model |
 | `MUDRA_LP_V20_HEADER` | not set | **LP v20 header; set this to get the v20 comparison** |
+| `MUDRA_USE_LEAN8` | 1 | 0 = raw126 only, read straight from the raw recordings |
+| `MUDRA_LEAN8_MIN_FRAMES` | 50 | rows are used once the Lean-8 handler has run this many EMG frames (~1.1 s); 500 = `lean_8_features_ready()` (~10.8 s, keeps only ~14% of taps) |
+| `MUDRA_LEAN8_FIRMWARE_HEADER` | `research/gesture/_lean8_reference/core_type_def.h` | firmware header for the C parity check (git-ignored; public repo) |
+| `MUDRA_LEAN8_PARITY_FILES` | 24 | recordings compared with the firmware C code on each generation (0 = off) |
 
 ## Selection and outputs
 
@@ -159,6 +167,28 @@ and after. Each is compiled and replayed on the same held-out people with the sa
 `COMPARISON.md`. A missing or not-configured baseline is reported, never fatal. The previous unified
 (2026-11-17) headers are compared too.
 
+## Lean-8 features
+
+All the details are in `LEAN8_UNIFIED_WORKFLOW.md`.
+
+- The 24 `p_core->cload_lean_8.*` fields are computed offline with the firmware's own arithmetic. The
+  handler is stepped **once per EMG frame**: 46.4 frames/s, against 140–210 logged rows/s.
+- They are checked frame by frame against the firmware C code, compiled for the host: max difference
+  0.0.
+- Feature sets searched:
+
+| Feature set | Fields |
+|---|---|
+| `raw126` | the 126 raw p_core fields |
+| `lean8_24` | the 24 Lean-8 fields |
+| `raw126_lean8_instant12` | raw126 + `lw`, `Pm`, `r01`, `r32` (no history, so no warm-up effect) |
+| `all_available` | all 150 |
+
+- Rows are used from frame `MUDRA_LEAN8_MIN_FRAMES` (default 50) on.
+- `COMPARISON.md` has a second table: held-out C replay on rows after 500 frames, the firmware's
+  `lean_8_features_ready()` steady state.
+- Exported headers are compile-checked against a synthetic `t_core` that includes `cload_lean_8`.
+
 ## Firmware polarity (unchanged)
 
 | Task | class 1 (p ≥ 0.85) | class 0 |
@@ -176,9 +206,10 @@ and after. Each is compiled and replayed on the same held-out people with the sa
 
 | Item | Measurement |
 |---|---|
-| Full TAP cache build | 105 s: 3,005 recordings, 1.02 M train rows, 6.6 M replay rows |
-| Disk | 3.7 GB for the TAP cache; the LP cache is smaller |
-| One 3-fold TAP trial | ≈ 95 s for a 15-leaf model |
+| Lean-8 generation (first run, then incremental) | ≈ 8 min for 5,352 recordings; +1.2 GB derived data |
+| Full TAP cache build | 113 s: 3,005 recordings, 1.02 M train rows (0.95 M after the 50-frame gate), 6.6 M replay rows |
+| Disk | 4.0 GB for the TAP cache (150 columns); the LP cache is smaller |
+| One 3-fold TAP trial | ≈ 106 s for a 15-leaf model on all 150 features |
 | Peak memory | 4.2 GB |
 
 Expect roughly 1.5–3 h per model for 40 trials on 2 CPUs, less with more cores. The study is resumable:
