@@ -466,46 +466,85 @@ def feature_effects(X, meta, features, schema, windows):
 
 
 def paired_effects(X, meta, features, schema, windows, min_pairs=5):
+    """Paired participant contrasts, with participant medians aggregated once per class."""
     ix = schema["index"]
     stats = list(PAIR_BASE)
     for w in windows:
         stats += [f"w{w}_median_p90", f"w{w}_std_p90", f"w{w}_range_p90"]
+    descriptors = [(j, stat, ix[(j, stat)]) for j in range(len(features)) for stat in stats]
+    columns = [f"{j}:{stat}" for j, stat, _ in descriptors]
     m = meta.reset_index(drop=True)
     classes = sorted(m["class"].unique())
+
+    # One groupby per class, not one groupby per feature and class-pair.
+    participant_medians = {}
+    for cls in classes:
+        idx_rows = np.flatnonzero(m["class"].to_numpy() == cls)
+        frame = pd.DataFrame(X[idx_rows][:, [d[2] for d in descriptors]], columns=columns)
+        frame["participant"] = m.iloc[idx_rows]["participant"].to_numpy()
+        participant_medians[cls] = frame.groupby("participant", sort=True).median(numeric_only=True)
+
     out = []
     for ca, cb in itertools.combinations(classes, 2):
-        ga = set(m.loc[m["class"] == ca, "participant"])
-        gb = set(m.loc[m["class"] == cb, "participant"])
-        if len(ga & gb) < min_pairs:
+        a_df, b_df = participant_medians[ca], participant_medians[cb]
+        common = sorted(set(a_df.index) & set(b_df.index))
+        if len(common) < min_pairs:
             continue
-        ia = m.index[m["class"] == ca]
-        ib = m.index[m["class"] == cb]
-        local = []
-        for j, f in enumerate(features):
-            for stat in stats:
-                col = ix[(j, stat)]
-                av = m.loc[ia].assign(v=X[ia, col]).groupby("participant")["v"].median()
-                bv = m.loc[ib].assign(v=X[ib, col]).groupby("participant")["v"].median()
-                both = pd.concat([av.rename("a"), bv.rename("b")], axis=1).dropna()
-                if len(both) < min_pairs:
-                    continue
-                d = (both["a"] - both["b"]).to_numpy(float)
+        A = a_df.loc[common].to_numpy(np.float64)
+        B = b_df.loc[common].to_numpy(np.float64)
+        D = A - B
+        pvals = np.full(D.shape[1], np.nan, dtype=np.float64)
+        complete = np.isfinite(A).all(axis=0) & np.isfinite(B).all(axis=0)
+        zero = complete & np.all(np.isclose(D, 0.0), axis=0)
+        pvals[zero] = 1.0
+        active = complete & ~zero
+        if active.any():
+            try:
+                pvals[active] = np.asarray(
+                    wilcoxon(A[:, active], B[:, active], axis=0, zero_method="wilcox",
+                             alternative="two-sided").pvalue
+                ).reshape(-1)
+            except Exception:
+                for k in np.flatnonzero(active):
+                    try:
+                        pvals[k] = float(wilcoxon(D[:, k], zero_method="wilcox").pvalue)
+                    except Exception:
+                        pass
+        # A few columns may contain missing values; test those independently.
+        for k in np.flatnonzero(~complete):
+            good = np.isfinite(A[:, k]) & np.isfinite(B[:, k])
+            if good.sum() < min_pairs:
+                continue
+            d = D[good, k]
+            if np.allclose(d, 0.0):
+                pvals[k] = 1.0
+            else:
                 try:
-                    pv = 1.0 if np.allclose(d, 0) else float(wilcoxon(d, zero_method="wilcox").pvalue)
+                    pvals[k] = float(wilcoxon(d, zero_method="wilcox").pvalue)
                 except Exception:
-                    pv = np.nan
-                local.append({
-                    "class_a": ca, "class_b": cb, "feature": f, "family": family(f), "stat": stat,
-                    "n_paired_participants": len(both), "median_a": float(np.median(both["a"])),
-                    "median_b": float(np.median(both["b"])), "median_paired_difference": float(np.median(d)),
-                    "fraction_a_gt_b": float(np.mean(d > 0)), "p_value": pv,
-                })
+                    pass
+
+        local = []
+        for k, (j, stat, _) in enumerate(descriptors):
+            good = np.isfinite(A[:, k]) & np.isfinite(B[:, k])
+            if good.sum() < min_pairs:
+                continue
+            d = D[good, k]
+            local.append({
+                "class_a": ca, "class_b": cb, "feature": features[j],
+                "family": family(features[j]), "stat": stat,
+                "n_paired_participants": int(good.sum()),
+                "median_a": float(np.median(A[good, k])),
+                "median_b": float(np.median(B[good, k])),
+                "median_paired_difference": float(np.median(d)),
+                "fraction_a_gt_b": float(np.mean(d > 0)),
+                "p_value": float(pvals[k]),
+            })
         if local:
-            for r, qv in zip(local, bh([x["p_value"] for x in local])):
-                r["q_value"] = float(qv)
+            for row, qv in zip(local, bh([x["p_value"] for x in local])):
+                row["q_value"] = float(qv)
             out.extend(local)
     return pd.DataFrame(out)
-
 
 def within_class_corr(X, meta, features, schema):
     cols = [schema["index"][(j, "global_median")] for j in range(len(features))]
