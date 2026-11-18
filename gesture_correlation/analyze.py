@@ -259,7 +259,7 @@ def describe(r, features, windows, schema):
     if not sorted_ok:
         order = np.argsort(ts, kind="stable")
         ts, df = ts[order], df.iloc[order].reset_index(drop=True)
-    X = df[features].apply(pd.to_numeric, errors="coerce").to_numpy(np.float32)
+    X = np.array(df[features].apply(pd.to_numeric, errors="coerce").to_numpy(), dtype=np.float32, copy=True)
     X[~np.isfinite(X)] = np.nan
     t = ts - ts[0]
     duration = float(t[-1])
