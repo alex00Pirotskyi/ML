@@ -970,8 +970,9 @@ def report(out, roots, lean8, raw_count, duplicates, conflicts, features, availa
                 continue
             sub["abs_diff"] = sub["median_paired_difference"].abs()
             sub = sub.sort_values(["q_value", "abs_diff"], ascending=[True, False]).drop_duplicates("feature").head(10)
-            lines += [f"### {a} vs {b}", "",
-                      markdown_table(sub, ["feature", "stat", "n_paired_participants",
+            ca, cb = sub["class_a"].iloc[0], sub["class_b"].iloc[0]
+            lines += [f"### {ca} vs {cb}", "",
+                      markdown_table(sub, ["class_a", "class_b", "feature", "stat", "n_paired_participants",
                                            "median_paired_difference", "fraction_a_gt_b", "q_value"], 10), ""]
     else:
         lines += ["_No class pair had enough overlapping participants for paired inference._", ""]
