@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import copy
 import csv
+import faulthandler
 import gzip
 import hashlib
 import json
@@ -125,7 +126,7 @@ FIXED_THRESHOLD = 0.85                # TAP_SWIPE_predict(): onset when p >= 0.8
 LP_RELEASE_THRESHOLD = float(os.environ.get("MUDRA_LP_RELEASE_THRESHOLD", 0.5))
 # Thread count does not enter the models (LightGBM deterministic=True); benchmark with bench_unified.py threads.
 CPU_THREADS = int(os.environ.get("MUDRA_CPU_THREADS", 0)) or previous_tap.CPU_THREADS
-# The 3 CV folds of a trial (and the 3 fold feature rankings) run at the same time, each LightGBM with an equal
+# The 3 CV folds of a trial run at the same time, each LightGBM with an equal
 # share of CPU_THREADS. One LightGBM on ~0.5M rows does not scale to dozens of threads, and the replay scoring
 # between fits is single-threaded, so one fold at a time left most of a large server idle. Trials stay
 # sequential (Optuna's sampler depends on their order). MUDRA_FOLD_WORKERS=1 restores one fold at a time.
@@ -1225,16 +1226,11 @@ def fold_rankings(data, rpl, train_ids, task):
         return _RANKINGS[key]
     me = sys.modules[__name__]
     folds = list(enumerate(prepared_folds(data, rpl, train_ids, task)))
-    pool = fold_pool()
-    threads = FOLD_THREADS if pool is not None else CPU_THREADS
-
-    def one(fold, pf):
-        return FS.fit_fold_ranker(me, R, data, rpl, pf["tr"], task, seed=fold, cache_dir=FS_CACHE_DIR,
-                                  tap_target=R.TAP_FALSE_PER_MIN_TARGET, log=lambda *a: notice(*a), threads=threads)
-    if pool is None:
-        ranked = [one(f, pf) for f, pf in folds]
-    else:
-        ranked = [fu.result() for fu in [pool.submit(one, f, pf) for f, pf in folds]]
+    # One ranking at a time with all threads (once per study, cached). Three concurrent rankings crashed the
+    # 96-CPU server with a segmentation fault (2026-11-18); concurrent CV folds in trials are not affected.
+    ranked = [FS.fit_fold_ranker(me, R, data, rpl, pf["tr"], task, seed=fold, cache_dir=FS_CACHE_DIR,
+                                 tap_target=R.TAP_FALSE_PER_MIN_TARGET, log=lambda *a: notice(*a), threads=CPU_THREADS)
+              for fold, pf in folds]
     out = []
     for (fold, pf), r in zip(folds, ranked):
         FS.validate_fold_local(r, pf["val_groups"])
@@ -1983,6 +1979,10 @@ def train_task(task: str, tap_files, lp_files):
                                  n_estimators=200, learning_rate=0.2, min_child_samples=50, reg_lambda=1.0,
                                  reg_alpha=1e-3, colsample_bytree=0.7, subsample=0.8))
     optuna.logging.set_verbosity(optuna.logging.WARNING)
+    for t in study.trials:                      # trials run one at a time: a RUNNING trial here died with a crash
+        if t.state == optuna.trial.TrialState.RUNNING:
+            study.tell(t.number, state=optuna.trial.TrialState.FAIL)
+            notice("UNIFIED_STALE_TRIAL_MARKED_FAILED", task, t.number)
     finished = lambda: len([t for t in study.trials if t.state != optuna.trial.TrialState.WAITING
                             and t.state != optuna.trial.TrialState.RUNNING])
     while finished() < TRIALS_PER_MODEL:
@@ -2035,6 +2035,7 @@ def train_task(task: str, tap_files, lp_files):
 
 def main():
     t0 = time.monotonic()
+    faulthandler.enable(all_threads=True)       # a native crash prints every thread's Python stack
     notice("UNIFIED_TRAINER_START", "cpu_threads", CPU_THREADS, "of", previous_tap.cpu_count(),
            "fold_workers", FOLD_WORKERS, "x", FOLD_THREADS, "threads", "lean8_inputs", USE_LEAN8, "tap_threshold", FIXED_THRESHOLD,
            "lp_release_threshold", LP_RELEASE_THRESHOLD,

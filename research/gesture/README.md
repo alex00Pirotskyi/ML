@@ -197,7 +197,7 @@ Environment variables:
 | `MUDRA_TAP_FALSE_PER_MIN_TARGET` | baseline | TAP false-event budget: `baseline` = previous TAP header's rate on the development people, or a number |
 | `MUDRA_TAP_SOFT_LABELS` | off | a teacher score (e.g. 0.5): unconfirmed taps with at least that score become weighted positives and count in the objective. Measured not to help; part of the TAP study name when set |
 | `MUDRA_CPU_THREADS` | 80% of CPUs | all threads the trainer uses (CPUs the process may use, cgroup quota respected); does not change the models (deterministic=True) |
-| `MUDRA_FOLD_WORKERS` | 3 when `MUDRA_CPU_THREADS` ≥ 24 (2 when ≥ 16) | CV folds (and fold feature rankings) trained at the same time, each LightGBM with `MUDRA_CPU_THREADS / workers` threads. Same trees and scores as one fold at a time (smoke: `FOLD_PARALLEL_EQUIVALENT`); 1 = one fold at a time |
+| `MUDRA_FOLD_WORKERS` | 3 when `MUDRA_CPU_THREADS` ≥ 24 (2 when ≥ 16) | CV folds of a trial trained at the same time, each LightGBM with `MUDRA_CPU_THREADS / workers` threads. Same trees and scores as one fold at a time (smoke: `FOLD_PARALLEL_EQUIVALENT`); 1 = one fold at a time |
 
 ## Selection and outputs
 
