@@ -83,7 +83,7 @@ class GestureCorrelationTests(unittest.TestCase):
             self.assertTrue(np.isfinite(values).all())
             self.assertEqual(meta["class"], "TAP")
             self.assertEqual(meta["subtype"], "MidTap")
-            self.assertGreater(meta["window_counts"] != "{}", True)
+            self.assertNotEqual(meta["window_counts"], "{}")
             self.assertAlmostEqual(meta["duration_ms"], 2995.0)
 
     def test_exact_archive_dedup_and_conflict_exclusion(self):
