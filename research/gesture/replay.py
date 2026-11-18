@@ -77,6 +77,16 @@ typedef struct {
     float acc_psd_mean[3][6];
     float acc_rate[3][6];
     float wl[3], wl_head[3], wl_tail[3];
+    struct {
+        float lw[3];
+        float Pm[3];
+        float r01[3];
+        float r32[3];
+        float sd3[3];
+        float min10[3];
+        float rise10[3];
+        float max10[3];
+    } cload_lean_8;
 } t_core;
 #endif
 """
