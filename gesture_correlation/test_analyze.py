@@ -87,10 +87,10 @@ class GestureCorrelationTests(unittest.TestCase):
             self.assertNotEqual(meta["window_counts"], "{}")
             self.assertAlmostEqual(meta["duration_ms"], 2995.0)
 
-    def test_exact_archive_dedup_and_conflict_exclusion(self):
+    def test_cross_format_content_dedup_and_conflict_exclusion(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            a = root / "TAP" / "a.csv.gz"
+            a = root / "TAP" / "a.csv"
             b = root / "TAP" / "b.csv.gz"
             c = root / "FINGER" / "c.csv.gz"
             for p in (a, b, c):
