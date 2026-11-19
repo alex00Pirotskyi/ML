@@ -87,6 +87,13 @@ typedef struct {
         float rise10[3];
         float max10[3];
     } cload_lean_8;
+    struct {
+        float min10[3];
+        float max10[3];
+        float rise10[3];
+        float dev3[3];
+        float d01[3];
+    } cload_lite;
 } t_core;
 #endif
 """

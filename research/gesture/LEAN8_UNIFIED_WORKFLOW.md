@@ -1,5 +1,8 @@
 # Lean-8 + unified gesture training workflow
 
+> Integer successor: **Lean-lite** (`firmware/lean_lite.h`, `MUDRA_USE_LEAN8=lite`), ~6x cheaper on the device
+> and bit-exact offline. See `LEAN_LITE.md`.
+
 ## Goal
 
 Train TAP/SWIPE and LONG_PRESS on exactly the inputs the firmware computes, including the 24

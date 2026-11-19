@@ -63,6 +63,7 @@ from sklearn.model_selection import GroupKFold, GroupShuffleSplit
 
 import replay as R
 import generate_lean8_features as lean8
+import generate_lean_lite_features as lite
 import feature_selection as FS
 
 v6 = previous_tap.v6
@@ -72,12 +73,20 @@ export_plus = v6.export_plus
 # Intentionally no CLI. Change these constants (or the MUDRA_* environment variables) if needed.
 RAW_SOURCE_TAP = ROOT / "DATA" / "DATA_TAP"
 RAW_SOURCE_LP = ROOT / "DATA" / "DATA_LONG_PRESS"
-SOURCE_TAP = ROOT / "DATA" / "DATA_TAP_LEAN8"          # derived: original lines + firmware Lean-8 columns
-SOURCE_LP = ROOT / "DATA" / "DATA_LONG_PRESS_LEAN8"
-# MUDRA_USE_LEAN8=0: the 24 Lean-8 fields are not model inputs (firmware built without NEW_CLOAD_FEATURES).
-# Rows, labels, frame gates and the held-out split stay identical (the frame counter comes from the derived
-# Lean-8 files either way), so a run without Lean-8 is a clean A/B against one with it.
-USE_LEAN8 = os.environ.get("MUDRA_USE_LEAN8", "1").strip().lower() not in ("0", "false", "no", "off")
+# MUDRA_USE_LEAN8 picks the EMG context inputs next to the 126 raw firmware fields:
+#   1 (default)  the 24 float Lean-8 fields (core_type_def.h, NEW_CLOAD_FEATURES)
+#   0            none (firmware built without NEW_CLOAD_FEATURES)
+#   lite         the 15 integer Lean-lite fields (research/gesture/firmware/lean_lite.h, ~6x cheaper than Lean-8)
+# Rows, labels, frame gates and the held-out split are identical in all three (the same frame counter is in
+# both derived trees), so the three runs are clean A/B arms. Each writes its own results folder and study.
+_LEAN8_ENV = os.environ.get("MUDRA_USE_LEAN8", "1").strip().lower()
+LEAN8_MODE = "lite" if _LEAN8_ENV == "lite" else ("off" if _LEAN8_ENV in ("0", "false", "no", "off") else "full")
+USE_LEAN8 = LEAN8_MODE == "full"
+USE_LITE = LEAN8_MODE == "lite"
+LEAN8_TAG = "lite" if USE_LITE else USE_LEAN8        # recorded in fingerprints and reports (full/off: as before)
+# Derived trees: original lines + the generated columns (and the frame counter used by the gates).
+SOURCE_TAP = ROOT / "DATA" / ("DATA_TAP_LITE" if USE_LITE else "DATA_TAP_LEAN8")
+SOURCE_LP = ROOT / "DATA" / ("DATA_LONG_PRESS_LITE" if USE_LITE else "DATA_LONG_PRESS_LEAN8")
 # Frame gates count Lean-8 handler calls since the recording (sensor stream) started (46.4 frames/s).
 # EVAL: rows the firmware runs the models on. model_execution() returns until lean_8_features_ready()
 #   (500 frames, ~10.8 s), so candidates are scored, ranked and chosen on those rows only.
@@ -112,8 +121,9 @@ PRESS_WINDOW_MS = (150, 250)         # pointer-press reference: [min(press, onse
 TAP_TARGET_FALLBACK = 1.0
 LABEL_TAP = ROOT / "DATA" / "LABELS" / "DATA_TAP"
 LABEL_LP = ROOT / "DATA" / "LABELS" / "DATA_LONG_PRESS"
-OUTPUT = ROOT / "research" / "gesture" / ("results_unified_v3_feature_selection" if USE_LEAN8
-                                          else "results_unified_v3_feature_selection_no_lean8")
+OUTPUT = ROOT / "research" / "gesture" / dict(full="results_unified_v3_feature_selection",
+                                              off="results_unified_v3_feature_selection_no_lean8",
+                                              lite="results_unified_v3_feature_selection_lean_lite")[LEAN8_MODE]
 PREVIOUS_UNIFIED = ROOT / "research" / "gesture" / "results_unified_20261117"
 CLAUDE_LABELER = ROOT / "claude_labeling" / "label_gestures.py"
 TRIALS_PER_MODEL = 40
@@ -187,10 +197,12 @@ BASELINES = dict(
 
 RAW_126 = tuple(previous_tap.FULL_126)
 LEAN8_24 = tuple(lean8.LEAN8_COLUMNS)
-ALL_FEATURES = RAW_126 + (LEAN8_24 if USE_LEAN8 else ())
+LITE_15 = tuple(lite.LITE_COLUMNS)
+ALL_FEATURES = RAW_126 + dict(full=LEAN8_24, off=(), lite=LITE_15)[LEAN8_MODE]
 assert len(RAW_126) == 126 and len(set(RAW_126)) == 126
 assert len(LEAN8_24) == 24 and len(set(LEAN8_24)) == 24
-assert len(ALL_FEATURES) == (150 if USE_LEAN8 else 126) and len(set(ALL_FEATURES)) == len(ALL_FEATURES)
+assert len(LITE_15) == 15 and len(set(LITE_15)) == 15
+assert len(ALL_FEATURES) == dict(full=150, off=126, lite=141)[LEAN8_MODE] and len(set(ALL_FEATURES)) == len(ALL_FEATURES)
 assert all(x.startswith("p_core->") for x in ALL_FEATURES)
 
 TAP_FOLDERS = frozenset(("TAP", "SWIPE"))
@@ -219,7 +231,7 @@ def task_threshold(task: str) -> float:
 
 def study_name(task: str) -> str:
     """Every setting that changes the objective or the data is part of the name."""
-    name = (f"unified_v3_{task}_fs{FS.RANKER_VERSION}_lean8{int(USE_LEAN8)}"
+    name = (f"unified_v3_{task}_fs{FS.RANKER_VERSION}_lean8{'lite' if USE_LITE else int(USE_LEAN8)}"
             f"_train{TRAIN_MIN_FRAMES}_eval{EVAL_MIN_FRAMES}")
     if task == "tap":
         name += f"_fpm{R.TAP_FALSE_PER_MIN_TARGET:.3f}"
@@ -433,6 +445,8 @@ def common_p_core(records) -> list[str]:
             names = set(next(csv.reader(handle)))
         common.intersection_update(names)
     cols = [f for f in ALL_FEATURES if f in common]
+    if USE_LITE and not set(LITE_15).issubset(cols):
+        raise ValueError(f"Lean-lite columns missing in the derived files: {sorted(set(LITE_15) - set(cols))[:5]}")
     if not set(previous_tap.EMG_CURRENT + previous_tap.WL_FULL).issubset(cols):
         raise ValueError("Essential instantaneous EMG/WL firmware columns unavailable")
     if not cols or any(not x.startswith("p_core->") for x in cols):
@@ -453,6 +467,8 @@ def feature_sets(columns: list[str]) -> dict[str, list[str]]:
         instant = [c for c in LEAN8_24 if any(f".{k}[" in c for k in ("lw", "Pm", "r01", "r32"))]
         if set(RAW_126).issubset(have):
             sets["raw126_lean8_instant12"] = list(RAW_126) + instant
+    if set(LITE_15).issubset(have):
+        sets["lean_lite_15"] = list(LITE_15)
     for k, fs in previous_tap.FEATURE_SETS.items():
         if k == "full126":
             continue
@@ -545,7 +561,7 @@ def sample_lp(t, y, hold_ms, folder, ev):
 # ============================================================================ dataset + replay cache
 def _fingerprint(task, records, columns):
     h = hashlib.sha256()
-    h.update(json.dumps(dict(task=task, columns=columns, version=5, lean8=USE_LEAN8,
+    h.update(json.dumps(dict(task=task, columns=columns, version=5, lean8=LEAN8_TAG,
         soft=TAP_SOFT_MIN_SCORE if task == "tap" else None, onset_win=TAP_ONSET_WINDOW_MS, press_win=PRESS_WINDOW_MS,
         tap=[TAP_BACKGROUND_STRIDE_MS, TAP_HARD_WINDOW_MS, TAP_HARD_STRIDE_MS, TAP_ACTIVE_STRIDE_MS,
              TAP_POSITIVE_STRIDE_MS],
@@ -557,6 +573,8 @@ def _fingerprint(task, records, columns):
         h.update(lean8.GENERATOR_SHA.encode())
         fw = lean8.firmware_header()
         h.update((sha256(fw) if fw else "no-firmware-header").encode())
+    if USE_LITE:                                 # Lean-lite inputs (and their frame counter) come from here
+        h.update(lite.GENERATOR_SHA.encode())
     for p, root, labels in records:
         st = p.stat(); lab = sidecar(p, root, labels).stat()
         h.update(f"{p.relative_to(ROOT)}|{st.st_size}|{lab.st_size}|{int(lab.st_mtime)}".encode())
@@ -781,7 +799,7 @@ def load_cache(cache: Path, columns):
     onsets = pd.read_csv(cache / "tap_onsets.csv")
     gate = m["frames"] >= TRAIN_MIN_FRAMES
     gate_info = dict(min_frames=TRAIN_MIN_FRAMES, eval_min_frames=EVAL_MIN_FRAMES,
-                     steady_frames=LEAN8_STEADY_FRAMES, lean8=USE_LEAN8,
+                     steady_frames=LEAN8_STEADY_FRAMES, lean8=LEAN8_TAG,
                      train_rows_built=int(len(gate)), train_rows_used=int(gate.sum()),
                      positives_built=int((m["y"] == 1).sum()), positives_used=int(((m["y"] == 1) & gate).sum()))
     if not gate.all():
@@ -1874,7 +1892,7 @@ def write_run_manifest(out: Path, task, data, budgets, study):
         lscpu = subprocess.run(["lscpu"], text=True, capture_output=True, timeout=10).stdout
     except Exception:
         pass
-    fw = lean8.firmware_header() if USE_LEAN8 else None
+    fw = lean8.firmware_header() if USE_LEAN8 else (lite.HEADER if USE_LITE else None)
     fp_file = out / "cache" / "fingerprint.json"
     write_json(out / "run_manifest.json", dict(
         written=time.strftime("%Y-%m-%dT%H:%M:%S%z"), task=task, commit=_git("rev-parse", "HEAD"),
@@ -1885,7 +1903,7 @@ def write_run_manifest(out: Path, task, data, budgets, study):
                  model=read("/proc/cpuinfo", "model name"), lscpu=lscpu, lightgbm_threads=CPU_THREADS),
         memory_total=read("/proc/meminfo", "MemTotal"),
         disk_free_gb=round(shutil.disk_usage(out).free / 1e9, 1),
-        hashes=dict(lean8_algorithm=lean8.GENERATOR_SHA if USE_LEAN8 else None,
+        hashes=dict(lean8_algorithm=lean8.GENERATOR_SHA if USE_LEAN8 else (lite.GENERATOR_SHA if USE_LITE else None),
                     firmware_header=sha256(fw) if fw else None, labeler=sha256(CLAUDE_LABELER),
                     cache_fingerprint=json.loads(fp_file.read_text()).get("fingerprint") if fp_file.is_file() else None,
                     data_content=data.get("content_sha256")),
@@ -1915,8 +1933,9 @@ def same_lean8_setting(saved) -> bool:
 
 
 def lean8_setting():
-    return dict(enabled=USE_LEAN8, train_min_frames=TRAIN_MIN_FRAMES, eval_min_frames=EVAL_MIN_FRAMES,
-                steady_frames=LEAN8_STEADY_FRAMES, generator_sha256=lean8.GENERATOR_SHA)
+    return dict(enabled=LEAN8_TAG, train_min_frames=TRAIN_MIN_FRAMES, eval_min_frames=EVAL_MIN_FRAMES,
+                steady_frames=LEAN8_STEADY_FRAMES,
+                generator_sha256=lite.GENERATOR_SHA if USE_LITE else lean8.GENERATOR_SHA)
 
 
 def train_task(task: str, tap_files, lp_files):
@@ -2037,12 +2056,11 @@ def main():
     t0 = time.monotonic()
     faulthandler.enable(all_threads=True)       # a native crash prints every thread's Python stack
     notice("UNIFIED_TRAINER_START", "cpu_threads", CPU_THREADS, "of", previous_tap.cpu_count(),
-           "fold_workers", FOLD_WORKERS, "x", FOLD_THREADS, "threads", "lean8_inputs", USE_LEAN8, "tap_threshold", FIXED_THRESHOLD,
+           "fold_workers", FOLD_WORKERS, "x", FOLD_THREADS, "threads", "lean8_inputs", LEAN8_MODE, "tap_threshold", FIXED_THRESHOLD,
            "lp_release_threshold", LP_RELEASE_THRESHOLD,
            "budget_kb", MODEL_BUDGET_KB, "alt_budget_kb", ALT_BUDGET_KB, "trials", TRIALS_PER_MODEL)
-    lean8_manifest = None
-    if True:                                     # also when Lean-8 is not a model input: frame gates
-        lean8_manifest = lean8.ensure_datasets([(RAW_SOURCE_TAP, SOURCE_TAP), (RAW_SOURCE_LP, SOURCE_LP)],
+    generator = lite if USE_LITE else lean8      # also when no Lean inputs are used: the frame gates need it
+    lean8_manifest = generator.ensure_datasets([(RAW_SOURCE_TAP, SOURCE_TAP), (RAW_SOURCE_LP, SOURCE_LP)],
                                                workers=CPU_THREADS)
     files_t = ensure_labels(RAW_SOURCE_TAP, LABEL_TAP)
     files_l = ensure_labels(RAW_SOURCE_LP, LABEL_LP)
@@ -2050,7 +2068,7 @@ def main():
     b = train_task("lp", files_t, files_l)
     write_json(OUTPUT / "UNIFIED_SUMMARY.json",
                dict(status="success", tap=a, lp=b, elapsed_s=round(time.monotonic() - t0, 1), baseline_unchanged=True,
-                    lean8=dict(enabled=USE_LEAN8, train_min_frames=TRAIN_MIN_FRAMES, eval_min_frames=EVAL_MIN_FRAMES,
+                    lean8=dict(enabled=LEAN8_TAG, train_min_frames=TRAIN_MIN_FRAMES, eval_min_frames=EVAL_MIN_FRAMES,
                                steady_frames=LEAN8_STEADY_FRAMES,
                                firmware_parity=(lean8_manifest or {}).get("firmware_parity"),
                                generator_sha256=(lean8_manifest or {}).get("generator_sha256"))))

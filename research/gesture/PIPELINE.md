@@ -15,6 +15,12 @@ There are no flags; settings are environment variables (README, "Settings"). The
 choices. Output goes to `research/gesture/results_unified_v3_feature_selection/`. A run resumes where it
 stopped, also after a code update that does not change the data.
 
+The EMG context inputs are an A/B switch with identical rows, labels and split in every arm:
+
+    MUDRA_USE_LEAN8=1     python -u research/gesture/train_unified.py   # 24 float Lean-8 fields (default)
+    MUDRA_USE_LEAN8=0     python -u research/gesture/train_unified.py   # none
+    MUDRA_USE_LEAN8=lite  python -u research/gesture/train_unified.py   # 15 integer Lean-lite fields (LEAN_LITE.md)
+
 ## Stages and what each one guarantees
 
 | Stage | What it does | Guarantee / check |

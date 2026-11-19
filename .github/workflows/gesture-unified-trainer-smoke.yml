@@ -8,6 +8,8 @@ on:
       - 'research/gesture/test_unified_smoke.py'
       - 'research/gesture/replay.py'
       - 'research/gesture/generate_lean8_features.py'
+      - 'research/gesture/generate_lean_lite_features.py'
+      - 'research/gesture/firmware/**'
       - 'research/gesture/bench_unified.py'
       - 'research/gesture/feature_selection.py'
       - 'research/gesture/fs_research.py'
@@ -52,9 +54,11 @@ jobs:
           python-version: '3.11'
       - name: Install lightweight training dependencies
         run: python -m pip install --disable-pip-version-check numpy pandas scipy scikit-learn lightgbm optuna joblib
+      - name: Cross-compile Lean-lite for Cortex-M4 with the real CMSIS headers
+        run: bash research/gesture/firmware/check_arm_build.sh
       - name: Compile and execute real-source two-model smoke
         run: |
-          python -m py_compile research/gesture/train_unified.py research/gesture/replay.py research/gesture/generate_lean8_features.py research/gesture/bench_unified.py research/gesture/ablate_lean8.py research/gesture/feature_selection.py research/gesture/fs_research.py research/gesture/validate_events.py research/gesture/test_unified_smoke.py
+          python -m py_compile research/gesture/train_unified.py research/gesture/replay.py research/gesture/generate_lean8_features.py research/gesture/generate_lean_lite_features.py research/gesture/bench_unified.py research/gesture/ablate_lean8.py research/gesture/feature_selection.py research/gesture/fs_research.py research/gesture/validate_events.py research/gesture/test_unified_smoke.py
           python -u research/gesture/test_unified_smoke.py
       - uses: actions/upload-artifact@v4
         if: always()
@@ -66,5 +70,8 @@ jobs:
             research/gesture/_smoke_results/tap/models/TAP_SWIPE.h
             research/gesture/_smoke_results/lp/models/LONG_PRESS.h
             research/gesture/_smoke_results/COMPARISON.md
+            research/gesture/_smoke_results_lite/tap/summary.json
+            research/gesture/_smoke_results_lite/lp/summary.json
+            research/gesture/_smoke_results_lite/COMPARISON.md
           if-no-files-found: warn
           retention-days: 7

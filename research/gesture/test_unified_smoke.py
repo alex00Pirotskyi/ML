@@ -4,10 +4,13 @@
 1. Unit checks: TAP event replay, LP ten-sample press replay, exact budget trimming,
    C-header replay == Python, class weighting, Lean-8 emulator == a literal port of the
    firmware handler (and == the firmware C code when its header is available locally),
-   export/compile/replay of a model that uses Lean-8 fields.
+   export/compile/replay of a model that uses Lean-8 fields. Lean-lite: emulator == a literal port ==
+   firmware/lean_lite.h compiled for the host (exact), same frames as Lean-8, export/compile/replay.
 2. Real-source smoke: a small set of real recordings through Lean-8 generation, labels,
-   sampling, replay CV, budget-trimmed C export, held-out C replay and baseline replay.
+   sampling, replay CV, budget-trimmed C export, held-out C replay and baseline replay; then the same
+   in a second process with MUDRA_USE_LEAN8=lite, which must build exactly the same rows and labels.
 """
+import os
 import gzip
 import json
 import shutil
@@ -24,6 +27,7 @@ sys.path.insert(0, str(ROOT / "research" / "gesture"))
 import train_unified as g
 import replay as R
 import generate_lean8_features as L8
+import generate_lean_lite_features as LL
 
 
 def lean8_handler_reference(wl_frames, psd_mean_frames):
@@ -97,6 +101,75 @@ def lean8_checks():
     else:
         print("LEAN8_FIRMWARE_C_PARITY_SKIPPED (no local firmware header)", flush=True)
     print("LEAN8_EMULATOR_CHECKS_PASSED", flush=True)
+
+
+def lean_lite_reference(wl_frames, psd_mean_frames):
+    """Literal frame-by-frame port of lean_lite_update() (independent of the vectorised emulator)."""
+    B, RING, K = LL.BLOCK_FRAMES, LL.RING, LL.EMA_SHIFT
+    sat = lambda v: max(-32768, min(32767, v))
+    ring_min = [[0] * RING for _ in range(3)]; ring_max = [[0] * RING for _ in range(3)]
+    cur_min = [0] * 3; cur_max = [0] * 3; agg_min = [0] * 3; agg_max = [0] * 3
+    m_acc = [0] * 3; d_acc = [0] * 3; in_block = fill = head = seen = 0
+    out = np.zeros((len(wl_frames), 15), np.int16)
+    for f in range(len(wl_frames)):
+        first = seen == 0
+        for ch in range(3):
+            w = int(wl_frames[f][ch]); v = w + (w != 0xFFFFFFFF); n = v.bit_length() - 1
+            x = (n << 8) | (((v << (31 - n)) >> 23) & 0xFF)
+            if in_block == 0:
+                cur_min[ch] = cur_max[ch] = x
+            else:
+                cur_min[ch] = min(cur_min[ch], x); cur_max[ch] = max(cur_max[ch], x)
+            lo, hi = cur_min[ch], cur_max[ch]
+            if fill:
+                lo = min(lo, agg_min[ch]); hi = max(hi, agg_max[ch])
+            if first:
+                m_acc[ch] = x << K; d_acc[ch] = 0
+            m_acc[ch] += x - (m_acc[ch] >> K)
+            d_acc[ch] += abs(x - (m_acc[ch] >> K)) - (d_acc[ch] >> K)
+            pm = psd_mean_frames[f][ch]
+            for k, val in enumerate((lo, hi, x - lo, sat(d_acc[ch] >> LL.DEV_SHIFT), sat(int(pm[0]) - int(pm[1])))):
+                out[f, k * 3 + ch] = val
+        in_block += 1
+        if in_block >= B:
+            for ch in range(3):
+                ring_min[ch][head] = cur_min[ch]; ring_max[ch][head] = cur_max[ch]
+            head = (head + 1) % RING; fill = min(fill + 1, RING)
+            for ch in range(3):
+                agg_min[ch] = min(ring_min[ch][:fill]); agg_max[ch] = max(ring_max[ch][:fill])
+            in_block = 0
+        seen = min(seen + 1, LL.READY_FRAMES)
+    return out
+
+
+def lean_lite_checks():
+    import lightgbm as lgb
+    # Vectorised emulator == literal port, on edge cases and on real frames.
+    df = pd.read_csv(sorted(g.RAW_SOURCE_TAP.glob("TAP/*.csv.gz"))[0], low_memory=False)
+    wl = df[L8.WL].to_numpy(np.float64); rows = L8.frame_rows(df[L8.PSD_NOW].to_numpy(np.int64), wl)
+    real = (wl[rows].astype(np.uint64), df[L8.PSD_MEAN].to_numpy(np.int64).reshape(-1, 3, 5)[rows])
+    for w, pm in LL.synthetic_cases()[:2] + [real]:
+        assert np.array_equal(LL.lite_per_frame(w, pm), lean_lite_reference(w, pm))
+    # Emulator == firmware/lean_lite.h compiled for the host, exactly (real recordings + synthetic edge cases).
+    files = sorted(g.RAW_SOURCE_TAP.glob("TAP/*.csv.gz"))[:3] + sorted(g.RAW_SOURCE_LP.glob("MID_LONG_PRESS/*.csv.gz"))[:2]
+    par = LL.parity_check(files)
+    assert par["status"] == "passed" and par["frames_mismatched"] == 0 and par["state_bytes"] == 164, par
+    # Same handler calls as Lean-8: frame counter and new-frame rows are identical, so gates and rows are too.
+    a, b = L8.compute(df), LL.compute(df)
+    assert np.array_equal(a[L8.FRAMES_COLUMN], b[LL.FRAMES_COLUMN]) and np.array_equal(a[L8.NEW_FRAME_COLUMN], b[LL.NEW_FRAME_COLUMN])
+    # A model on the 126 raw + 15 Lean-lite fields exports, compiles against t_core and replays exactly.
+    rng = np.random.default_rng(9); cols = list(g.RAW_126) + list(g.LITE_15)
+    X = rng.normal(size=(20000, len(cols))).astype(np.float32) * 300
+    i1 = cols.index("p_core->cload_lite.rise10[CH2]"); i2 = cols.index("p_core->cload_lite.d01[CH1]")
+    y = (X[:, i1] + X[:, i2] + 0.3 * X[:, 0] + rng.normal(size=20000) * 300 > 100).astype(int)
+    m = lgb.LGBMClassifier(n_estimators=60, num_leaves=15, verbosity=-1, n_jobs=2, max_bin=127).fit(X, y)
+    out = Path(tempfile.mkdtemp())
+    h, _, chk = g.write_header(m, cols, "TAP_SWIPE", out / "lite_models", "tap", out)
+    assert "cload_lite.rise10[CH2]" in h.read_text() and chk["status"] == "passed", chk
+    hm = R.HeaderModel(h, cols, out / "build_lite", prefer="tap_swipe")
+    p = m.predict_proba(X[:4000])[:, 1]
+    assert (hm.value_q20(X[:4000]) == R.q20(p)).all()
+    print("LEAN_LITE_CHECKS_PASSED", par["frames"], "frames exact", flush=True)
 
 
 def unit_checks():
@@ -359,30 +432,35 @@ def put_sample(orig, staging):
         dest.symlink_to(orig.resolve())
 
 
-def real_source_smoke():
+SMOKE_RESULTS = dict(full="_smoke_results", off="_smoke_results_no_lean8", lite="_smoke_results_lite")
+
+
+def real_source_smoke(keep_input=False):
+    """Runs in the trainer's own mode (MUDRA_USE_LEAN8). keep_input: reuse the sample and labels of a previous run."""
     sample_root = ROOT / "research" / "gesture" / "_smoke_input"
-    for d in (sample_root, ROOT / "research" / "gesture" / "_smoke_labels", ROOT / "research" / "gesture" / "_smoke_results"):
+    results = ROOT / "research" / "gesture" / SMOKE_RESULTS[g.LEAN8_MODE]
+    for d in ((results,) if keep_input else (sample_root, ROOT / "research" / "gesture" / "_smoke_labels", results)):
         if d.exists():
             shutil.rmtree(d)
     tap_root = sample_root / "DATA_TAP"; lp_root = sample_root / "DATA_LONG_PRESS"
-    for folder, n in (("TAP", 22), ("SWIPE", 22), ("FINGER", 18), ("ARM", 16), ("WRIST", 14), ("BAND", 10)):
+    for folder, n in (() if keep_input else (("TAP", 22), ("SWIPE", 22), ("FINGER", 18), ("ARM", 16), ("WRIST", 14), ("BAND", 10))):
         for p in select_originals(g.RAW_SOURCE_TAP, folder, n):
             put_sample(p, tap_root)
-    for folder, n in (("SOFT_LONG_PRESS", 35), ("MID_LONG_PRESS", 35), ("STRONG_LONG_PRESS", 20),
+    for folder, n in (() if keep_input else (("SOFT_LONG_PRESS", 35), ("MID_LONG_PRESS", 35), ("STRONG_LONG_PRESS", 20),
                       ("DRAG_AND_DROP", 35), ("LONG_PRESS", 4), ("CONNECTED", 16), ("DISCONNECTED", 16),
-                      ("LOOSE", 16), ("TABLE", 9), ("TAP", 12), ("SWIPE", 12)):
+                      ("LOOSE", 16), ("TABLE", 9), ("TAP", 12), ("SWIPE", 12))):
         for p in select_originals(g.RAW_SOURCE_LP, folder, n):
             put_sample(p, lp_root)
     # A local uncompressed sibling must not double a recording.
     original = sorted(tap_root.glob("TAP/*.csv.gz"))[0]
-    with gzip.open(original, "rb") as stream, original.with_suffix("").open("wb") as dest:
-        shutil.copyfileobj(stream, dest)
-    g.USE_LEAN8 = True
+    if not keep_input:
+        with gzip.open(original, "rb") as stream, original.with_suffix("").open("wb") as dest:
+            shutil.copyfileobj(stream, dest)
     g.RAW_SOURCE_TAP = tap_root; g.RAW_SOURCE_LP = lp_root
-    g.SOURCE_TAP = sample_root / "DATA_TAP_LEAN8"; g.SOURCE_LP = sample_root / "DATA_LONG_PRESS_LEAN8"
+    g.SOURCE_TAP = sample_root / g.SOURCE_TAP.name; g.SOURCE_LP = sample_root / g.SOURCE_LP.name
     g.LABEL_TAP = ROOT / "research" / "gesture" / "_smoke_labels" / "DATA_TAP"
     g.LABEL_LP = ROOT / "research" / "gesture" / "_smoke_labels" / "DATA_LONG_PRESS"
-    g.OUTPUT = ROOT / "research" / "gesture" / "_smoke_results"
+    g.OUTPUT = results
     g.TRIALS_PER_MODEL = 4; g.TOP_K_PER_MODEL = 3; g.CV_FOLDS = 2
     import feature_selection as FS
     FS.INNER_FOLDS = 2; FS.SCREEN_PARAMS["n_estimators"] = 20; FS.REPEATS_GROUP = 1     # small data, fast ranker
@@ -400,7 +478,8 @@ def real_source_smoke():
         assert report["threshold_tuned"] is False and g.task_threshold("tap") == 0.85
         assert report["class_one"] == ("RELEASE/REST" if task == "lp" else "TAP/SWIPE onset")
         assert report["budgets"] == [8192, 6144]
-        assert report["lean8"]["enabled"] is True
+        assert report["lean8"]["enabled"] == g.LEAN8_TAG
+        assert report["selected"]["features"] and set(report["selected"]["features"]) <= set(g.ALL_FEATURES)
         assert report["experiment"] == "v3" and report["lean8"]["eval_min_frames"] == g.EVAL_MIN_FRAMES
         fs = report["feature_selection"]; assert fs and fs["default_k"] == len(report["selected"]["features"]), fs
         for f in ("fold_0_ranking.csv", "fold_1_ranking.csv", "selection_stability.json", "final_selected_features.json",
@@ -496,16 +575,46 @@ def real_source_smoke():
         raise RuntimeError("Combined firmware header C compile failed: " + p.stderr[-5000:])
     print("UNIFIED_V2_BOTH_HEADERS_COMPILE_TOGETHER", flush=True)
     fold_parallel_check()
-    man = json.loads((sample_root / "lean8_manifest.json").read_text())
-    assert man["firmware_parity"]["status"] in ("passed", "not run"), man["firmware_parity"]
+    man = json.loads((sample_root / ("lean_lite_manifest.json" if g.USE_LITE else "lean8_manifest.json")).read_text())
+    assert man["firmware_parity"]["status"] in (("passed",) if g.USE_LITE else ("passed", "not run")), man["firmware_parity"]
+    if g.USE_LITE:
+        # Clean A/B: the Lean-lite run built exactly the rows, labels, frames and weights of the Lean-8 run.
+        for task in ("tap", "lp"):
+            a = ROOT / "research" / "gesture" / SMOKE_RESULTS["full"] / task / "cache"
+            b = results / task / "cache"
+            if not a.is_dir():
+                print("LEAN_LITE_AB_CHECK_SKIPPED (no Lean-8 smoke cache)", task, flush=True); continue
+            for npz in ("train_meta.npz", "replay_meta.npz"):
+                with np.load(a / npz) as za, np.load(b / npz) as zb:
+                    assert set(za.files) == set(zb.files), npz
+                    for k in set(za.files) - {"ncol"}:          # ncol: 150 vs 141 input columns
+                        assert np.array_equal(za[k], zb[k]), (task, npz, k)
+            ra, rb = pd.read_csv(a / "recordings.csv"), pd.read_csv(b / "recordings.csv")
+            for r in (ra, rb):                           # only the derived tree's folder name may differ
+                r["file"] = r["file"].str.replace(r"/DATA_(TAP|LONG_PRESS)_(LEAN8|LITE)/", r"/DATA_\1_DERIVED/", regex=True)
+            assert ra.equals(rb)
+            for f in ("lp_windows.csv", "tap_onsets.csv"):
+                if (a / f).is_file():
+                    assert pd.read_csv(a / f).equals(pd.read_csv(b / f)), f
+            print("LEAN_LITE_SAME_ROWS_AS_LEAN8", task, flush=True)
     derived = sorted(g.SOURCE_TAP.glob("TAP/*.csv.gz"))
     assert derived and not any(p.is_symlink() for p in derived)
     print("UNIFIED_V2_REAL_DATA_SMOKE_PASSED", flush=True)
 
 
 if __name__ == "__main__":
+    if "--lite-arm" in sys.argv:                 # second process, MUDRA_USE_LEAN8=lite: reuse sample and labels
+        assert g.USE_LITE, "run with MUDRA_USE_LEAN8=lite"
+        real_source_smoke(keep_input=True)
+        sys.exit(0)
     lean8_checks()
+    lean_lite_checks()
     unit_checks()
     validate_events_checks()
     if "--unit-only" not in sys.argv:
         real_source_smoke()
+        if g.LEAN8_MODE == "full" and "--no-lite-arm" not in sys.argv:
+            env = dict(os.environ, MUDRA_USE_LEAN8="lite")
+            p = subprocess.run([sys.executable, "-u", __file__, "--lite-arm"], env=env)
+            if p.returncode:
+                raise SystemExit(f"Lean-lite real-source smoke failed ({p.returncode})")

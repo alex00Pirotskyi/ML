@@ -186,7 +186,8 @@ Environment variables:
 | `MUDRA_ALT_BUDGET_KB` | 24 | second budget; `none` or `0` disables it |
 | `MUDRA_TAP_BASELINE_HEADER` | `research/tap_real/results_claude_v2_optuna_126_thr085/models/TAP_SWIPE.h` | previous successful TAP model |
 | `MUDRA_LP_V20_HEADER` | not set | **LP v20 header; set this to get the v20 comparison** |
-| `MUDRA_USE_LEAN8` | 1 | 0 = the 24 Lean-8 fields are not model inputs (firmware built with `NEW_CLOAD_FEATURES 0`). Rows, labels, frame gates and the held-out split stay identical, so it is a clean A/B. Output goes to `results_unified_v3_feature_selection_no_lean8/` and the study names carry `lean80` |
+| `MUDRA_USE_LEAN8` | 1 | EMG context inputs next to the 126 raw fields. `1` = the 24 float Lean-8 fields. `0` = none (firmware built with `NEW_CLOAD_FEATURES 0`); output `results_unified_v3_feature_selection_no_lean8/`, studies `lean80`. `lite` = the 15 integer Lean-lite fields of `firmware/lean_lite.h` (see `LEAN_LITE.md`); data in `DATA/DATA_*_LITE`, output `results_unified_v3_feature_selection_lean_lite/`, studies `lean8lite`. Rows, labels, frame gates and the held-out split are identical in all three, so they are clean A/B arms |
+| `MUDRA_LEAN_LITE_PARITY_FILES` | 24 | recordings on which `generate_lean_lite_features.py` proves exact equality with `firmware/lean_lite.h` compiled for the host (synthetic edge cases always) |
 | `MUDRA_LEAN8_FIRMWARE_HEADER` | `research/gesture/_lean8_reference/core_type_def.h` | firmware header for the C parity check (git-ignored; public repo) |
 | `MUDRA_LEAN8_PARITY_FILES` | 24 | recordings compared with the firmware C code on each generation (0 = off) |
 | `MUDRA_LEAN8_VERIFY_SOURCE_SHA` | 0 | 1 = also SHA-256 every source recording before reusing its derived file (size + mtime is the default check) |
