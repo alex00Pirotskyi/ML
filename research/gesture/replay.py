@@ -94,9 +94,40 @@ typedef struct {
         float dev3[3];
         float d01[3];
     } cload_lite;
+    /* firmware helpers the trees may call: p_core->diff(a, b), p_core->ratio(a, b) (set by mudra_fill) */
+    float (*ratio)(const uint16_t ref, const uint16_t den);
+    int16_t (*diff)(const uint16_t ref, const uint16_t den);
 } t_core;
+/* Firmware semantics (TAP_GENERALIZATION_RESULTS.md): diff = ref - den saturated to int16; ratio = (ref+1)/(den+1). */
+static inline int16_t mudra_diff(const uint16_t ref, const uint16_t den) {
+    int32_t d = (int32_t)ref - (int32_t)den;
+    return (int16_t)(d > 32767 ? 32767 : (d < -32768 ? -32768 : d));
+}
+static inline float mudra_ratio(const uint16_t ref, const uint16_t den) {
+    return ((float)ref + 1.0f) / ((float)den + 1.0f);
+}
 #endif
 """
+
+HELPER_RE = re.compile(r"^p_core->(diff|ratio)\((p_core->[^,]+),\s*(p_core->[^)]+)\)$")
+
+
+def helper_args(name: str):
+    """('diff'|'ratio', a, b) for a helper feature name, else None."""
+    m = HELPER_RE.match(name)
+    return (m.group(1), m.group(2), m.group(3)) if m else None
+
+
+def input_columns(features):
+    """The columns a header replay needs: the model features plus the raw fields its helper calls read."""
+    out = list(features); have = set(out)
+    for f in features:
+        h = helper_args(f)
+        if h:
+            for a in h[1:]:
+                if a not in have:
+                    out.append(a); have.add(a)
+    return out
 
 
 def _api_prefixes(text: str):
@@ -124,13 +155,19 @@ class HeaderModel:
         for name in self.columns:
             if not name.startswith("p_core->"):
                 raise ValueError(f"Not a p_core field: {name}")
+        need = set(input_columns(self.columns)) - set(self.columns)
+        if need:
+            raise ValueError(f"Helper features read raw fields that are not columns (use input_columns()): {sorted(need)[:4]}")
         tag = hashlib.sha256((str(header) + text + "|".join(self.columns)).encode()).hexdigest()[:16]
         build = Path(workdir) / f"replay_{tag}"
         build.mkdir(parents=True, exist_ok=True)
         (build / "core_type_def.h").write_text(CORE_TYPE_DEF)
-        fill = "\n".join(f"    c->{name[len('p_core->'):]} = x[{k}];" for k, name in enumerate(self.columns))
+        # Helper features (p_core->diff/ratio(...)) are computed by the header itself from the raw fields.
+        fill = "\n".join(f"    c->{name[len('p_core->'):]} = x[{k}];" for k, name in enumerate(self.columns)
+                         if not helper_args(name))
         src = ['#include <string.h>', '#include "core_type_def.h"', f'#include "{header.name}"',
-               f"static void mudra_fill(t_core *c, const float *x) {{\n    memset(c, 0, sizeof(*c));\n{fill}\n}}"]
+               f"static void mudra_fill(t_core *c, const float *x) {{\n    memset(c, 0, sizeof(*c));\n"
+               f"    c->diff = mudra_diff; c->ratio = mudra_ratio;\n{fill}\n}}"]
         n = len(self.columns)
         if self.value_prefix:
             src.append(f"void mudra_replay_value(const float *x, long rows, float *out) {{\n"

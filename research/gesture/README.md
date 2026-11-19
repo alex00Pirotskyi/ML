@@ -187,6 +187,10 @@ Environment variables:
 | `MUDRA_TAP_BASELINE_HEADER` | `research/tap_real/results_claude_v2_optuna_126_thr085/models/TAP_SWIPE.h` | previous successful TAP model |
 | `MUDRA_LP_V20_HEADER` | not set | **LP v20 header; set this to get the v20 comparison** |
 | `MUDRA_USE_LEAN8` | 1 | EMG context inputs next to the 126 raw fields. `1` = the 24 float Lean-8 fields. `0` = none (firmware built with `NEW_CLOAD_FEATURES 0`); output `results_unified_v3_feature_selection_no_lean8/`, studies `lean80`. `lite` = the 15 integer Lean-lite fields of `firmware/lean_lite.h` (see `LEAN_LITE.md`); data in `DATA/DATA_*_LITE`, output `results_unified_v3_feature_selection_lean_lite/`, studies `lean8lite`. Rows, labels, frame gates and the held-out split are identical in all three, so they are clean A/B arms |
+| `MUDRA_TAP_FEATURES` | raw | `diff` = add 135 within-channel EMG PSD diffs and 9 WL ratios to the TAP inputs, exported as the firmware helpers `p_core->diff(a, b)` / `p_core->ratio(a, b)` (TAP_GENERALIZATION_RESULTS.md). Needs `MUDRA_USE_LEAN8=0`; output folder and TAP study get the suffix `_tap-<features>-<aug>` |
+| `MUDRA_TAP_AUG` | none | `mild` = placement augmentation of the TAP training rows (random EMG gain, spectral tilt and contact noise per recording; replay and held-out scores use the real recordings). Needs `MUDRA_USE_LEAN8=0` |
+| `MUDRA_TASKS` | tap,lp | train only these tasks, e.g. `tap` |
+| `MUDRA_TAP_BASELINE_EXTRA` | (none) | path of one more TAP header replayed as a baseline on the same held-out people, e.g. today's no-Lean `TAP_SWIPE.h` for an A/B in one table |
 | `MUDRA_LEAN_LITE_PARITY_FILES` | 24 | recordings on which `generate_lean_lite_features.py` proves exact equality with `firmware/lean_lite.h` compiled for the host (synthetic edge cases always) |
 | `MUDRA_LEAN8_FIRMWARE_HEADER` | `research/gesture/_lean8_reference/core_type_def.h` | firmware header for the C parity check (git-ignored; public repo) |
 | `MUDRA_LEAN8_PARITY_FILES` | 24 | recordings compared with the firmware C code on each generation (0 = off) |

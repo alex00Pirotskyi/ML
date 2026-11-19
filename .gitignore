@@ -17,6 +17,9 @@
 /research/gesture/results_unified_v3_feature_selection/
 /research/gesture/results_unified_v3_feature_selection_no_lean8/
 /research/gesture/results_unified_v3_feature_selection_lean_lite/
+/research/gesture/results_unified_v3_feature_selection_no_lean8_tap-*/
+/research/gesture/results_tap_generalization/models/
+/research/gesture/results_tap_generalization/rescore_rows.csv.gz
 /research/gesture/results_fs_research/rank_cache/
 /DATA/DATA_TAP_LEAN8/
 /DATA/DATA_LONG_PRESS_LEAN8/
@@ -34,6 +37,7 @@
 /research/gesture/_smoke_results/
 /research/gesture/_smoke_results_lite/
 /research/gesture/_smoke_results_no_lean8/
+/research/gesture/_smoke_results_no_lean8_tap-*/
 .venv/
 __pycache__/
 

@@ -64,6 +64,7 @@ from sklearn.model_selection import GroupKFold, GroupShuffleSplit
 import replay as R
 import generate_lean8_features as lean8
 import generate_lean_lite_features as lite
+import tap_features as TF
 import feature_selection as FS
 
 v6 = previous_tap.v6
@@ -84,6 +85,22 @@ LEAN8_MODE = "lite" if _LEAN8_ENV == "lite" else ("off" if _LEAN8_ENV in ("0", "
 USE_LEAN8 = LEAN8_MODE == "full"
 USE_LITE = LEAN8_MODE == "lite"
 LEAN8_TAG = "lite" if USE_LITE else USE_LEAN8        # recorded in fingerprints and reports (full/off: as before)
+# TAP generalization (TAP_GENERALIZATION_RESULTS.md), TAP model only, runs without Lean inputs:
+#   MUDRA_TAP_FEATURES=diff  adds 135 within-channel EMG PSD diffs + 9 WL ratios (firmware helpers diff()/ratio()),
+#                            computed from the raw columns (no new data files)
+#   MUDRA_TAP_AUG=mild       placement augmentation of the TAP training rows (EMG gain, spectral tilt, contact noise)
+# Each setting writes its own results folder; the default (raw, none) is unchanged.
+TAP_FEATURES = os.environ.get("MUDRA_TAP_FEATURES", "raw").strip().lower()
+TAP_AUG = os.environ.get("MUDRA_TAP_AUG", "none").strip().lower()
+if TAP_FEATURES not in ("raw", "diff") or TAP_AUG not in ("none", "mild"):
+    raise ValueError("MUDRA_TAP_FEATURES must be raw or diff; MUDRA_TAP_AUG must be none or mild")
+TAP_GENERALIZATION = TAP_FEATURES != "raw" or TAP_AUG != "none"
+if TAP_GENERALIZATION and LEAN8_MODE != "off":
+    raise ValueError("MUDRA_TAP_FEATURES / MUDRA_TAP_AUG need MUDRA_USE_LEAN8=0 (researched without Lean inputs)")
+TAP_TAG = f"_tap-{TAP_FEATURES}-{TAP_AUG}" if TAP_GENERALIZATION else ""
+TASKS_TO_RUN = [t.strip() for t in os.environ.get("MUDRA_TASKS", "tap,lp").lower().split(",") if t.strip()]
+if not TASKS_TO_RUN or not set(TASKS_TO_RUN) <= {"tap", "lp"}:
+    raise ValueError("MUDRA_TASKS must list tap and/or lp")
 # Derived trees: original lines + the generated columns (and the frame counter used by the gates).
 SOURCE_TAP = ROOT / "DATA" / ("DATA_TAP_LITE" if USE_LITE else "DATA_TAP_LEAN8")
 SOURCE_LP = ROOT / "DATA" / ("DATA_LONG_PRESS_LITE" if USE_LITE else "DATA_LONG_PRESS_LEAN8")
@@ -121,14 +138,15 @@ PRESS_WINDOW_MS = (150, 250)         # pointer-press reference: [min(press, onse
 TAP_TARGET_FALLBACK = 1.0
 LABEL_TAP = ROOT / "DATA" / "LABELS" / "DATA_TAP"
 LABEL_LP = ROOT / "DATA" / "LABELS" / "DATA_LONG_PRESS"
-OUTPUT = ROOT / "research" / "gesture" / dict(full="results_unified_v3_feature_selection",
-                                              off="results_unified_v3_feature_selection_no_lean8",
-                                              lite="results_unified_v3_feature_selection_lean_lite")[LEAN8_MODE]
+OUTPUT = ROOT / "research" / "gesture" / (dict(full="results_unified_v3_feature_selection",
+                                               off="results_unified_v3_feature_selection_no_lean8",
+                                               lite="results_unified_v3_feature_selection_lean_lite")[LEAN8_MODE] + TAP_TAG)
 PREVIOUS_UNIFIED = ROOT / "research" / "gesture" / "results_unified_20261117"
 CLAUDE_LABELER = ROOT / "claude_labeling" / "label_gestures.py"
 TRIALS_PER_MODEL = 40
 TOP_K_PER_MODEL = 5
 CV_FOLDS = 3
+EXPORT_MAX_FEATURES = 254             # export_plus compact node format: uint8 feature index, 0xFF marks a leaf
 TEST_FRACTION = 0.22
 FIXED_THRESHOLD = 0.85                # TAP_SWIPE_predict(): onset when p >= 0.85 (unchanged)
 # LONG_PRESS: firmware releases when the mean of the last 10 Q20 values >= this. Changing it is a NEW
@@ -190,7 +208,9 @@ PARITY_ROWS = 200_000               # rows used to compare the exported C header
 BASELINES = dict(
     tap=[("previous_tap_thr085", os.environ.get("MUDRA_TAP_BASELINE_HEADER",
           str(ROOT / "research" / "tap_real" / "results_claude_v2_optuna_126_thr085" / "models" / "TAP_SWIPE.h"))),
-         ("unified_20261117", str(PREVIOUS_UNIFIED / "tap" / "models" / "TAP_SWIPE.h"))],
+         ("unified_20261117", str(PREVIOUS_UNIFIED / "tap" / "models" / "TAP_SWIPE.h")),
+         # e.g. today's no-Lean TAP header, for an A/B on the same held-out people and rules
+         ("extra_baseline", os.environ.get("MUDRA_TAP_BASELINE_EXTRA", ""))],
     lp=[("lp_v20", os.environ.get("MUDRA_LP_V20_HEADER", "")),
         ("unified_20261117", str(PREVIOUS_UNIFIED / "lp" / "models" / "LONG_PRESS.h"))],
 )
@@ -237,6 +257,7 @@ def study_name(task: str) -> str:
         name += f"_fpm{R.TAP_FALSE_PER_MIN_TARGET:.3f}"
         if TAP_SOFT_MIN_SCORE is not None:
             name += f"_soft{TAP_SOFT_MIN_SCORE:.2f}"
+        name += TAP_TAG
     else:
         name += f"_rel{LP_RELEASE_THRESHOLD:.2f}"
     return name
@@ -583,9 +604,18 @@ def _fingerprint(task, records, columns):
 
 def build_task_data(task: str, records, out: Path):
     """Training sample in memory, full replay rows in an on-disk float32 matrix (cached)."""
-    columns = common_p_core(records)
+    raw_columns = common_p_core(records)
+    derived = list(TF.DERIVED) if (task == "tap" and TAP_FEATURES == "diff") else []
+    if derived:
+        args = {a for pair in TF.DIFF_PAIRS + TF.RATIO_PAIRS for a in pair}
+        if not args <= set(raw_columns):
+            raise ValueError(f"Derived TAP inputs need raw fields that are missing: {sorted(args - set(raw_columns))[:5]}")
+        export_plus.validate_feature_schema_accessors(derived)
+    columns = raw_columns + derived              # derived TAP inputs are stored like any other column
     cache = out / "cache"
     fp = _fingerprint(task, records, columns)
+    if derived:                                  # the derived values depend on tap_features.py
+        fp = hashlib.sha256((fp + "|tap_features=" + TF.VERSION).encode()).hexdigest()
     stamp = cache / "fingerprint.json"
     if stamp.is_file() and json.loads(stamp.read_text()).get("fingerprint") == fp:
         notice("UNIFIED_CACHE_REUSED", task, cache)
@@ -647,7 +677,7 @@ def build_task_data(task: str, records, out: Path):
             rows, kinds = sample_tap(t, y_train, lab["any_active"].to_numpy(np.int8), ev, soft_rows)
         else:
             rows, kinds = sample_lp(t, y, lab["hold_ms"].to_numpy(np.int32), folder, ev)
-        source_cols = set(columns) | {"Timestamp", "User", lean8.FRAMES_COLUMN}
+        source_cols = set(raw_columns) | {"Timestamp", "User", lean8.FRAMES_COLUMN}
         df = pd.read_csv(source, compression="gzip", low_memory=False,
                          usecols=lambda c: c in source_cols)
         if len(df) != len(lab):
@@ -655,9 +685,11 @@ def build_task_data(task: str, records, out: Path):
         frames = df[lean8.FRAMES_COLUMN].to_numpy(np.int32)
         if not np.array_equal(pd.to_numeric(df["Timestamp"], errors="raise").to_numpy(np.int64), ts):
             raise ValueError(f"Timestamp mismatch: {source}")
-        X = df[columns].apply(pd.to_numeric, errors="raise").to_numpy(np.float32)
+        X = df[raw_columns].apply(pd.to_numeric, errors="raise").to_numpy(np.float32)
         if not np.isfinite(X).all():
             raise ValueError(f"Nonfinite firmware input in {source}")
+        if derived:
+            X = np.hstack([X, TF.derived(X, raw_columns)])
         user = str(df["User"].iloc[0]) if "User" in df.columns else ""
         who = v6.person_group(user, source.name[:-7])
         ri = len(recs)
@@ -1277,7 +1309,9 @@ def objective(trial, data, rpl, train_ids, task, budgets):
     t_start = time.perf_counter()
     CLOCK.reset()
     n_all = len(data["columns"])
-    n_features = trial.suggest_int("n_features", 1, n_all)
+    # The compact C node format indexes at most 254 model features: above that, K is capped and the ranking
+    # picks them (126/141/150-field runs are unchanged: their upper bound is n_all as before).
+    n_features = trial.suggest_int("n_features", 1, min(n_all, EXPORT_MAX_FEATURES))
     selected = list(range(n_all))
     lo, hi = POSITIVE_WEIGHT[task]
     positive_weight = trial.suggest_float("positive_weight", lo, hi, log=True)
@@ -1481,7 +1515,7 @@ def header_replay(hm: R.HeaderModel, rpl, groups, task, steady=False, lp_thresho
     return c.report() if c is not None else None
 
 
-def parity(hm: R.HeaderModel, model, rpl, groups, selected, task, k):
+def parity(hm: R.HeaderModel, model, rpl, groups, selected, task, k, header_cols=None):
     recs = rpl["recs"]
     if task == "tap":
         rr = recs[recs.group.isin(groups)]; ranges = list(zip(rr.start, rr.end))
@@ -1496,10 +1530,11 @@ def parity(hm: R.HeaderModel, model, rpl, groups, selected, task, k):
         return None
     X = np.concatenate([np.asarray(rpl["X"][a:b]) for a, b in rows])
     p = R.sigmoid(model.booster_.predict(np.ascontiguousarray(X[:, selected]), raw_score=True, num_iteration=k))
+    Xh = np.ascontiguousarray(X[:, selected if header_cols is None else header_cols])
     if task == "tap":
-        c = hm.predict_bool(np.ascontiguousarray(X[:, selected])).astype(bool); py = p >= FIXED_THRESHOLD
+        c = hm.predict_bool(Xh).astype(bool); py = p >= FIXED_THRESHOLD
         return dict(rows=len(X), decision_mismatch=float((c != py).mean()))
-    c = hm.value_q20(np.ascontiguousarray(X[:, selected])); py = R.q20(p)
+    c = hm.value_q20(Xh); py = R.q20(p)
     return dict(rows=len(X), q20_mismatch=float((c != py).mean()), q20_max_step_diff=int(np.abs(c - py).max()))
 
 
@@ -1579,12 +1614,15 @@ def export_candidates(data, rpl, task, stem, tr, te, picks, out: Path):
                         params, budget)
         k_pre, _ = trees_within(pre, budget); pre = truncated(pre, k_pre)
         h_pre, b_pre, _ = write_header(pre, subset, stem, out / "_holdout_headers" / role, task, out)
-        hm = R.HeaderModel(h_pre, subset, out / "_replay_build", prefer=stem.lower())
-        rpl_sub = dict(rpl, X=_ColumnView(rpl["X"], ix))
+        hm_cols = R.input_columns(subset); hm_ix = [cols.index(x) for x in hm_cols]   # + raw fields of helper calls
+        hm = R.HeaderModel(h_pre, hm_cols, out / "_replay_build", prefer=stem.lower())
+        rpl_sub = dict(rpl, X=_ColumnView(rpl["X"], hm_ix))
         pre_reports.append(dict(role=role, trial=trial.number, features_development=subset,
                                 holdout_c_header=header_replay(hm, rpl_sub, held, task),
                                 holdout_c_header_steady_state=header_replay(hm, rpl_sub, held, task, steady=True),
-                                holdout_model_bytes=b_pre, c_vs_python_parity=parity(hm, pre, rpl, held, ix, task, k_pre)))
+                                holdout_c_header_placement_stress=stress_replay(hm, rpl, cols, hm_ix, held, task),
+                                holdout_model_bytes=b_pre,
+                                c_vs_python_parity=parity(hm, pre, rpl, held, ix, task, k_pre, hm_ix)))
     write_json(out / "holdout_report.json", dict(
         note="Frozen before any model or feature ranking was fitted on the held-out people; never used to choose.",
         heldout_people=sorted(held), candidates=pre_reports))
@@ -1609,7 +1647,9 @@ def export_candidates(data, rpl, task, stem, tr, te, picks, out: Path):
                       header=str(header.relative_to(out)), cv=trial.user_attrs["cv"].get(str(budget)),
                       holdout_c_header=pre_rep["holdout_c_header"],
                       holdout_c_header_steady_state=pre_rep["holdout_c_header_steady_state"],
+                      holdout_c_header_placement_stress=pre_rep["holdout_c_header_placement_stress"],
                       features_holdout_candidate=pre_rep["features_development"],
+                      derived_features_used=[c for c in subset if R.helper_args(c)],
                       lean8_features_used=[c for c in subset if "cload_lean_8" in c],
                       holdout_model_bytes=pre_rep["holdout_model_bytes"],
                       c_vs_python_parity=pre_rep["c_vs_python_parity"], c_stub=checked,
@@ -1624,6 +1664,42 @@ def export_candidates(data, rpl, task, stem, tr, te, picks, out: Path):
                parity=report["c_vs_python_parity"])))
     export_candidates.rankings = (ranking_dev, ranking_all)
     return rows
+
+
+def stress_enabled(task) -> bool:
+    """The placement stress transforms raw EMG fields (and derived TAP inputs); Lean fields would not follow."""
+    return task == "tap" and LEAN8_MODE == "off"
+
+
+def _replay_rec_of_row(rpl):
+    m = rpl.get("_rec_of_row")
+    if m is None:
+        m = np.full(len(rpl["X"]), -1, np.int32)
+        for i, r in rpl["recs"].iterrows():
+            if r.start >= 0:
+                m[int(r.start):int(r.end)] = i
+        rpl["_rec_of_row"] = m
+    return m
+
+
+class _StressView:
+    """Replay rows after a simulated band move / contact change (TAP_GENERALIZATION_RESULTS.md 'placement': EMG gain
+    +-1 octave, tilt +-0.5 octave, contact noise 0.1..1.0; ACC unchanged), restricted to `sel` columns."""
+    def __init__(self, X, sel, columns, rec_of_row, draws):
+        self.X, self.sel, self.columns, self.rec, self.d = X, sel, columns, rec_of_row, draws
+    def __getitem__(self, s):
+        rows = np.asarray(self.X[s]); r = self.rec[s]
+        Y = TF.apply_placement(rows, self.columns, self.d["gain"][r], self.d["tilt"][r], self.d["noise"][r])
+        return Y[:, self.sel]
+    def __len__(self):
+        return len(self.X)
+
+
+def stress_replay(hm, rpl, cols, sel, groups, task):
+    if not stress_enabled(task):
+        return None
+    view = _StressView(rpl["X"], sel, list(cols), _replay_rec_of_row(rpl), TF.stress_draws(len(rpl["recs"])))
+    return header_replay(hm, dict(rpl, X=view), groups, task)
 
 
 class _ColumnView:
@@ -1661,6 +1737,8 @@ def replay_baselines(task, data, rpl, te, out: Path):
                              release_threshold=LP_BASELINE_RELEASE_THRESHOLD if task == "lp" else None,
                              holdout=header_replay(hm, rpl, held, task, lp_threshold=bthr),
                              holdout_steady_state=header_replay(hm, rpl, held, task, steady=True, lp_threshold=bthr),
+                             holdout_placement_stress=stress_replay(hm, rpl, data["columns"],
+                                                                    list(range(len(data["columns"]))), held, task),
                              all_people=header_replay(hm, rpl, everyone, task, lp_threshold=bthr),
                              note="all_people may include this baseline's own training data"))
         except Exception as exc:          # a baseline problem must never stop training
@@ -1677,6 +1755,11 @@ def comparison_table(task, candidates, baselines):
         text += (f"\nSteady state only (rows after {LEAN8_STEADY_FRAMES} Lean-8 frames, ~10.8 s, "
                  "i.e. lean_8_features_ready()):\n\n"
                  + _comparison_rows(task, candidates, baselines, "holdout_c_header_steady_state", "holdout_steady_state"))
+    if any(c.get("holdout_c_header_placement_stress") for c in candidates):
+        text += ("\nSimulated band move / contact change on the same held-out people (TAP_GENERALIZATION_RESULTS.md: EMG "
+                 "gain +-1 octave, spectral tilt +-0.5 octave, contact noise; ACC unchanged; the same draw for every "
+                 "model). A model that generalizes keeps recall without more false events:\n\n"
+                 + _comparison_rows(task, candidates, baselines, "holdout_c_header_placement_stress", "holdout_placement_stress"))
     rows = acceptance(task, candidates, baselines)
     if rows:
         text += ("\nAcceptance of the default header against each replayed baseline, held-out people "
@@ -1772,7 +1855,8 @@ def resolve_tap_target(data, rpl, tr, out: Path):
 
 
 def _family(name: str) -> str:
-    return ("Lean-8" if "cload_lean_8" in name else "ACC" if "acc_" in name else
+    return ("EMG diff" if name.startswith("p_core->diff(") else "WL ratio" if name.startswith("p_core->ratio(") else
+            "Lean-8" if "cload_lean_8" in name else "Lean-lite" if "cload_lite" in name else "ACC" if "acc_" in name else
             "EMG" if "emg_psd" in name else "WL" if ".wl" in name or "->wl" in name else "other")
 
 
@@ -1813,7 +1897,8 @@ def write_fs_reports(out: Path, task, data, study, candidates, default):
     write_json(d / "selected_features_by_trial.json", trials)
     final = dict(role=default["role"], trial=default["trial"], n_features=default["n_features"],
                  features=default["features"], features_holdout_candidate=default["features_holdout_candidate"],
-                 families={f: sum(_family(c) == f for c in default["features"]) for f in ("ACC", "EMG", "WL", "Lean-8")})
+                 families={f: sum(_family(c) == f for c in default["features"])
+                           for f in ("ACC", "EMG", "WL", "EMG diff", "WL ratio", "Lean-8", "Lean-lite")})
     write_json(d / "final_selected_features.json", final)
     ks = sorted({v["n_features"] for v in trials.values() if v["n_features"] is not None})
     lines = [f"# {task}: learned feature selection ({FS.RANKER_VERSION})", "",
@@ -1960,6 +2045,14 @@ def train_task(task: str, tap_files, lp_files):
                          "TAP target or soft labels changed); move it away to start a new experiment: " + str(out))
     out.mkdir(parents=True, exist_ok=True)
     data, rpl, info = build_task_data(task, selected_sources(task, tap_files, lp_files), out)
+    if task == "tap" and TAP_AUG == "mild":
+        # Training rows only (CV, rankings and final models train on them); every replay / held-out score uses
+        # the real recordings. Deterministic: the same draw per recording on every run and resume.
+        t_aug = time.perf_counter()
+        data["X"] = TF.augment(data["X"], data["columns"], data["rec"], len(rpl["recs"]), SEED)
+        # The training data differs from the cache files: the study guard and the ranking cache must see that.
+        data["content_sha256"] = hashlib.sha256((data["content_sha256"] + "|tap_aug=mild|" + TF.VERSION).encode()).hexdigest()
+        notice("UNIFIED_TAP_AUGMENTED", "mild placement", len(data["X"]), "rows", round(time.perf_counter() - t_aug, 1), "s")
     tr, te = split_heldout(data, task)
     notice("UNIFIED_TRAIN_BEGIN", json.dumps({
         "task": task, "subjects": len(set(data["group"])), "train_rows": len(tr), "holdout_rows": len(te),
@@ -1990,7 +2083,7 @@ def train_task(task: str, tap_files, lp_files):
         # LP anchors start at a release weight that puts the replay optimum near the release threshold.
         pw0 = LP_ANCHOR_POSITIVE_WEIGHT if task == "lp" else 1.0
         # Both anchors are the all-feature control (K = every available field).
-        fsel = dict(n_features=len(data["columns"]))
+        fsel = dict(n_features=min(len(data["columns"]), EXPORT_MAX_FEATURES))
         study.enqueue_trial(dict(**fsel, positive_weight=pw0, max_depth=6, num_leaves=15,
                                  n_estimators=160, learning_rate=0.1, min_child_samples=100, reg_lambda=1.0,
                                  reg_alpha=1e-3, colsample_bytree=0.8, subsample=0.8))
@@ -2039,6 +2132,8 @@ def train_task(task: str, tap_files, lp_files):
                    budgets=budgets, lean8=lean8_setting(), selected=default, skipped=skipped, candidates=candidates,
                    baselines=baselines, experiment=EXPERIMENT, tap_target=target_info, feature_selection=fs_report,
                    tap_soft_labels=TAP_SOFT_MIN_SCORE if task == "tap" else None,
+                   tap_generalization=(dict(features=TAP_FEATURES, augmentation=TAP_AUG, derived_inputs=len(TF.DERIVED)
+                                            if TAP_FEATURES == "diff" else 0) if task == "tap" else None),
                    acceptance=acceptance(task, candidates, baselines),
                    trials=len(done), pruned=len([t for t in study.trials if t.state == optuna.trial.TrialState.PRUNED]),
                    dataset=dict(train_rows=int(len(data["y"])), replay_rows=int(len(rpl["X"])),
@@ -2058,23 +2153,26 @@ def main():
     notice("UNIFIED_TRAINER_START", "cpu_threads", CPU_THREADS, "of", previous_tap.cpu_count(),
            "fold_workers", FOLD_WORKERS, "x", FOLD_THREADS, "threads", "lean8_inputs", LEAN8_MODE, "tap_threshold", FIXED_THRESHOLD,
            "lp_release_threshold", LP_RELEASE_THRESHOLD,
-           "budget_kb", MODEL_BUDGET_KB, "alt_budget_kb", ALT_BUDGET_KB, "trials", TRIALS_PER_MODEL)
+           "budget_kb", MODEL_BUDGET_KB, "alt_budget_kb", ALT_BUDGET_KB, "trials", TRIALS_PER_MODEL,
+           "tasks", ",".join(TASKS_TO_RUN), "tap_features", TAP_FEATURES, "tap_aug", TAP_AUG, "output", OUTPUT.name)
     generator = lite if USE_LITE else lean8      # also when no Lean inputs are used: the frame gates need it
     lean8_manifest = generator.ensure_datasets([(RAW_SOURCE_TAP, SOURCE_TAP), (RAW_SOURCE_LP, SOURCE_LP)],
                                                workers=CPU_THREADS)
     files_t = ensure_labels(RAW_SOURCE_TAP, LABEL_TAP)
     files_l = ensure_labels(RAW_SOURCE_LP, LABEL_LP)
-    a = train_task("tap", files_t, files_l)
-    b = train_task("lp", files_t, files_l)
+    done_ = {task: train_task(task, files_t, files_l) for task in ("tap", "lp") if task in TASKS_TO_RUN}
+    a, b = done_.get("tap"), done_.get("lp")
     write_json(OUTPUT / "UNIFIED_SUMMARY.json",
                dict(status="success", tap=a, lp=b, elapsed_s=round(time.monotonic() - t0, 1), baseline_unchanged=True,
+                    tasks=TASKS_TO_RUN,
                     lean8=dict(enabled=LEAN8_TAG, train_min_frames=TRAIN_MIN_FRAMES, eval_min_frames=EVAL_MIN_FRAMES,
                                steady_frames=LEAN8_STEADY_FRAMES,
                                firmware_parity=(lean8_manifest or {}).get("firmware_parity"),
                                generator_sha256=(lean8_manifest or {}).get("generator_sha256"))))
-    comp = "".join((OUTPUT / t / "COMPARISON.md").read_text() + "\n" for t in ("tap", "lp"))
+    comp = "".join((OUTPUT / t / "COMPARISON.md").read_text() + "\n" for t in ("tap", "lp") if t in TASKS_TO_RUN)
     (OUTPUT / "COMPARISON.md").write_text(comp)
-    notice("UNIFIED_BOTH_READY", str(OUTPUT / "tap" / "models" / "TAP_SWIPE.h"), str(OUTPUT / "lp" / "models" / "LONG_PRESS.h"))
+    notice("UNIFIED_BOTH_READY", *[str(OUTPUT / t / "models" / (h + ".h"))
+                                   for t, h in (("tap", "TAP_SWIPE"), ("lp", "LONG_PRESS")) if t in TASKS_TO_RUN])
 
 
 if __name__ == "__main__":

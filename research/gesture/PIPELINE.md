@@ -21,6 +21,14 @@ The EMG context inputs are an A/B switch with identical rows, labels and split i
     MUDRA_USE_LEAN8=0     python -u research/gesture/train_unified.py   # none
     MUDRA_USE_LEAN8=lite  python -u research/gesture/train_unified.py   # 15 integer Lean-lite fields (LEAN_LITE.md)
 
+TAP generalization (TAP_GENERALIZATION_RESULTS.md): EMG diffs + placement augmentation, TAP only, scored from frame 50:
+
+    MUDRA_USE_LEAN8=0 MUDRA_TAP_FEATURES=diff MUDRA_TAP_AUG=mild MUDRA_TASKS=tap MUDRA_EVAL_MIN_FRAMES=50 \
+        python -u research/gesture/train_unified.py
+
+With `MUDRA_USE_LEAN8=0` the TAP `COMPARISON.md` also replays every model and baseline under a simulated band move /
+contact change on the held-out people.
+
 ## Stages and what each one guarantees
 
 | Stage | What it does | Guarantee / check |

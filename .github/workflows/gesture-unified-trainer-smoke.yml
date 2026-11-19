@@ -9,6 +9,8 @@ on:
       - 'research/gesture/replay.py'
       - 'research/gesture/generate_lean8_features.py'
       - 'research/gesture/generate_lean_lite_features.py'
+      - 'research/gesture/tap_features.py'
+      - 'research/gesture/tap_generalization_research.py'
       - 'research/gesture/firmware/**'
       - 'research/gesture/bench_unified.py'
       - 'research/gesture/feature_selection.py'
@@ -58,7 +60,7 @@ jobs:
         run: bash research/gesture/firmware/check_arm_build.sh
       - name: Compile and execute real-source two-model smoke
         run: |
-          python -m py_compile research/gesture/train_unified.py research/gesture/replay.py research/gesture/generate_lean8_features.py research/gesture/generate_lean_lite_features.py research/gesture/bench_unified.py research/gesture/ablate_lean8.py research/gesture/feature_selection.py research/gesture/fs_research.py research/gesture/validate_events.py research/gesture/test_unified_smoke.py
+          python -m py_compile research/gesture/train_unified.py research/gesture/replay.py research/gesture/generate_lean8_features.py research/gesture/generate_lean_lite_features.py research/gesture/tap_features.py research/gesture/tap_generalization_research.py research/gesture/bench_unified.py research/gesture/ablate_lean8.py research/gesture/feature_selection.py research/gesture/fs_research.py research/gesture/validate_events.py research/gesture/test_unified_smoke.py
           python -u research/gesture/test_unified_smoke.py
       - uses: actions/upload-artifact@v4
         if: always()
@@ -73,5 +75,7 @@ jobs:
             research/gesture/_smoke_results_lite/tap/summary.json
             research/gesture/_smoke_results_lite/lp/summary.json
             research/gesture/_smoke_results_lite/COMPARISON.md
+            research/gesture/_smoke_results_no_lean8_tap-diff-mild/tap/summary.json
+            research/gesture/_smoke_results_no_lean8_tap-diff-mild/COMPARISON.md
           if-no-files-found: warn
           retention-days: 7

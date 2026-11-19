@@ -28,6 +28,7 @@ import train_unified as g
 import replay as R
 import generate_lean8_features as L8
 import generate_lean_lite_features as LL
+import tap_features as TF
 
 
 def lean8_handler_reference(wl_frames, psd_mean_frames):
@@ -170,6 +171,50 @@ def lean_lite_checks():
     p = m.predict_proba(X[:4000])[:, 1]
     assert (hm.value_q20(X[:4000]) == R.q20(p)).all()
     print("LEAN_LITE_CHECKS_PASSED", par["frames"], "frames exact", flush=True)
+
+
+def tap_generalization_checks():
+    """Derived TAP inputs and the placement transform: identity at zero change, and a model on raw + diff/ratio
+    fields exported, compiled and replayed through the C helpers equals Python (including int16 saturation)."""
+    import lightgbm as lgb
+    raw = list(g.RAW_126)
+    df = pd.read_csv(sorted(g.RAW_SOURCE_TAP.glob("TAP/*.csv.gz"))[0], usecols=lambda c: c in set(raw), low_memory=False)
+    Xr = df[raw].to_numpy(np.float32)[::7]
+    cols = raw + list(TF.DERIVED)
+    X = np.hstack([Xr, TF.derived(Xr, raw)])
+    n = len(X)
+    same = TF.apply_placement(X, cols, np.ones((n, 3)), np.ones((n, 3, 5)), np.zeros((n, 3)))
+    assert np.array_equal(same, X), "placement transform is not the identity at zero change"
+    d = TF.stress_draws(1)
+    moved = TF.apply_placement(X, cols, d["gain"][[0] * n], d["tilt"][[0] * n], d["noise"][[0] * n])
+    acc = [cols.index(c) for c in raw if c.startswith("p_core->acc")]
+    assert np.array_equal(moved[:, acc], X[:, acc]) and not np.array_equal(moved[:, :126], X[:, :126])
+    assert np.array_equal(moved[:, 126:], TF.derived(moved[:, :126], raw)), "derived fields not recomputed"
+    # Synthetic integer firmware values over the full uint16 range, so diff() saturates in int16.
+    rng = np.random.default_rng(4)
+    R_ = rng.integers(0, 65536, size=(20000, 126)).astype(np.float32)
+    R_[:, [raw.index(c) for c in raw if "wl" in c]] = rng.integers(0, 20000, size=(20000, 9))
+    F = np.hstack([R_, TF.derived(R_, raw)])
+    i_d = cols.index(TF.DIFF_NAMES[0]); i_r = cols.index(TF.RATIO_NAMES[4])
+    y = ((F[:, i_d] > 0).astype(int) ^ (F[:, i_r] > 1.0).astype(int))
+    subset = list(TF.DIFF_NAMES[:30]) + list(TF.RATIO_NAMES) + [c for c in raw if c.startswith("p_core->acc")][:10]   # helpers, not their args
+    ix = [cols.index(c) for c in subset]
+    m = lgb.LGBMClassifier(n_estimators=40, num_leaves=15, verbosity=-1, n_jobs=2, max_bin=255).fit(F[:, ix], y)
+    out = Path(tempfile.mkdtemp())
+    h, _, chk = g.write_header(m, subset, "TAP_SWIPE", out / "diff_models", "tap", out)
+    text = h.read_text()
+    assert "diff(" in text and "ratio(" in text and chk["status"] == "passed", chk
+    hm_cols = R.input_columns(subset)
+    assert len(hm_cols) > len(subset)
+    hm = R.HeaderModel(h, hm_cols, out / "build_diff", prefer="tap_swipe")
+    Xh = F[:, [cols.index(c) for c in hm_cols]]
+    p_ = m.predict_proba(F[:, ix])[:, 1]
+    assert (hm.value_q20(Xh[:5000]) == R.q20(p_[:5000])).all(), "C helper replay differs from Python"
+    try:
+        R.HeaderModel(h, subset, out / "build_bad", prefer="tap_swipe"); raise AssertionError("missing args accepted")
+    except ValueError:
+        pass
+    print("TAP_GENERALIZATION_CHECKS_PASSED", flush=True)
 
 
 def unit_checks():
@@ -438,7 +483,7 @@ SMOKE_RESULTS = dict(full="_smoke_results", off="_smoke_results_no_lean8", lite=
 def real_source_smoke(keep_input=False):
     """Runs in the trainer's own mode (MUDRA_USE_LEAN8). keep_input: reuse the sample and labels of a previous run."""
     sample_root = ROOT / "research" / "gesture" / "_smoke_input"
-    results = ROOT / "research" / "gesture" / SMOKE_RESULTS[g.LEAN8_MODE]
+    results = ROOT / "research" / "gesture" / (SMOKE_RESULTS[g.LEAN8_MODE] + g.TAP_TAG)
     for d in ((results,) if keep_input else (sample_root, ROOT / "research" / "gesture" / "_smoke_labels", results)):
         if d.exists():
             shutil.rmtree(d)
@@ -479,7 +524,8 @@ def real_source_smoke(keep_input=False):
         assert report["class_one"] == ("RELEASE/REST" if task == "lp" else "TAP/SWIPE onset")
         assert report["budgets"] == [8192, 6144]
         assert report["lean8"]["enabled"] == g.LEAN8_TAG
-        assert report["selected"]["features"] and set(report["selected"]["features"]) <= set(g.ALL_FEATURES)
+        allowed = set(g.ALL_FEATURES) | (set(TF.DERIVED) if task == "tap" and g.TAP_FEATURES == "diff" else set())
+        assert report["selected"]["features"] and set(report["selected"]["features"]) <= allowed
         assert report["experiment"] == "v3" and report["lean8"]["eval_min_frames"] == g.EVAL_MIN_FRAMES
         fs = report["feature_selection"]; assert fs and fs["default_k"] == len(report["selected"]["features"]), fs
         for f in ("fold_0_ranking.csv", "fold_1_ranking.csv", "selection_stability.json", "final_selected_features.json",
@@ -500,6 +546,14 @@ def real_source_smoke(keep_input=False):
             assert set(onsets.kind) <= {"strong", "press"} and (onsets.kind == "press").any()
             assert (onsets.hi > onsets.lo).all()
             cache_hash_compat_check(out / "cache")
+            if g.TAP_GENERALIZATION:
+                assert report["tap_generalization"] == dict(features=g.TAP_FEATURES, augmentation=g.TAP_AUG,
+                                                            derived_inputs=144 if g.TAP_FEATURES == "diff" else 0)
+                with np.load(out / "cache" / "replay_meta.npz") as z:
+                    assert int(z["ncol"]) == 126 + (144 if g.TAP_FEATURES == "diff" else 0), int(z["ncol"])
+            if g.LEAN8_MODE == "off":                                   # placement stress (report only)
+                assert "Simulated band move" in (out / "COMPARISON.md").read_text()
+                assert all(c["holdout_c_header_placement_stress"] for c in report["candidates"])
         gate = report["dataset"]["counts"]["lean8_gate"]
         assert 0 < gate["train_rows_used"] <= gate["train_rows_built"], gate
         assert "Steady state only" in (out / "COMPARISON.md").read_text()
@@ -603,18 +657,21 @@ def real_source_smoke(keep_input=False):
 
 
 if __name__ == "__main__":
-    if "--lite-arm" in sys.argv:                 # second process, MUDRA_USE_LEAN8=lite: reuse sample and labels
-        assert g.USE_LITE, "run with MUDRA_USE_LEAN8=lite"
+    if "--lite-arm" in sys.argv or "--second-arm" in sys.argv:   # extra process in another mode: reuse sample, labels
+        assert "--second-arm" in sys.argv or g.USE_LITE, "run with MUDRA_USE_LEAN8=lite"
         real_source_smoke(keep_input=True)
         sys.exit(0)
     lean8_checks()
     lean_lite_checks()
+    tap_generalization_checks()
     unit_checks()
     validate_events_checks()
     if "--unit-only" not in sys.argv:
         real_source_smoke()
         if g.LEAN8_MODE == "full" and "--no-lite-arm" not in sys.argv:
-            env = dict(os.environ, MUDRA_USE_LEAN8="lite")
-            p = subprocess.run([sys.executable, "-u", __file__, "--lite-arm"], env=env)
-            if p.returncode:
-                raise SystemExit(f"Lean-lite real-source smoke failed ({p.returncode})")
+            for name, extra in (("Lean-lite", dict(MUDRA_USE_LEAN8="lite")),
+                                ("TAP diff + mild augmentation", dict(MUDRA_USE_LEAN8="0", MUDRA_TAP_FEATURES="diff",
+                                                                      MUDRA_TAP_AUG="mild"))):
+                p = subprocess.run([sys.executable, "-u", __file__, "--second-arm"], env=dict(os.environ, **extra))
+                if p.returncode:
+                    raise SystemExit(f"{name} real-source smoke failed ({p.returncode})")
