@@ -1,65 +1,65 @@
 {
   "best_metrics": {
     "bag_count": 2790,
-    "doubletap_finger_auc": 0.7435128243587821,
+    "doubletap_finger_auc": 0.7329383530823459,
     "folds": [
       {
         "fold": 0,
         "test_events": 60029,
         "test_people": 4,
-        "train_events": 163714
+        "train_events": 240370
       },
       {
         "fold": 1,
         "test_events": 60012,
         "test_people": 14,
-        "train_events": 176572
+        "train_events": 240387
       },
       {
         "fold": 2,
         "test_events": 60057,
         "test_people": 13,
-        "train_events": 172520
+        "train_events": 240342
       },
       {
         "fold": 3,
         "test_events": 60083,
         "test_people": 13,
-        "train_events": 175752
+        "train_events": 240316
       },
       {
         "fold": 4,
         "test_events": 60218,
         "test_people": 12,
-        "train_events": 171382
+        "train_events": 240181
       }
     ],
-    "max_recording_score_finger_p95_exploratory": 0.92097487449646,
-    "midtap_finger_auc": 0.7643536697337319,
-    "positive_bag_count": 1246,
-    "primary_tap_finger_ap": 0.9036812652639359,
-    "primary_tap_finger_auc": 0.7494471985871011,
-    "softtap_finger_auc": 0.7464623145654312,
-    "strongtap_finger_auc": 0.7053605195198115,
-    "taponmotion_finger_auc": 0.8120887224869526,
-    "target_all_hardneg_ap": 0.8596771017219951,
-    "target_all_hardneg_auc": 0.7847209836910212,
-    "target_all_hardneg_top3_auc": 0.7992365693676554
+    "max_recording_score_finger_p95_exploratory": 0.932416421175003,
+    "midtap_finger_auc": 0.7821748813221591,
+    "positive_bag_count": 2142,
+    "primary_tap_finger_ap": 0.9213394469193689,
+    "primary_tap_finger_auc": 0.7743824486143269,
+    "softtap_finger_auc": 0.8259319823863879,
+    "strongtap_finger_auc": 0.7025511361794549,
+    "taponmotion_finger_auc": 0.8120745405037441,
+    "target_all_hardneg_ap": 0.9153186866518724,
+    "target_all_hardneg_auc": 0.7784225830249796,
+    "target_all_hardneg_top3_auc": 0.7855154407441989
   },
   "best_trial": {
     "finger_weight": 3.0,
     "mode": "relative",
     "order": "native",
-    "positive_selection": "mil8",
+    "positive_selection": "mil1",
     "post_ms": 640,
-    "pre_ms": 100,
-    "representation": "temporal",
-    "task": "tap",
-    "trial_id": "d8f9c865eabd51de"
+    "pre_ms": 60,
+    "representation": "wave",
+    "task": "combined",
+    "trial_id": "737b1851fa53b520"
   },
-  "completed_trials": 3460,
+  "completed_trials": 5243,
   "failed_trials": 0,
-  "passed_trials": 3460,
+  "passed_trials": 5243,
   "research_restrictions": [
     "No V5 pseudo positives used as truth",
     "No pointer, metronome, filenames or BPM in feature matrix",
