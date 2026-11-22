@@ -1,0 +1,74 @@
+name: TAP V3 full candidate labels and integrity audit
+on:
+  push:
+    branches:
+      - research/tap-real-benchmark-20261116
+    paths:
+      - '.github/workflows/tap-v3-export-integrity.yml'
+  workflow_dispatch:
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            DATA/DATA_TAP
+            research/tap_real
+            .github/workflows
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install numpy pandas scipy
+      - name: Export all V3 candidate sidecars without modifying source
+        run: |
+          set -o pipefail
+          python -u research/tap_real/tap_event_shape_v3.py --input-dir DATA/DATA_TAP --out-dir research/tap_real/results_v3_labels 2>&1 | tee tap_v3_export.log
+      - name: Check no fabricated positives, no source mutation, candidate and pair fields
+        run: |
+          python - <<'PY'
+          import json,gzip,csv,hashlib
+          from pathlib import Path
+          out=Path('research/tap_real/results_v3_labels')
+          manifest=[json.loads(line) for line in (out/'manifest.jsonl').read_text().splitlines()]
+          ok=[e for e in manifest if e.get('status')=='OK']
+          dup=[e for e in manifest if e.get('status')=='DUPLICATE']
+          bad=[e for e in manifest if e.get('status')=='FAILED']
+          assert len(ok)==2790, (len(ok),len(dup),len(bad))
+          assert len(dup)==131, (len(ok),len(dup),len(bad))
+          assert not bad,bad[:10]
+          pair_total=sum(e.get('double_pair_candidates',0) for e in ok)
+          double=[e for e in ok if e['category']=='TAP' and 'doubletap' in e['source'].lower()]
+          assert len(double)==118,len(double)
+          for e in ok:
+              assert e.get('positive_events',0)==0,e['source']
+              # Read back actual saved labels to check their schema and state.
+              name=Path(e['source']).name.removesuffix('.csv.gz').removesuffix('.csv')
+              fn=out/e['category']/(name+'.labels.csv.gz')
+              assert fn.is_file(),str(fn)
+              with gzip.open(fn,'rt') as f:
+                  reader=csv.DictReader(f)
+                  cols=set(reader.fieldnames)
+                  assert {'tap_label','tap_event_id','tap_candidate_id','tap_pair_id','tap_candidate_shape_score'}<=cols
+                  for row in reader:
+                      assert row['tap_label'] in ('0','-1'),(e['source'],row['tap_label'])
+                      assert row['tap_event_id']=='-1',(e['source'],row['tap_event_id'])
+          result={'checked':len(ok),'duplicates':len(dup),'failed':len(bad),
+                  'double_files':len(double),
+                  'double_pairs_morphology_only':sum(e.get('double_pair_candidates',0) for e in double),
+                  'all_candidate_pair_ids':pair_total,
+                  'confirmed_positive_events':0,
+                  'message':'V3 teacher only, no verified physical tap ground truth; never train production directly'}
+          (out/'integrity_summary.json').write_text(json.dumps(result,indent=2))
+          print('V3_INTEGRITY_RESULT',json.dumps(result),flush=True)
+          PY
+      - name: Upload evidence, versioned candidate sidecars
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tap-v3-full-candidate-sidecars
+          path: |
+            research/tap_real/results_v3_labels/**
+            tap_v3_export.log
+          retention-days: 14

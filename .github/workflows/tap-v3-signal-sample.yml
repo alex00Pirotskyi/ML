@@ -1,0 +1,59 @@
+name: TAP V3 representative signal sample
+on:
+  push:
+    branches:
+      - research/tap-real-benchmark-20261116
+    paths:
+      - '.github/workflows/tap-v3-signal-sample.yml'
+jobs:
+  sample:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            DATA/DATA_TAP
+            .github/workflows
+      - name: Select representative signals without modifying source data
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from collections import defaultdict
+          import random,hashlib,shutil,json
+          r=random.Random(20261116)
+          root=Path("DATA/DATA_TAP")
+          cohorts=defaultdict(list)
+          for f in sorted(root.rglob("*.csv.gz")):
+              if f.parent.name not in ("TAP","SWIPE","FINGER","WRIST","ARM","BAND","NOTHING"):continue
+              name=f.name.lower()
+              if f.parent.name=="TAP":
+                  kind="double" if "doubletap" in name else "soft" if "softtap" in name else "mid" if "midtap" in name else "other"
+              else:kind=f.parent.name.lower()
+              cohorts[kind].append(f)
+          quotas={"double":25,"soft":25,"mid":15,"other":10,"swipe":27,"finger":15,"wrist":12,"arm":12,"band":8,"nothing":5}
+          chosen=[];digests=set()
+          for kind in quotas:
+              pool=cohorts.get(kind,[]);r.shuffle(pool);n=0
+              for f in pool:
+                  d=hashlib.sha256(f.read_bytes()).digest()
+                  if d in digests:continue
+                  digests.add(d);chosen.append(f)
+                  n+=1
+                  if n>=quotas[kind]:break
+          output=Path("tap_v3_samples/DATA/DATA_TAP")
+          for f in chosen:
+              p=output/f.relative_to(root);p.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(f,p)
+          def classify(f):
+              if f.parent.name!="TAP":return f.parent.name.lower()
+              name=f.name.lower()
+              return "double" if "doubletap" in name else "soft" if "softtap" in name else "mid" if "midtap" in name else "other"
+          result={"count":len(chosen),"by_cohort":{k:sum(classify(f)==k for f in chosen) for k in quotas}}
+          Path("tap_v3_samples/sample_manifest.json").write_text(json.dumps(result,indent=2))
+          print(json.dumps(result,indent=2),flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tap-v3-signals-sampled
+          path: tap_v3_samples/
+          retention-days: 3
