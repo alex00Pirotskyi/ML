@@ -57,9 +57,9 @@
     "task": "combined",
     "trial_id": "737b1851fa53b520"
   },
-  "completed_trials": 5243,
+  "completed_trials": 10583,
   "failed_trials": 0,
-  "passed_trials": 5243,
+  "passed_trials": 10583,
   "research_restrictions": [
     "No V5 pseudo positives used as truth",
     "No pointer, metronome, filenames or BPM in feature matrix",

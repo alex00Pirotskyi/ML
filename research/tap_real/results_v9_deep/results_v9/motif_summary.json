@@ -1,0 +1,185 @@
+{
+  "experiments": [
+    {
+      "clusters": 8,
+      "note": "Unsupervised waveform clusters; recording-bag enrichment; no event truth",
+      "post_ms": 120,
+      "pre_ms": 80,
+      "representation": "spectrum",
+      "tap_allneg_recording_auc": 0.4187090046172443,
+      "tap_finger_recording_auc": 0.427265775555524
+    },
+    {
+      "clusters": 16,
+      "note": "Unsupervised waveform clusters; recording-bag enrichment; no event truth",
+      "post_ms": 120,
+      "pre_ms": 80,
+      "representation": "spectrum",
+      "tap_allneg_recording_auc": 0.3960005350454789,
+      "tap_finger_recording_auc": 0.4136659138150637
+    },
+    {
+      "clusters": 32,
+      "note": "Unsupervised waveform clusters; recording-bag enrichment; no event truth",
+      "post_ms": 120,
+      "pre_ms": 80,
+      "representation": "spectrum",
+      "tap_allneg_recording_auc": 0.4152621722846441,
+      "tap_finger_recording_auc": 0.43894089404679043
+    },
+    {
+      "clusters": 64,
+      "note": "Unsupervised waveform clusters; recording-bag enrichment; no event truth",
+      "post_ms": 120,
+      "pre_ms": 80,
+      "representation": "spectrum",
+      "tap_allneg_recording_auc": 0.45505865683768304,
+      "tap_finger_recording_auc": 0.48166403878842984
+    },
+    {
+      "clusters": 8,
+      "note": "Unsupervised waveform clusters; recording-bag enrichment; no event truth",
+      "post_ms": 240,
+      "pre_ms": 120,
+      "representation": "moments",
+      "tap_allneg_recording_auc": 0.5467304014822743,
+      "tap_finger_recording_auc": 0.5320328887247452
+    },
+    {
+      "clusters": 16,
+      "note": "Unsupervised waveform clusters; recording-bag enrichment; no event truth",
+      "post_ms": 240,
+      "pre_ms": 120,
+      "representation": "moments",
+      "tap_allneg_recording_auc": 0.42358943681509226,
+      "tap_finger_recording_auc": 0.47715166408613763
+    },
+    {
+      "clusters": 32,
+      "note": "Unsupervised waveform clusters; recording-bag enrichment; no event truth",
+      "post_ms": 240,
+      "pre_ms": 120,
+      "representation": "moments",
+      "tap_allneg_recording_auc": 0.4018197738937439,
+      "tap_finger_recording_auc": 0.4389101170944663
+    },
+    {
+      "clusters": 64,
+      "note": "Unsupervised waveform clusters; recording-bag enrichment; no event truth",
+      "post_ms": 240,
+      "pre_ms": 120,
+      "representation": "moments",
+      "tap_allneg_recording_auc": 0.42323273982918175,
+      "tap_finger_recording_auc": 0.47055711018622426
+    },
+    {
+      "clusters": 8,
+      "note": "Unsupervised waveform clusters; recording-bag enrichment; no event truth",
+      "post_ms": 320,
+      "pre_ms": 160,
+      "representation": "hybrid",
+      "tap_allneg_recording_auc": 0.5114093494243307,
+      "tap_finger_recording_auc": 0.5105647807497266
+    },
+    {
+      "clusters": 16,
+      "note": "Unsupervised waveform clusters; recording-bag enrichment; no event truth",
+      "post_ms": 320,
+      "pre_ms": 160,
+      "representation": "hybrid",
+      "tap_allneg_recording_auc": 0.4300248449358936,
+      "tap_finger_recording_auc": 0.48229615004001003
+    },
+    {
+      "clusters": 32,
+      "note": "Unsupervised waveform clusters; recording-bag enrichment; no event truth",
+      "post_ms": 320,
+      "pre_ms": 160,
+      "representation": "hybrid",
+      "tap_allneg_recording_auc": 0.42203693795454095,
+      "tap_finger_recording_auc": 0.46093931258493254
+    },
+    {
+      "clusters": 64,
+      "note": "Unsupervised waveform clusters; recording-bag enrichment; no event truth",
+      "post_ms": 320,
+      "pre_ms": 160,
+      "representation": "hybrid",
+      "tap_allneg_recording_auc": 0.4731121068901968,
+      "tap_finger_recording_auc": 0.5084754991784921
+    },
+    {
+      "clusters": 8,
+      "note": "Unsupervised waveform clusters; recording-bag enrichment; no event truth",
+      "post_ms": 480,
+      "pre_ms": 240,
+      "representation": "temporal",
+      "tap_allneg_recording_auc": 0.5121710461129937,
+      "tap_finger_recording_auc": 0.5184720900391577
+    },
+    {
+      "clusters": 16,
+      "note": "Unsupervised waveform clusters; recording-bag enrichment; no event truth",
+      "post_ms": 480,
+      "pre_ms": 240,
+      "representation": "temporal",
+      "tap_allneg_recording_auc": 0.4056003903850346,
+      "tap_finger_recording_auc": 0.42484386615340186
+    },
+    {
+      "clusters": 32,
+      "note": "Unsupervised waveform clusters; recording-bag enrichment; no event truth",
+      "post_ms": 480,
+      "pre_ms": 240,
+      "representation": "temporal",
+      "tap_allneg_recording_auc": 0.511081138656045,
+      "tap_finger_recording_auc": 0.557649966618844
+    },
+    {
+      "clusters": 64,
+      "note": "Unsupervised waveform clusters; recording-bag enrichment; no event truth",
+      "post_ms": 480,
+      "pre_ms": 240,
+      "representation": "temporal",
+      "tap_allneg_recording_auc": 0.48515991914868317,
+      "tap_finger_recording_auc": 0.5667078604336236
+    },
+    {
+      "clusters": 8,
+      "note": "Unsupervised waveform clusters; recording-bag enrichment; no event truth",
+      "post_ms": 640,
+      "pre_ms": 320,
+      "representation": "moments",
+      "tap_allneg_recording_auc": 0.4628867932940967,
+      "tap_finger_recording_auc": 0.5296879217034333
+    },
+    {
+      "clusters": 16,
+      "note": "Unsupervised waveform clusters; recording-bag enrichment; no event truth",
+      "post_ms": 640,
+      "pre_ms": 320,
+      "representation": "moments",
+      "tap_allneg_recording_auc": 0.4398129570180133,
+      "tap_finger_recording_auc": 0.4971270898734357
+    },
+    {
+      "clusters": 32,
+      "note": "Unsupervised waveform clusters; recording-bag enrichment; no event truth",
+      "post_ms": 640,
+      "pre_ms": 320,
+      "representation": "moments",
+      "tap_allneg_recording_auc": 0.40588153696767926,
+      "tap_finger_recording_auc": 0.48891082733182767
+    },
+    {
+      "clusters": 64,
+      "note": "Unsupervised waveform clusters; recording-bag enrichment; no event truth",
+      "post_ms": 640,
+      "pre_ms": 320,
+      "representation": "moments",
+      "tap_allneg_recording_auc": 0.4375569724352496,
+      "tap_finger_recording_auc": 0.5020514022452971
+    }
+  ],
+  "limitations": "OOF recording-bag scores only, not verified per-event taps"
+}

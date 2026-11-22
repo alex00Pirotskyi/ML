@@ -1,0 +1,44 @@
+{
+  "ablation": {
+    "CH1_CH2_zero": {
+      "tap_finger_recording_auc": 0.5316611978389845,
+      "target_allneg_recording_auc": 0.523946409839656
+    },
+    "CH1_CH3_zero": {
+      "tap_finger_recording_auc": 0.6462165655762155,
+      "target_allneg_recording_auc": 0.6284156666781939
+    },
+    "CH1_zero": {
+      "tap_finger_recording_auc": 0.6969760460612604,
+      "target_allneg_recording_auc": 0.7089965101266844
+    },
+    "CH2_CH3_zero": {
+      "tap_finger_recording_auc": 0.5329502786497914,
+      "target_allneg_recording_auc": 0.49690925753017257
+    },
+    "CH2_zero": {
+      "tap_finger_recording_auc": 0.7092655198700739,
+      "target_allneg_recording_auc": 0.6923655779184104
+    },
+    "CH3_zero": {
+      "tap_finger_recording_auc": 0.5677282347760622,
+      "target_allneg_recording_auc": 0.5922438934421506
+    },
+    "none": {
+      "tap_finger_recording_auc": 0.7743824486143269,
+      "target_allneg_recording_auc": 0.7784225830249796
+    }
+  },
+  "best_configuration": {
+    "finger_weight": 3.0,
+    "mode": "relative",
+    "order": "native",
+    "positive_selection": "mil1",
+    "post_ms": 640,
+    "pre_ms": 60,
+    "representation": "wave",
+    "task": "combined",
+    "trial_id": "737b1851fa53b520"
+  },
+  "limitations": "Numerically setting PSD electrode channel deltas to zero is not a substitute for real partial-contact data."
+}

@@ -1,0 +1,65 @@
+{
+  "minimum_date_auc": 0.5333333333333333,
+  "per_date_auc": [
+    {
+      "date": "2025-12-28",
+      "files": 22,
+      "participant_hash": "4135aa9dc1b842",
+      "tap_finger_auc": 0.5333333333333333
+    },
+    {
+      "date": "2026-01-29",
+      "files": 49,
+      "participant_hash": "ded7d3dadcb94f",
+      "tap_finger_auc": 0.9210526315789473
+    },
+    {
+      "date": "2025-12-29",
+      "files": 39,
+      "participant_hash": "a3938f36e33b46",
+      "tap_finger_auc": 0.746031746031746
+    },
+    {
+      "date": "2026-01-29",
+      "files": 48,
+      "participant_hash": "34550715062af0",
+      "tap_finger_auc": 0.9962962962962962
+    },
+    {
+      "date": "2026-08-05",
+      "files": 42,
+      "participant_hash": "34550715062af0",
+      "tap_finger_auc": 0.8839506172839506
+    },
+    {
+      "date": "2026-01-29",
+      "files": 34,
+      "participant_hash": "d6b4ff43f08cb8",
+      "tap_finger_auc": 0.8854166666666667
+    },
+    {
+      "date": "2025-12-29",
+      "files": 38,
+      "participant_hash": "64426c1935f414",
+      "tap_finger_auc": 0.9361111111111111
+    },
+    {
+      "date": "2025-12-30",
+      "files": 41,
+      "participant_hash": "64426c1935f414",
+      "tap_finger_auc": 0.7354838709677419
+    },
+    {
+      "date": "2025-12-31",
+      "files": 48,
+      "participant_hash": "64426c1935f414",
+      "tap_finger_auc": 0.5703703703703703
+    },
+    {
+      "date": "2026-02-16",
+      "files": 49,
+      "participant_hash": "64426c1935f414",
+      "tap_finger_auc": 0.8100358422939068
+    }
+  ]
+}
