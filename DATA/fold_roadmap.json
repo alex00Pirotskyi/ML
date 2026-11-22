@@ -7,19 +7,19 @@
   "seed": 20261011,
   "source_folder": "TAP_DATA_VALID",
   "output_folder": "DATA",
-  "data_fingerprint_sha256": "70d597d3c3495ffc7673646abdae4dc88a17e285a4fd24d1d8f8c00905ce7075",
+  "data_fingerprint_sha256": "22abcbc2824e2e00b625c086a9f081bc4ad3b929fce23dba6252bf249b3c06c0",
   "person_grouping_mode": "conservative_first_name",
-  "optimization_objective": 268.75543718886297,
+  "optimization_objective": 268.4989072219952,
   "reuse_existing_roadmap": true,
-  "frozen_subject_group_count": 56,
+  "frozen_subject_group_count": 57,
   "summary": {
-    "organized_source_files": 3200,
-    "total_input_rows": 6870460,
-    "unique_usable_files": 3063,
-    "unique_usable_rows": 6607306,
+    "organized_source_files": 3209,
+    "total_input_rows": 6886220,
+    "unique_usable_files": 3072,
+    "unique_usable_rows": 6623066,
     "duplicated_source_files": 137,
     "independent_group_count": 57,
-    "unmatched_source_files": 22,
+    "unmatched_source_files": 13,
     "failed_source_files": 0
   },
   "subject_assignments": {
@@ -334,21 +334,21 @@
     {
       "fold_id": 1,
       "subject_groups": 12,
-      "unique_source_files": 607,
-      "unique_sample_rows": 1264200,
+      "unique_source_files": 616,
+      "unique_sample_rows": 1279960,
       "excluded_duplicate_or_empty_files": 55,
       "datasets": {
         "DATA_TAP": {
-          "file_count": 552,
-          "sample_rows": 1041709,
+          "file_count": 561,
+          "sample_rows": 1057469,
           "by_class": {
             "1": {
               "files": 439,
               "rows": 801531
             },
             "3": {
-              "files": 60,
-              "rows": 121856
+              "files": 69,
+              "rows": 137616
             },
             "5": {
               "files": 24,
@@ -463,6 +463,18 @@
             "TAP/tapwithcontaction": {
               "files": 3,
               "rows": 5040
+            },
+            "FINGER/index_finger": {
+              "files": 3,
+              "rows": 5301
+            },
+            "FINGER/mid_finger": {
+              "files": 3,
+              "rows": 5287
+            },
+            "FINGER/ring_finger": {
+              "files": 3,
+              "rows": 5172
             },
             "TAP/tapwiththepalmbentdown": {
               "files": 3,
@@ -1753,6 +1765,30 @@
       "additional_avoidable_gap": false
     },
     {
+      "stratum": "DATA_TAP/gesture/FINGER/index_finger",
+      "independent_subjects": 1,
+      "folds_represented": 1,
+      "max_possible_folds": 1,
+      "reason": "insufficient_independent_subjects",
+      "additional_avoidable_gap": false
+    },
+    {
+      "stratum": "DATA_TAP/gesture/FINGER/mid_finger",
+      "independent_subjects": 1,
+      "folds_represented": 1,
+      "max_possible_folds": 1,
+      "reason": "insufficient_independent_subjects",
+      "additional_avoidable_gap": false
+    },
+    {
+      "stratum": "DATA_TAP/gesture/FINGER/ring_finger",
+      "independent_subjects": 1,
+      "folds_represented": 1,
+      "max_possible_folds": 1,
+      "reason": "insufficient_independent_subjects",
+      "additional_avoidable_gap": false
+    },
+    {
       "stratum": "DATA_TAP/gesture/NOTHING/nothing",
       "independent_subjects": 2,
       "folds_represented": 2,
@@ -1800,7 +1836,7 @@
     "Same organized CSV despite different raw input hashes: s_MidLongPress_Reverse_NONE_0bpm_2026-06-03_12-54-15.csv vs kirilleft_MidLongPress_Reverse_NONE_0bpm_2026-01-04_13-54-15.csv; only one copy will be trainable",
     "Same organized CSV despite different raw input hashes: kirilleft_SoftLongPress_Horizontal_NONE_0bpm_2026-01-04_13-55-01.csv vs s_SoftLongPress_Horizontal_NONE_0bpm_2026-06-03_12-55-01.csv; only one copy will be trainable",
     "Same organized CSV despite different raw input hashes: s_SoftLongPress_Reverse_NONE_0bpm_2026-06-03_12-56-15.csv vs kirilleft_SoftLongPress_Reverse_NONE_0bpm_2026-01-04_13-56-15.csv; only one copy will be trainable",
-    "Reused 56 participant fold assignments from the existing JSON"
+    "Reused 57 participant fold assignments from the existing JSON"
   ],
   "files": [
     {
@@ -6484,6 +6520,40 @@
       "duplicate_of_file_id": null
     },
     {
+      "file_id": "file_09681c82c2da2348cd098e61",
+      "source_relative_path": "omer_gilinsky_RightHand_Mid_Finger_Reverse_Default_60bpm_2026-09-23_12-40-23-855.csv",
+      "filename": "omer_gilinsky_RightHand_Mid_Finger_Reverse_Default_60bpm_2026-09-23_12-40-23-855.csv",
+      "user_raw": "omer gilinsky",
+      "user_values": null,
+      "filename_person": "omer_gilinsky_RightHand",
+      "subject_id": "omer",
+      "subject_full_name_hint": "omer_gilinsky",
+      "identity_low_quality_user": false,
+      "gesture": "mid_finger",
+      "gesture_raw": "Mid_Finger",
+      "orientation": "REVERSE",
+      "direction": "DEFAULT",
+      "hand": "RIGHT",
+      "bpm": 60,
+      "recording_date": "2026-09-23",
+      "sample_rows": 1725,
+      "destinations": [
+        {
+          "dataset": "DATA_TAP",
+          "category": "FINGER",
+          "class_id": 3,
+          "relative_csv_path": "DATA_TAP/FINGER/omer_gilinsky_RightHand_Mid_Finger_Reverse_Default_60bpm_2026-09-23_12-40-23-855.csv"
+        }
+      ],
+      "content_sha256": "5fb00892d3adc35d0ad7ddf9491f32dd6adcfc674dfa254b80a4c9d867abe985",
+      "organized_content_sha256": "08e463d775d9c3320f27f1b25c48f1f0dd2ef1efe5ca4ebea840245dc86e2c67",
+      "recording_id": "rec_5fb00892d3adc35d0ad7ddf9",
+      "fold_id": 1,
+      "canonical_file_id": "file_09681c82c2da2348cd098e61",
+      "exclude_from_training": false,
+      "duplicate_of_file_id": null
+    },
+    {
       "file_id": "file_097b184a4c5032a0640a8dfc",
       "source_relative_path": "Shay_left_Thumb_Reverse_Default_60bpm_2026-02-02_10-41-05.csv",
       "filename": "Shay_left_Thumb_Reverse_Default_60bpm_2026-02-02_10-41-05.csv",
@@ -7248,6 +7318,40 @@
       "recording_id": "rec_82b12840044cd0af43e7974c",
       "fold_id": 0,
       "canonical_file_id": "file_0b34cb9fcf9bfdd01ce99451",
+      "exclude_from_training": false,
+      "duplicate_of_file_id": null
+    },
+    {
+      "file_id": "file_0b5172a7418d54f2fdc2f6a1",
+      "source_relative_path": "omer_gilinsky_RightHand_Index_Finger_Reverse_Default_60bpm_2026-09-23_12-39-35-778.csv",
+      "filename": "omer_gilinsky_RightHand_Index_Finger_Reverse_Default_60bpm_2026-09-23_12-39-35-778.csv",
+      "user_raw": "omer gilinsky",
+      "user_values": null,
+      "filename_person": "omer_gilinsky_RightHand",
+      "subject_id": "omer",
+      "subject_full_name_hint": "omer_gilinsky",
+      "identity_low_quality_user": false,
+      "gesture": "index_finger",
+      "gesture_raw": "Index_Finger",
+      "orientation": "REVERSE",
+      "direction": "DEFAULT",
+      "hand": "RIGHT",
+      "bpm": 60,
+      "recording_date": "2026-09-23",
+      "sample_rows": 1760,
+      "destinations": [
+        {
+          "dataset": "DATA_TAP",
+          "category": "FINGER",
+          "class_id": 3,
+          "relative_csv_path": "DATA_TAP/FINGER/omer_gilinsky_RightHand_Index_Finger_Reverse_Default_60bpm_2026-09-23_12-39-35-778.csv"
+        }
+      ],
+      "content_sha256": "49fd3c033c2945568f8557b16780ac0690d9b979c0962487b11b16fc26367844",
+      "organized_content_sha256": "d4429200317df6bc53211ab1147ad23230d98537e16019900bf0c4a740ee8a50",
+      "recording_id": "rec_49fd3c033c2945568f8557b1",
+      "fold_id": 1,
+      "canonical_file_id": "file_0b5172a7418d54f2fdc2f6a1",
       "exclude_from_training": false,
       "duplicate_of_file_id": null
     },
@@ -25564,6 +25668,40 @@
       "duplicate_of_file_id": null
     },
     {
+      "file_id": "file_321d9666eec1970cdd13798b",
+      "source_relative_path": "omer_gilinsky_RightHand_Ring_Finger_Horizontal_Default_60bpm_2026-09-23_12-40-43-131.csv",
+      "filename": "omer_gilinsky_RightHand_Ring_Finger_Horizontal_Default_60bpm_2026-09-23_12-40-43-131.csv",
+      "user_raw": "omer gilinsky",
+      "user_values": null,
+      "filename_person": "omer_gilinsky_RightHand",
+      "subject_id": "omer",
+      "subject_full_name_hint": "omer_gilinsky",
+      "identity_low_quality_user": false,
+      "gesture": "ring_finger",
+      "gesture_raw": "Ring_Finger",
+      "orientation": "HORIZONTAL",
+      "direction": "DEFAULT",
+      "hand": "RIGHT",
+      "bpm": 60,
+      "recording_date": "2026-09-23",
+      "sample_rows": 1712,
+      "destinations": [
+        {
+          "dataset": "DATA_TAP",
+          "category": "FINGER",
+          "class_id": 3,
+          "relative_csv_path": "DATA_TAP/FINGER/omer_gilinsky_RightHand_Ring_Finger_Horizontal_Default_60bpm_2026-09-23_12-40-43-131.csv"
+        }
+      ],
+      "content_sha256": "72998819546dd0d1cb38507463138f7ad5ff9968aa7e1ef491f3b3f852019a39",
+      "organized_content_sha256": "e3784d910d6bf31cc7c1873a9cec4392b574b052af02ef9ddbcfe79ced4f6fe7",
+      "recording_id": "rec_72998819546dd0d1cb385074",
+      "fold_id": 1,
+      "canonical_file_id": "file_321d9666eec1970cdd13798b",
+      "exclude_from_training": false,
+      "duplicate_of_file_id": null
+    },
+    {
       "file_id": "file_322cd92d22b85d2423d07c93",
       "source_relative_path": "TomerBiran_ArmCircle_Horizontal_Default_60bpm_2026-01-29_11-45-18.csv",
       "filename": "TomerBiran_ArmCircle_Horizontal_Default_60bpm_2026-01-29_11-45-18.csv",
@@ -32506,6 +32644,40 @@
       "recording_id": "rec_1b9c3bdec0a848a13e5b2384",
       "fold_id": 4,
       "canonical_file_id": "file_4080cfac23d849656372d3ec",
+      "exclude_from_training": false,
+      "duplicate_of_file_id": null
+    },
+    {
+      "file_id": "file_408d50f4d73b67526e347aa4",
+      "source_relative_path": "omer_gilinsky_RightHand_Ring_Finger_Vertical_Default_60bpm_2026-09-23_12-41-01-781.csv",
+      "filename": "omer_gilinsky_RightHand_Ring_Finger_Vertical_Default_60bpm_2026-09-23_12-41-01-781.csv",
+      "user_raw": "omer gilinsky",
+      "user_values": null,
+      "filename_person": "omer_gilinsky_RightHand",
+      "subject_id": "omer",
+      "subject_full_name_hint": "omer_gilinsky",
+      "identity_low_quality_user": false,
+      "gesture": "ring_finger",
+      "gesture_raw": "Ring_Finger",
+      "orientation": "VERTICAL",
+      "direction": "DEFAULT",
+      "hand": "RIGHT",
+      "bpm": 60,
+      "recording_date": "2026-09-23",
+      "sample_rows": 1702,
+      "destinations": [
+        {
+          "dataset": "DATA_TAP",
+          "category": "FINGER",
+          "class_id": 3,
+          "relative_csv_path": "DATA_TAP/FINGER/omer_gilinsky_RightHand_Ring_Finger_Vertical_Default_60bpm_2026-09-23_12-41-01-781.csv"
+        }
+      ],
+      "content_sha256": "892d55fb0c8cc5cb83ca303672e21533a03093ff019b082aeaddc8cfcd2ee2bf",
+      "organized_content_sha256": "fc8147bab54d2fddb6a4edfe51b893bbf73a56b887f34c0c63b4c3a0a553a2eb",
+      "recording_id": "rec_892d55fb0c8cc5cb83ca3036",
+      "fold_id": 1,
+      "canonical_file_id": "file_408d50f4d73b67526e347aa4",
       "exclude_from_training": false,
       "duplicate_of_file_id": null
     },
@@ -69800,6 +69972,40 @@
       "duplicate_of_file_id": null
     },
     {
+      "file_id": "file_8f1ec248c42b3a3eda58deaa",
+      "source_relative_path": "omer_gilinsky_RightHand_Ring_Finger_Reverse_Default_60bpm_2026-09-23_12-41-17-127.csv",
+      "filename": "omer_gilinsky_RightHand_Ring_Finger_Reverse_Default_60bpm_2026-09-23_12-41-17-127.csv",
+      "user_raw": "omer gilinsky",
+      "user_values": null,
+      "filename_person": "omer_gilinsky_RightHand",
+      "subject_id": "omer",
+      "subject_full_name_hint": "omer_gilinsky",
+      "identity_low_quality_user": false,
+      "gesture": "ring_finger",
+      "gesture_raw": "Ring_Finger",
+      "orientation": "REVERSE",
+      "direction": "DEFAULT",
+      "hand": "RIGHT",
+      "bpm": 60,
+      "recording_date": "2026-09-23",
+      "sample_rows": 1758,
+      "destinations": [
+        {
+          "dataset": "DATA_TAP",
+          "category": "FINGER",
+          "class_id": 3,
+          "relative_csv_path": "DATA_TAP/FINGER/omer_gilinsky_RightHand_Ring_Finger_Reverse_Default_60bpm_2026-09-23_12-41-17-127.csv"
+        }
+      ],
+      "content_sha256": "1bc8a804ae574c855fb7dda7f1e676005d24faafb3b50584283c49c4c09e303f",
+      "organized_content_sha256": "f899f4df82a6c1090090df0ea03ac8180b094d36687cbe620366b0946fe64f79",
+      "recording_id": "rec_1bc8a804ae574c855fb7dda7",
+      "fold_id": 1,
+      "canonical_file_id": "file_8f1ec248c42b3a3eda58deaa",
+      "exclude_from_training": false,
+      "duplicate_of_file_id": null
+    },
+    {
       "file_id": "file_8f2819f0f6f11863802aa646",
       "source_relative_path": "erex_StrongTap_Horizontal_Default_60bpm_2026-07-01_11-27-06.csv",
       "filename": "erex_StrongTap_Horizontal_Default_60bpm_2026-07-01_11-27-06.csv",
@@ -85562,6 +85768,40 @@
       "duplicate_of_file_id": null
     },
     {
+      "file_id": "file_b0c0fe438a3a52a16696559e",
+      "source_relative_path": "omer_gilinsky_RightHand_Index_Finger_Vertical_Default_60bpm_2026-09-23_12-39-19-793.csv",
+      "filename": "omer_gilinsky_RightHand_Index_Finger_Vertical_Default_60bpm_2026-09-23_12-39-19-793.csv",
+      "user_raw": "omer gilinsky",
+      "user_values": null,
+      "filename_person": "omer_gilinsky_RightHand",
+      "subject_id": "omer",
+      "subject_full_name_hint": "omer_gilinsky",
+      "identity_low_quality_user": false,
+      "gesture": "index_finger",
+      "gesture_raw": "Index_Finger",
+      "orientation": "VERTICAL",
+      "direction": "DEFAULT",
+      "hand": "RIGHT",
+      "bpm": 60,
+      "recording_date": "2026-09-23",
+      "sample_rows": 1775,
+      "destinations": [
+        {
+          "dataset": "DATA_TAP",
+          "category": "FINGER",
+          "class_id": 3,
+          "relative_csv_path": "DATA_TAP/FINGER/omer_gilinsky_RightHand_Index_Finger_Vertical_Default_60bpm_2026-09-23_12-39-19-793.csv"
+        }
+      ],
+      "content_sha256": "bdf79d97f1d7af4fda1523a1d6640d0ef21d5c7113038ae0d4019b21774f2a1b",
+      "organized_content_sha256": "693e7a1a7b4d14050ce1c2c0404f2cbc49d2abf1a82bc00c7915b9e7ca9c93b4",
+      "recording_id": "rec_bdf79d97f1d7af4fda1523a1",
+      "fold_id": 1,
+      "canonical_file_id": "file_b0c0fe438a3a52a16696559e",
+      "exclude_from_training": false,
+      "duplicate_of_file_id": null
+    },
+    {
       "file_id": "file_b0d25466852f30062a02254b",
       "source_relative_path": "ohad-PSD9-left_Thumb_Reverse_NONE_60bpm_2025-12-29_11-19-15.csv",
       "filename": "ohad-PSD9-left_Thumb_Reverse_NONE_60bpm_2025-12-29_11-19-15.csv",
@@ -88420,6 +88660,40 @@
       "recording_id": "rec_70d31a8e09866674b863089d",
       "fold_id": 3,
       "canonical_file_id": "file_b67b983074b1b51516ad87d7",
+      "exclude_from_training": false,
+      "duplicate_of_file_id": null
+    },
+    {
+      "file_id": "file_b6bbb334bce8c45229620412",
+      "source_relative_path": "omer_gilinsky_RightHand_Mid_Finger_Vertical_Default_60bpm_2026-09-23_12-40-08-607.csv",
+      "filename": "omer_gilinsky_RightHand_Mid_Finger_Vertical_Default_60bpm_2026-09-23_12-40-08-607.csv",
+      "user_raw": "omer gilinsky",
+      "user_values": null,
+      "filename_person": "omer_gilinsky_RightHand",
+      "subject_id": "omer",
+      "subject_full_name_hint": "omer_gilinsky",
+      "identity_low_quality_user": false,
+      "gesture": "mid_finger",
+      "gesture_raw": "Mid_Finger",
+      "orientation": "VERTICAL",
+      "direction": "DEFAULT",
+      "hand": "RIGHT",
+      "bpm": 60,
+      "recording_date": "2026-09-23",
+      "sample_rows": 1762,
+      "destinations": [
+        {
+          "dataset": "DATA_TAP",
+          "category": "FINGER",
+          "class_id": 3,
+          "relative_csv_path": "DATA_TAP/FINGER/omer_gilinsky_RightHand_Mid_Finger_Vertical_Default_60bpm_2026-09-23_12-40-08-607.csv"
+        }
+      ],
+      "content_sha256": "e998ef79fd347ca2c2fe780ec36af28508e27d62f27693b5dd9fe9d613f651cd",
+      "organized_content_sha256": "869406f3bc05d36e3b3a04f161c4d478dbc97eb3970b3b6d8eaaa375da81fa5d",
+      "recording_id": "rec_e998ef79fd347ca2c2fe780e",
+      "fold_id": 1,
+      "canonical_file_id": "file_b6bbb334bce8c45229620412",
       "exclude_from_training": false,
       "duplicate_of_file_id": null
     },
@@ -117440,6 +117714,40 @@
       "duplicate_of_file_id": null
     },
     {
+      "file_id": "file_f17d0e02088a763ec395ffb9",
+      "source_relative_path": "omer_gilinsky_RightHand_Mid_Finger_Horizontal_Default_60bpm_2026-09-23_12-39-53-359.csv",
+      "filename": "omer_gilinsky_RightHand_Mid_Finger_Horizontal_Default_60bpm_2026-09-23_12-39-53-359.csv",
+      "user_raw": "omer gilinsky",
+      "user_values": null,
+      "filename_person": "omer_gilinsky_RightHand",
+      "subject_id": "omer",
+      "subject_full_name_hint": "omer_gilinsky",
+      "identity_low_quality_user": false,
+      "gesture": "mid_finger",
+      "gesture_raw": "Mid_Finger",
+      "orientation": "HORIZONTAL",
+      "direction": "DEFAULT",
+      "hand": "RIGHT",
+      "bpm": 60,
+      "recording_date": "2026-09-23",
+      "sample_rows": 1800,
+      "destinations": [
+        {
+          "dataset": "DATA_TAP",
+          "category": "FINGER",
+          "class_id": 3,
+          "relative_csv_path": "DATA_TAP/FINGER/omer_gilinsky_RightHand_Mid_Finger_Horizontal_Default_60bpm_2026-09-23_12-39-53-359.csv"
+        }
+      ],
+      "content_sha256": "1d3ad775788e91b0e95a2685cc4f7093522444b59161bfa087b09291084a0376",
+      "organized_content_sha256": "229d9bb5d654d5c89780227a202b1281036d3b7c2a60a5889d8d09eb4d7b144a",
+      "recording_id": "rec_1d3ad775788e91b0e95a2685",
+      "fold_id": 1,
+      "canonical_file_id": "file_f17d0e02088a763ec395ffb9",
+      "exclude_from_training": false,
+      "duplicate_of_file_id": null
+    },
+    {
       "file_id": "file_f19c04bf81aaeb42873e0893",
       "source_relative_path": "s_SwipeSoft_Horizontal_Up_Down__Up_Down_60bpm_2025-12-28_19-50-33.csv",
       "filename": "s_SwipeSoft_Horizontal_Up_Down__Up_Down_60bpm_2025-12-28_19-50-33.csv",
@@ -119260,6 +119568,40 @@
       "recording_id": "rec_8cf65d72612f427839a8add0",
       "fold_id": 0,
       "canonical_file_id": "file_f59b030d9c8e00c62595daf8",
+      "exclude_from_training": false,
+      "duplicate_of_file_id": null
+    },
+    {
+      "file_id": "file_f5d76c2b8ac6a67247b87c15",
+      "source_relative_path": "omer_gilinsky_RightHand_Index_Finger_Horizontal_Default_60bpm_2026-09-23_12-39-04-017.csv",
+      "filename": "omer_gilinsky_RightHand_Index_Finger_Horizontal_Default_60bpm_2026-09-23_12-39-04-017.csv",
+      "user_raw": "omer gilinsky",
+      "user_values": null,
+      "filename_person": "omer_gilinsky_RightHand",
+      "subject_id": "omer",
+      "subject_full_name_hint": "omer_gilinsky",
+      "identity_low_quality_user": false,
+      "gesture": "index_finger",
+      "gesture_raw": "Index_Finger",
+      "orientation": "HORIZONTAL",
+      "direction": "DEFAULT",
+      "hand": "RIGHT",
+      "bpm": 60,
+      "recording_date": "2026-09-23",
+      "sample_rows": 1766,
+      "destinations": [
+        {
+          "dataset": "DATA_TAP",
+          "category": "FINGER",
+          "class_id": 3,
+          "relative_csv_path": "DATA_TAP/FINGER/omer_gilinsky_RightHand_Index_Finger_Horizontal_Default_60bpm_2026-09-23_12-39-04-017.csv"
+        }
+      ],
+      "content_sha256": "8a124d3e60cce9c4eda6d11cae909cbb7b99479ee6ed535d1e86f2b21dda00d2",
+      "organized_content_sha256": "0353977f75279785249ef81cdea8930de993352ec98c4d4521e3c3445cf28afe",
+      "recording_id": "rec_8a124d3e60cce9c4eda6d11c",
+      "fold_id": 1,
+      "canonical_file_id": "file_f5d76c2b8ac6a67247b87c15",
       "exclude_from_training": false,
       "duplicate_of_file_id": null
     },

@@ -223,10 +223,13 @@ GESTURE_MAP = {
     # FINGER MOTION
 
     "indexfinger": (FOLDER_TAP, "FINGER", 3),
+    "index": (FOLDER_TAP, "FINGER", 3),
 
     "midfinger": (FOLDER_TAP, "FINGER", 3),
+    "mid_finger": (FOLDER_TAP, "FINGER", 3),
 
     "ringfinger": (FOLDER_TAP, "FINGER", 3),
+    "ring_finger": (FOLDER_TAP, "FINGER", 3),
 
     "pinky": (FOLDER_TAP, "FINGER", 3),
 
