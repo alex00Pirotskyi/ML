@@ -30,6 +30,13 @@ L = log2(WL + 1) in Q8, computed as `CLZ` for the integer part plus the 8 bits a
 | `rise10` | L − min10 | rise10 |
 | `dev3` | running mean of \|L − running mean of L\|, both with time constant 2^7 = 128 frames (~2.8 s), shifts only, ×8 | sd3: 150-frame population std |
 | `d01` | `emg_psd_mean[ch][0] − emg_psd_mean[ch][1]`, saturated to int16. The codes are 10000·log10(1+power), so this is the zone ratio in dB×1000 at any real power | r01 |
+| `range10` | max10 − min10 (added 2026-11-23) | – |
+| `fall10` | max10 − L (added 2026-11-23) | – |
+| `xm` | L − running mean of L, signed, saturated to int16 (added 2026-11-23) | – |
+
+The final TAP model (`MUDRA_TAP_RECIPE=final14`, TAP_FOCUS_RESULTS.md) reads only the gain-invariant differences
+`rise10`, `fall10`, `range10`, `dev3`, `xm` and runs from frame 50, without waiting for `lean_lite_ready()`. The three
+added fields are appended to `t_cload_lite` (48 bytes), so older models keep their field offsets.
 
 Rank correlation with the Lean-8 fields they replace, on 41 recordings (all 7 TAP folders, steady frames):
 

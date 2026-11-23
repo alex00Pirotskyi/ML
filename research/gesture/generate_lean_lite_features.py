@@ -60,8 +60,16 @@ EMA_SHIFT = 7
 DEV_SHIFT = 4
 READY_FRAMES = 500
 
-FEATURES = ("min10", "max10", "rise10", "dev3", "d01")
+FEATURES = ("min10", "max10", "rise10", "dev3", "d01")                  # columns of the derived trees (unchanged)
 LITE_COLUMNS = tuple(f"p_core->cload_lite.{feature}[CH{ch}]" for feature in FEATURES for ch in (1, 2, 3))
+# Every t_cload_lite field, in struct order (lean_lite.h). range10 = max10 - min10, fall10 = max10 - L and
+# xm = L - running mean of L (signed) were added for the gain-invariant "Lean-lite diff" TAP inputs
+# (TAP_FOCUS_RESULTS.md, final recipe).
+FIELDS = FEATURES + ("range10", "fall10", "xm")
+# Lean-lite diff: the TAP model inputs. Only differences of log levels (gain invariant); the absolute levels
+# min10 / max10 / d01 are left out (they did not transfer to the device).
+DIFF_FEATURES = ("rise10", "fall10", "range10", "dev3", "xm")       # the researched set, in its order
+DIFF_COLUMNS = tuple(f"p_core->cload_lite.{feature}[CH{ch}]" for feature in DIFF_FEATURES for ch in (1, 2, 3))
 FRAMES_COLUMN = lean8.FRAMES_COLUMN
 NEW_FRAME_COLUMN = lean8.NEW_FRAME_COLUMN
 READY_COLUMN = "lean_lite_ready"
@@ -90,15 +98,15 @@ def log2_q8(wl: np.ndarray) -> np.ndarray:
     return ((n << np.uint64(8)) | frac).astype(np.int64)
 
 
-def lite_per_frame(wl: np.ndarray, psd_mean: np.ndarray) -> np.ndarray:
-    """Emulate lean_lite_update() for one recording after a reset.
+def lite_fields_per_frame(wl: np.ndarray, psd_mean: np.ndarray | None) -> np.ndarray:
+    """Emulate lean_lite_update() for one recording after a reset: every t_cload_lite field.
 
-    wl: (frames, 3) integer WL; psd_mean: (frames, 3, 5) emg_psd_mean codes.
-    Returns (frames, 15) int16 in LITE_COLUMNS order (feature-major, CH1..CH3)."""
+    wl: (frames, 3) integer WL; psd_mean: (frames, 3, 5) emg_psd_mean codes (None: d01 = 0).
+    Returns (frames, len(FIELDS), 3) int16 (field-major as FIELDS, CH1..CH3)."""
     n = len(wl)
-    out = np.zeros((n, 5, 3), np.int16)
+    out = np.zeros((n, len(FIELDS), 3), np.int16)
     if not n:
-        return out.reshape(n, 15)
+        return out
     nb = -(-n // BLOCK_FRAMES)
     pad = nb * BLOCK_FRAMES - n
     for ch in range(3):
@@ -122,6 +130,7 @@ def lite_per_frame(wl: np.ndarray, psd_mean: np.ndarray) -> np.ndarray:
         hi = np.maximum(cur_max, agg_max[blk])
         # running mean and mean absolute deviation (integer recursion, shifts of non-negative values)
         dev = np.empty(n, np.int64)
+        xm = np.empty(n, np.int64)
         xs = x.tolist()
         m_acc = xs[0] << EMA_SHIFT
         d_acc = 0
@@ -130,10 +139,44 @@ def lite_per_frame(wl: np.ndarray, psd_mean: np.ndarray) -> np.ndarray:
             d = xi - (m_acc >> EMA_SHIFT)
             d_acc += (d if d >= 0 else -d) - (d_acc >> EMA_SHIFT)
             dev[i] = d_acc
-        d01 = psd_mean[:, ch, 0].astype(np.int64) - psd_mean[:, ch, 1].astype(np.int64)
-        for k, v in enumerate((lo, hi, x - lo, dev >> DEV_SHIFT, d01)):
+            xm[i] = d
+        d01 = (np.zeros(n, np.int64) if psd_mean is None
+               else psd_mean[:, ch, 0].astype(np.int64) - psd_mean[:, ch, 1].astype(np.int64))
+        for k, v in enumerate((lo, hi, x - lo, dev >> DEV_SHIFT, d01, hi - lo, hi - x, xm)):
             out[:, k, ch] = np.clip(v, -32768, 32767).astype(np.int16)
-    return out.reshape(n, 15)
+    return out
+
+
+def lite_per_frame(wl: np.ndarray, psd_mean: np.ndarray) -> np.ndarray:
+    """(frames, 15) int16 in LITE_COLUMNS order (feature-major, CH1..CH3): the derived-tree columns."""
+    return np.ascontiguousarray(lite_fields_per_frame(wl, psd_mean)[:, :len(FEATURES)]).reshape(len(wl), -1)
+
+
+def lite_diff_per_frame(wl: np.ndarray) -> np.ndarray:
+    """(frames, 15) int16 in DIFF_COLUMNS order: the Lean-lite diff TAP inputs (WL only)."""
+    idx = [FIELDS.index(f) for f in DIFF_FEATURES]
+    return np.ascontiguousarray(lite_fields_per_frame(wl, None)[:, idx]).reshape(len(wl), -1)
+
+
+def frame_rows_from_counter(frames: np.ndarray) -> np.ndarray:
+    """Rows where a new EMG frame reached the handler, from the per-row frame counter of the derived trees
+    (FRAMES_COLUMN = cumulative count of lean8.frame_rows): the inverse of compute()'s cumsum."""
+    f = np.asarray(frames, np.int64)
+    step = np.diff(np.r_[0, f])
+    if len(f) and ((step < 0).any() or (step > 1).any()):
+        raise ValueError("Frame counter must start at 0 or 1 and grow by at most 1 per row")
+    return np.flatnonzero(step == 1)
+
+
+def lite_diff_rows(wl_rows: np.ndarray, frames: np.ndarray) -> np.ndarray:
+    """Per-row Lean-lite diff values of one recording (from its first row) as m_feat_core.cload_lite holds them:
+    wl_rows (rows, 3) WL of every row, frames the derived trees' frame counter. Rows before the first frame: 0."""
+    rows = frame_rows_from_counter(frames)
+    per = lite_diff_per_frame(np.asarray(wl_rows)[rows].astype(np.int64))
+    out = np.zeros((len(wl_rows), len(DIFF_COLUMNS)), np.int16)
+    f = np.asarray(frames, np.int64); has = f > 0
+    out[has] = per[f[has] - 1]
+    return out
 
 
 def compute(df: pd.DataFrame) -> pd.DataFrame:
@@ -264,14 +307,26 @@ def algorithm_sha() -> str:
     """Hash of everything that decides the derived bytes (numerical, frame and format code + constants)."""
     import inspect
     h = hashlib.sha256()
-    for fn in (log2_q8, lite_per_frame, compute, _text_block, generate_file, lean8.frame_rows):
+    for fn in (log2_q8, lite_fields_per_frame, lite_per_frame, compute, _text_block, generate_file, lean8.frame_rows):
         h.update(inspect.getsource(fn).encode())
     h.update(json.dumps(dict(block=BLOCK_FRAMES, blocks=BLOCKS, ema=EMA_SHIFT, dev=DEV_SHIFT, ready=READY_FRAMES,
                              columns=EXTRA_COLUMNS, source=SOURCE_COLUMNS)).encode())
     return h.hexdigest()
 
 
+def diff_algorithm_sha() -> str:
+    """Hash of everything that decides the Lean-lite diff TAP inputs (computed by the trainer, no derived files)."""
+    import inspect
+    h = hashlib.sha256()
+    for fn in (log2_q8, lite_fields_per_frame, lite_diff_per_frame, frame_rows_from_counter, lite_diff_rows):
+        h.update(inspect.getsource(fn).encode())
+    h.update(json.dumps(dict(block=BLOCK_FRAMES, blocks=BLOCKS, ema=EMA_SHIFT, dev=DEV_SHIFT,
+                             fields=FIELDS, columns=DIFF_COLUMNS)).encode())
+    return h.hexdigest()
+
+
 GENERATOR_SHA = algorithm_sha()
+DIFF_SHA = diff_algorithm_sha()
 
 
 # ============================================================================ C header parity
@@ -284,8 +339,8 @@ int lean_lite_run(int n, const uint32_t *wl, const uint16_t *psd_mean, int16_t *
         uint32_t w[3]; t_cload_lite v;
         for (int ch = 0; ch < 3; ++ch) w[ch] = wl[f * 3 + ch];
         lean_lite_update(&state, w, psd_mean + f * 15, &v);
-        const int16_t *src[5] = { v.min10, v.max10, v.rise10, v.dev3, v.d01 };
-        for (int k = 0; k < 5; ++k) for (int ch = 0; ch < 3; ++ch) out[f * 15 + k * 3 + ch] = src[k][ch];
+        const int16_t *src[8] = { v.min10, v.max10, v.rise10, v.dev3, v.d01, v.range10, v.fall10, v.xm };
+        for (int k = 0; k < 8; ++k) for (int ch = 0; ch < 3; ++ch) out[f * 24 + k * 3 + ch] = src[k][ch];
         ready[f] = lean_lite_ready(&state);
     }
     return (int)(sizeof(t_cload_lite) * 1000 + sizeof(lean_lite_state_t));
@@ -317,12 +372,12 @@ class FirmwareLeanLite:
         n = len(wl)
         wl_ = np.ascontiguousarray(wl, dtype=np.uint32)
         psd_ = np.ascontiguousarray(np.asarray(psd_mean).reshape(n, 15), dtype=np.uint16)
-        out = np.zeros((n, 15), np.int16); ready = np.zeros(n, np.uint8)
+        out = np.zeros((n, 3 * len(FIELDS)), np.int16); ready = np.zeros(n, np.uint8)
         sizes = self.lib.lean_lite_run(ctypes.c_int(n), wl_.ctypes.data_as(ctypes.c_void_p),
                                        psd_.ctypes.data_as(ctypes.c_void_p), out.ctypes.data_as(ctypes.c_void_p),
                                        ready.ctypes.data_as(ctypes.c_void_p))
-        if sizes // 1000 != 30:
-            raise AssertionError(f"t_cload_lite is {sizes // 1000} bytes, expected 30")
+        if sizes // 1000 != 6 * len(FIELDS):
+            raise AssertionError(f"t_cload_lite is {sizes // 1000} bytes, expected {6 * len(FIELDS)}")
         self.state_bytes = sizes % 1000
         return out, ready.astype(bool)
 
@@ -361,8 +416,11 @@ def parity_check(files: list[Path]) -> dict:
         runs.append((wl[rows].astype(np.uint64), df[lean8.PSD_MEAN].to_numpy(np.int64).reshape(-1, 3, 5)[rows]))
     runs += synthetic_cases()
     for wl, pm in runs:
-        ours = lite_per_frame(wl, pm)
+        ours = lite_fields_per_frame(wl, pm).reshape(len(wl), -1)
         theirs, ready = fw.run(wl, pm)
+        if len(wl):                                        # the trainer's WL-only diff path is the same arithmetic
+            diff_idx = [3 * FIELDS.index(f) + c for f in DIFF_FEATURES for c in range(3)]
+            mismatched += int((lite_diff_per_frame(wl) != theirs[:, diff_idx]).any(axis=1).sum())
         mismatched += int((ours != theirs).any(axis=1).sum())
         ready_mismatch += int(((np.arange(len(wl)) + 1 >= READY_FRAMES) != ready).sum())
         frames += len(wl)

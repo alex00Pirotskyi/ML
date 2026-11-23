@@ -23,6 +23,10 @@ What changed against the first unified trainer (see research/gesture/README.md):
   * The previous successful TAP model, LP v20 and the 2026-11-17 unified models are
     replayed READ-ONLY as baselines on the same held-out people.
 
+Final TAP recipe (TAP_FOCUS_RESULTS.md, "Final recipe"; 14 KB device budget), one line:
+
+    MUDRA_TAP_RECIPE=final14 python -u research/gesture/train_unified.py
+
 Only directly logged p_core-> fields reach the models. PointerState, folder,
 timestamps, contact scores, hold_ms and subject are labels, sampling aids or split
 metadata, never model features. The threshold is fixed at 0.85 everywhere.
@@ -72,6 +76,20 @@ export_plus = v6.export_plus
 
 # ============================================================================ settings
 # Intentionally no CLI. Change these constants (or the MUDRA_* environment variables) if needed.
+# MUDRA_TAP_RECIPE=final14: the final TAP recipe (TAP_FOCUS_RESULTS.md, "Final recipe") as defaults; a MUDRA_*
+# variable set explicitly still wins. TAP model only (LP is unchanged and not trained by it).
+TAP_RECIPES = {
+    "final14": dict(MUDRA_TASKS="tap", MUDRA_USE_LEAN8="0", MUDRA_TAP_FEATURES="diff", MUDRA_TAP_AUG="mild",
+                    MUDRA_TAP_LITE="diff", MUDRA_TAP_LABELS="press2", MUDRA_MODEL_BUDGET_KB="14",
+                    MUDRA_ALT_BUDGET_KB="0", MUDRA_NUM_LEAVES="4,15", MUDRA_TRAIN_MIN_FRAMES="50",
+                    MUDRA_EVAL_MIN_FRAMES="50", MUDRA_TAP_SOFT_LABELS="off"),
+}
+TAP_RECIPE = os.environ.get("MUDRA_TAP_RECIPE", "").strip().lower()
+if TAP_RECIPE:
+    if TAP_RECIPE not in TAP_RECIPES:
+        raise ValueError(f"MUDRA_TAP_RECIPE must be one of {sorted(TAP_RECIPES)}")
+    for _k, _v in TAP_RECIPES[TAP_RECIPE].items():
+        os.environ.setdefault(_k, _v)
 RAW_SOURCE_TAP = ROOT / "DATA" / "DATA_TAP"
 RAW_SOURCE_LP = ROOT / "DATA" / "DATA_LONG_PRESS"
 # MUDRA_USE_LEAN8 picks the EMG context inputs next to the 126 raw firmware fields:
@@ -90,14 +108,40 @@ LEAN8_TAG = "lite" if USE_LITE else USE_LEAN8        # recorded in fingerprints 
 #                            computed from the raw columns (no new data files)
 #   MUDRA_TAP_AUG=mild       placement augmentation of the TAP training rows (EMG gain, spectral tilt, contact noise)
 # Each setting writes its own results folder; the default (raw, none) is unchanged.
+#   MUDRA_TAP_LITE=diff      adds the 15 gain-invariant Lean-lite diff inputs p_core->cload_lite.{rise10,fall10,
+#                            range10,dev3,xm}[CH1..3] (firmware/lean_lite.h), computed per recording from the logged WL
+#                            (tap_features.lite_rows; no new data files) and recomputed under augmentation/stress
+#   MUDRA_TAP_LABELS=press2  "trust the press": in DoubleTaps and 240 bpm TAP recordings every real pointer press is
+#                            a tap (TAP_FOCUS_RESULTS.md). Unknown presses become positives, negatives right at a
+#                            press are left out. Training labels only: replay references and scores are unchanged.
+# Each setting writes its own results folder; the default (raw, none, off, confirmed) is unchanged.
 TAP_FEATURES = os.environ.get("MUDRA_TAP_FEATURES", "raw").strip().lower()
 TAP_AUG = os.environ.get("MUDRA_TAP_AUG", "none").strip().lower()
+TAP_LITE = os.environ.get("MUDRA_TAP_LITE", "off").strip().lower()
+TAP_LABELS = os.environ.get("MUDRA_TAP_LABELS", "confirmed").strip().lower()
 if TAP_FEATURES not in ("raw", "diff") or TAP_AUG not in ("none", "mild"):
     raise ValueError("MUDRA_TAP_FEATURES must be raw or diff; MUDRA_TAP_AUG must be none or mild")
-TAP_GENERALIZATION = TAP_FEATURES != "raw" or TAP_AUG != "none"
+if TAP_LITE not in ("off", "diff") or TAP_LABELS not in ("confirmed", "press2"):
+    raise ValueError("MUDRA_TAP_LITE must be off or diff; MUDRA_TAP_LABELS must be confirmed or press2")
+TAP_GENERALIZATION = TAP_FEATURES != "raw" or TAP_AUG != "none" or TAP_LITE != "off" or TAP_LABELS != "confirmed"
 if TAP_GENERALIZATION and LEAN8_MODE != "off":
-    raise ValueError("MUDRA_TAP_FEATURES / MUDRA_TAP_AUG need MUDRA_USE_LEAN8=0 (researched without Lean inputs)")
-TAP_TAG = f"_tap-{TAP_FEATURES}-{TAP_AUG}" if TAP_GENERALIZATION else ""
+    raise ValueError("MUDRA_TAP_FEATURES / MUDRA_TAP_AUG / MUDRA_TAP_LITE / MUDRA_TAP_LABELS need MUDRA_USE_LEAN8=0 "
+                     "(researched without Lean-8 inputs; MUDRA_TAP_LITE=diff brings the Lean-lite diff fields itself)")
+TAP_TAG = (f"_tap-{TAP_FEATURES}-{TAP_AUG}" + ("-litediff" if TAP_LITE == "diff" else "")
+           + ("-press2" if TAP_LABELS == "press2" else "")) if TAP_GENERALIZATION else ""
+# press2 constants (as researched): presses of these TAP recordings; soft = the labeller's unknown presses with a tap
+# teacher score >= 0.5 (positive rows in its 0-80 ms onset window), the other unknown presses are anchored at their
+# onset estimate t_on (rows t_on - 5 .. t_on + 90); negatives t_on - 30 .. t_on + 120 of any real press are left out.
+PRESS2_NAME_KEYS = ("DoubleTap", "240bpm")
+PRESS2_SOFT_SCORE = 0.5
+PRESS2_ANCHOR_MS = (-5, 90)
+PRESS2_NEGATIVE_GAP_MS = (-30, 120)
+PRESS2_MATCH_MS = 60
+# A budget or leaves range other than the defaults gets its own TAP results folder (and study).
+_TAP_KB = float(os.environ.get("MUDRA_MODEL_BUDGET_KB", 32))
+_TAP_LEAVES = os.environ.get("MUDRA_NUM_LEAVES", "8,127").replace(" ", "")
+if TAP_GENERALIZATION and (_TAP_KB != 32 or _TAP_LEAVES != "8,127"):
+    TAP_TAG += f"-kb{_TAP_KB:g}" + ("" if _TAP_LEAVES == "8,127" else "-leaves" + _TAP_LEAVES.replace(",", "-"))
 TASKS_TO_RUN = [t.strip() for t in os.environ.get("MUDRA_TASKS", "tap,lp").lower().split(",") if t.strip()]
 if not TASKS_TO_RUN or not set(TASKS_TO_RUN) <= {"tap", "lp"}:
     raise ValueError("MUDRA_TASKS must list tap and/or lp")
@@ -173,7 +217,11 @@ NODE_BYTES = 6                      # export_plus packed LightGBM node: float th
 # LightGBM search space (agreed ranges). Leaves are capped at 2**depth and at 127 (uint8 child index).
 N_ESTIMATORS = (80, 400)
 MAX_DEPTH = (3, 10)
-NUM_LEAVES = (8, 127)
+NUM_LEAVES = tuple(int(v) for v in os.environ.get("MUDRA_NUM_LEAVES", "8,127").split(","))
+if len(NUM_LEAVES) != 2 or not 2 <= NUM_LEAVES[0] <= NUM_LEAVES[1] <= 127:
+    raise ValueError("MUDRA_NUM_LEAVES must be 'low,high' with 2 <= low <= high <= 127")
+# Small budgets need small trees (TAP_FOCUS_RESULTS.md, 14 KB: 7 leaves = 172 trees ~ the 32 KB quality, 31 leaves =
+# 38 trees collapses): the final recipe searches 4..15 (the TAP results folder names a non-default range).
 LEARNING_RATE = (0.02, 0.3)
 MIN_CHILD_SAMPLES = (10, 300)
 POSITIVE_WEIGHT = dict(tap=(0.2, 10.0), lp=(0.2, 20.0))
@@ -580,6 +628,81 @@ def sample_lp(t, y, hold_ms, folder, ev):
 
 
 # ============================================================================ dataset + replay cache
+_CONTENT_SHA = {}
+
+
+def content_sha(path: Path) -> str:
+    """SHA-256 of a file's content. For gzip files the header's modification time and stored file name are ignored,
+    so a label file regenerated with the same content keeps its identity and a renamed copy of a recording is
+    recognised, while any content change (also same-size replacements) changes it. Cached per (path, size,
+    mtime_ns) within the process."""
+    st = Path(path).stat()
+    key = (str(path), st.st_size, st.st_mtime_ns)
+    if key not in _CONTENT_SHA:
+        b = Path(path).read_bytes()
+        if b[:3] == b"\x1f\x8b\x08" and len(b) >= 10:
+            flg, pos = b[3], 10
+            if flg & 0x04:                                   # FEXTRA
+                pos += 2 + (b[10] | (b[11] << 8))
+            if flg & 0x08:                                   # FNAME: zero-terminated original name
+                end = b.index(0, pos)
+                b = b[:pos] + b[end + 1:]
+            b = b[:3] + bytes([flg & ~0x08]) + b"\0\0\0\0" + b[8:]
+        _CONTENT_SHA[key] = hashlib.sha256(b).hexdigest()
+    return _CONTENT_SHA[key]
+
+
+def record_identity(records) -> dict:
+    """Content identity of the training/replay inputs: every recording read (path, content) and its label sidecar,
+    plus the event tables (_events.csv.gz) of the label roots. Paths are relative to the repository."""
+    files = [[p.relative_to(ROOT).as_posix(), content_sha(p), content_sha(sidecar(p, root, labels))]
+             for p, root, labels in records]
+    events = {Path(labels).relative_to(ROOT).as_posix(): content_sha(Path(labels) / "_events.csv.gz")
+              for labels in sorted({str(r[2]) for r in records})}
+    h = hashlib.sha256(json.dumps(dict(files=files, events=events), sort_keys=True).encode()).hexdigest()
+    return dict(sha256=h, recordings=len(files), events=events, files=files)
+
+
+def identity_changes(old: dict | None, new: dict) -> list[str]:
+    """Human-readable differences between two record_identity() results (for refusing a stale reuse)."""
+    if not old:
+        return ["no data identity stored (output from older code)"]
+    if old.get("sha256") == new["sha256"]:
+        return []
+    out = []
+    a = {f[0]: f[1:] for f in old.get("files", [])}; b = {f[0]: f[1:] for f in new["files"]}
+    if set(b) - set(a):
+        out.append(f"{len(set(b) - set(a))} new recordings, e.g. {sorted(set(b) - set(a))[:3]}")
+    if set(a) - set(b):
+        out.append(f"{len(set(a) - set(b))} recordings gone, e.g. {sorted(set(a) - set(b))[:3]}")
+    src = sorted(k for k in set(a) & set(b) if a[k][0] != b[k][0])
+    lab = sorted(k for k in set(a) & set(b) if a[k][1] != b[k][1])
+    if src:
+        out.append(f"{len(src)} recordings changed content, e.g. {src[:3]}")
+    if lab:
+        out.append(f"{len(lab)} label files changed, e.g. {lab[:3]}")
+    for k in sorted(set(old.get("events", {})) | set(new["events"])):
+        if old.get("events", {}).get(k) != new["events"].get(k):
+            out.append(f"event table changed: {k}")
+    return out or ["data identity differs"]
+
+
+def dedupe_records(records):
+    """Byte-identical copies of a recording are one recording (first path kept, by sorted path): duplicates would
+    weigh twice and could otherwise end up on both sides of a split. Logged with their paths."""
+    seen, keep, dup = {}, [], []
+    for r in sorted(records, key=lambda a: a[0].relative_to(ROOT).as_posix()):
+        k = content_sha(r[0])
+        if k in seen:
+            dup.append([r[0].relative_to(ROOT).as_posix(), seen[k]])
+            continue
+        seen[k] = r[0].relative_to(ROOT).as_posix(); keep.append(r)
+    if dup:
+        notice("UNIFIED_DUPLICATE_RECORDINGS", len(dup), "byte-identical copies left out, e.g.", json.dumps(dup[:3]))
+    order = {id(r): i for i, r in enumerate(records)}
+    return sorted(keep, key=lambda r: order[id(r)]), dup
+
+
 def _fingerprint(task, records, columns):
     h = hashlib.sha256()
     h.update(json.dumps(dict(task=task, columns=columns, version=5, lean8=LEAN8_TAG,
@@ -596,14 +719,63 @@ def _fingerprint(task, records, columns):
         h.update((sha256(fw) if fw else "no-firmware-header").encode())
     if USE_LITE:                                 # Lean-lite inputs (and their frame counter) come from here
         h.update(lite.GENERATOR_SHA.encode())
-    for p, root, labels in records:
-        st = p.stat(); lab = sidecar(p, root, labels).stat()
-        h.update(f"{p.relative_to(ROOT)}|{st.st_size}|{lab.st_size}|{int(lab.st_mtime)}".encode())
+    h.update(("identity=" + record_identity(records)["sha256"]).encode())   # contents, not sizes/mtimes
     return h.hexdigest()
+
+
+def press2_recording(source: Path) -> bool:
+    """TAP recordings whose every real pointer press is a tap (MUDRA_TAP_LABELS=press2): double taps and 240 bpm."""
+    return source.parent.name == "TAP" and any(k in source.name for k in PRESS2_NAME_KEYS)
+
+
+def press2_labels(t, y, y_train, ev):
+    """'Trust the press' training labels of one press2 recording (TAP_FOCUS_RESULTS.md). y: the labeller's tap_label,
+    y_train: the current training target. Every real pointer press (tap_press, tier PRESS, labeled 1 or -1):
+      * confirmed (labeled 1): unchanged;
+      * unknown with a tap teacher peak (score >= PRESS2_SOFT_SCORE): its UNKNOWN rows in the labeller's 0-80 ms
+        onset window become positives;
+      * other unknown presses without a labelled onset within PRESS2_MATCH_MS: rows t_on - 5 .. t_on + 90 become
+        positives (t_on = the labeller's onset estimate, else the pointer time);
+      * negatives t_on - 30 .. t_on + 120 of any real press are left out (-1).
+    Returns (target, added-positive mask, counts). Replay references and every score stay on the original labels."""
+    y2 = np.array(y_train, np.int8, copy=True); added = np.zeros(len(y2), bool); info = Counter()
+    if ev is None or not len(ev):
+        return y2, added, info
+    pr = ev[(ev.type == "tap_press") & (ev.tier == "PRESS") & (ev.labeled != 0)]
+    if not len(pr):
+        return y2, added, info
+    t_on = pd.to_numeric(pr.t_on, errors="coerce").to_numpy(float)
+    t_ptr = pd.to_numeric(pr.t_ptr, errors="coerce").to_numpy(float)
+    a = np.where(np.isfinite(t_on), t_on, t_ptr)
+    lab = pr.labeled.to_numpy(int)
+    score = pd.to_numeric(pr.score, errors="coerce").to_numpy(float) if "score" in pr else np.full(len(pr), np.nan)
+    disc = ((pr.rule_disconnect.astype(str).str.lower() == "true").to_numpy() if "rule_disconnect" in pr
+            else np.zeros(len(pr), bool))
+    ok = np.isfinite(a); a, lab, score, disc = a[ok], lab[ok], score[ok], disc[ok]
+    soft = (lab == -1) & (score >= PRESS2_SOFT_SCORE) & ~disc
+    for o in a[soft]:
+        m = (t >= o + TAP_ONSET_WINDOW_MS[0]) & (t <= o + TAP_ONSET_WINDOW_MS[1]) & (y == -1)
+        added |= m & (y2 != 1); y2[m] = 1
+    labelled = np.r_[a[lab == 1], a[soft]]
+    for o in a[(lab == -1) & ~soft]:
+        if len(labelled) and np.min(np.abs(labelled - o)) < PRESS2_MATCH_MS:
+            continue
+        m = (t >= o + PRESS2_ANCHOR_MS[0]) & (t <= o + PRESS2_ANCHOR_MS[1])
+        added |= m & (y2 != 1); y2[m] = 1; info["press2_anchored_presses"] += 1
+    near_press = np.zeros(len(y2), bool)
+    for o in a:
+        near_press |= (t >= o + PRESS2_NEGATIVE_GAP_MS[0]) & (t <= o + PRESS2_NEGATIVE_GAP_MS[1])
+    drop = near_press & (y2 == 0)
+    y2[drop] = -1
+    info["press2_recordings"] += 1; info["press2_presses"] += int(len(a))
+    info["press2_soft_presses"] += int(soft.sum()); info["press2_positive_rows_added"] += int(added.sum())
+    info["press2_negative_rows_left_out"] += int(drop.sum())
+    return y2, added, info
 
 
 def build_task_data(task: str, records, out: Path):
     """Training sample in memory, full replay rows in an on-disk float32 matrix (cached)."""
+    records, _ = dedupe_records(records)          # idempotent (train_task already passes deduplicated records)
     raw_columns = common_p_core(records)
     derived = list(TF.DERIVED) if (task == "tap" and TAP_FEATURES == "diff") else []
     if derived:
@@ -611,11 +783,26 @@ def build_task_data(task: str, records, out: Path):
         if not args <= set(raw_columns):
             raise ValueError(f"Derived TAP inputs need raw fields that are missing: {sorted(args - set(raw_columns))[:5]}")
         export_plus.validate_feature_schema_accessors(derived)
-    columns = raw_columns + derived              # derived TAP inputs are stored like any other column
+    lite_cols = list(TF.LITE_COLUMNS) if (task == "tap" and TAP_LITE == "diff") else []
+    if lite_cols:
+        if not set(TF.WL_COLUMNS + TF.PLACEMENT_COLUMNS) <= set(raw_columns):
+            raise ValueError("Lean-lite diff inputs need the raw WL and EMG PSD fields")
+        export_plus.validate_feature_schema_accessors(lite_cols)
+    press2 = task == "tap" and TAP_LABELS == "press2"
+    columns = raw_columns + derived + lite_cols  # derived TAP inputs are stored like any other column
     cache = out / "cache"
     fp = _fingerprint(task, records, columns)
     if derived:                                  # the derived values depend on tap_features.py
         fp = hashlib.sha256((fp + "|tap_features=" + TF.VERSION).encode()).hexdigest()
+    if lite_cols:                                # ... and the Lean-lite diff emulator
+        fp = hashlib.sha256((fp + "|tap_lite=" + TF.LITE_VERSION).encode()).hexdigest()
+    if press2:                                   # the training-label policy
+        import inspect
+        policy = json.dumps(dict(keys=PRESS2_NAME_KEYS, soft=PRESS2_SOFT_SCORE, anchor=PRESS2_ANCHOR_MS,
+                                 gap=PRESS2_NEGATIVE_GAP_MS, match=PRESS2_MATCH_MS,
+                                 code=hashlib.sha256((inspect.getsource(press2_labels) +
+                                                      inspect.getsource(press2_recording)).encode()).hexdigest()))
+        fp = hashlib.sha256((fp + "|tap_labels=press2|" + policy).encode()).hexdigest()
     stamp = cache / "fingerprint.json"
     if stamp.is_file() and json.loads(stamp.read_text()).get("fingerprint") == fp:
         notice("UNIFIED_CACHE_REUSED", task, cache)
@@ -634,7 +821,7 @@ def build_task_data(task: str, records, out: Path):
     events = {"tap": load_events(LABEL_TAP) if task == "tap" else None, "lp": load_events(LABEL_LP)}
     ncol = len(columns)
     raw = open(cache / "replay_X.f32", "wb"); nrep = 0
-    T = dict(X=[], y=[], kind=[], rec=[], t=[], frames=[], w=[])
+    T = dict(X=[], y=[], kind=[], rec=[], t=[], frames=[], w=[], row=[])
     recs = []          # per recording metadata
     rp_t, rp_lab, rp_frames = [], [], []
     windows = []       # LP press windows
@@ -673,6 +860,10 @@ def build_task_data(task: str, records, out: Path):
                 m = (t >= x.t_on + TAP_ONSET_WINDOW_MS[0]) & (t <= x.t_on + TAP_ONSET_WINDOW_MS[1]) & (y == -1)
                 y_train[m] = 1; wrow[m] = float(x.score); soft_rows[m] = True
             info["soft_label_presses"] += len(soft_ev)
+        if press2 and press2_recording(source):
+            y_train, added, p2 = press2_labels(t, y, y_train, ev)
+            soft_rows = added if soft_rows is None else (soft_rows | added)
+            info.update(p2)
         if task == "tap":
             rows, kinds = sample_tap(t, y_train, lab["any_active"].to_numpy(np.int8), ev, soft_rows)
         else:
@@ -690,6 +881,8 @@ def build_task_data(task: str, records, out: Path):
             raise ValueError(f"Nonfinite firmware input in {source}")
         if derived:
             X = np.hstack([X, TF.derived(X, raw_columns)])
+        if lite_cols:                            # from the recording's first row, as the firmware state after a reset
+            X = np.hstack([X, TF.lite_rows(X, raw_columns + derived, frames)])
         user = str(df["User"].iloc[0]) if "User" in df.columns else ""
         who = v6.person_group(user, source.name[:-7])
         ri = len(recs)
@@ -738,7 +931,7 @@ def build_task_data(task: str, records, out: Path):
             T["X"].append(X[rows]); T["y"].append(y_train[rows]); T["kind"].append(kinds)
             T["w"].append(wrow[rows] if wrow is not None else np.ones(len(rows), np.float32))
             T["rec"].append(np.full(len(rows), ri, np.int32)); T["t"].append(t[rows].astype(np.float32))
-            T["frames"].append(frames[rows])
+            T["frames"].append(frames[rows]); T["row"].append(rows.astype(np.int32))
         info["read_sources"] += 1; info[folder + "_files"] += 1
         if i % 300 == 0:
             notice("UNIFIED_DATASET_EXTRACT", task, i, len(records), sum(len(a) for a in T["y"]), "replay_rows", nrep)
@@ -747,9 +940,12 @@ def build_task_data(task: str, records, out: Path):
         raise ValueError(f"No supervised {task} recordings")
     rec_df = pd.DataFrame(recs)
     np.save(cache / "train_X.npy", np.concatenate(T["X"]).astype(np.float32))
-    np.savez(cache / "train_meta.npz", y=np.concatenate(T["y"]), kind=np.concatenate(T["kind"]),
-             rec=np.concatenate(T["rec"]), t=np.concatenate(T["t"]), frames=np.concatenate(T["frames"]),
-             w=np.concatenate(T["w"]).astype(np.float32))
+    meta = dict(y=np.concatenate(T["y"]), kind=np.concatenate(T["kind"]),
+                rec=np.concatenate(T["rec"]), t=np.concatenate(T["t"]), frames=np.concatenate(T["frames"]),
+                w=np.concatenate(T["w"]).astype(np.float32))
+    if lite_cols:                                # row of the recording: the Lean-lite augmentation recomputes per recording
+        meta["row"] = np.concatenate(T["row"])
+    np.savez(cache / "train_meta.npz", **meta)
     np.savez(cache / "replay_meta.npz", t=np.concatenate(rp_t) if rp_t else np.zeros(0, np.float32),
              label=np.concatenate(rp_lab) if rp_lab else np.zeros(0, np.int8),
              frames=np.concatenate(rp_frames) if rp_frames else np.zeros(0, np.int32), n=nrep, ncol=ncol)
@@ -842,6 +1038,8 @@ def load_cache(cache: Path, columns):
                 category=recs.folder.to_numpy(object)[rec], rec=rec,
                 w=(m["w"][gate].astype(np.float32) if "w" in m.files else np.ones(len(rec), np.float32)),
                 columns=list(columns), feature_sets=feature_sets(list(columns)))
+    if "row" in m.files:
+        data["row"] = m["row"][gate]
     fr = rp["frames"]
     rpl = dict(X=replay_X, t=rp["t"], label=rp["label"], frames=fr,
                ready=fr >= EVAL_MIN_FRAMES, steady=fr >= LEAN8_STEADY_FRAMES, recs=recs, windows=windows,
@@ -1666,6 +1864,39 @@ def export_candidates(data, rpl, task, stem, tr, te, picks, out: Path):
     return rows
 
 
+def _lite_by_recording(data):
+    """(recording, positions of its training rows) for every recording with training rows."""
+    rec = data["rec"]; order = np.argsort(rec, kind="stable")
+    u, first = np.unique(rec[order], return_index=True); last = np.r_[first[1:], len(order)]
+    return [(int(r), order[a:b]) for r, a, b in zip(u, first, last)]
+
+
+def augment_lite(data, rpl, nominal_check=None):
+    """Lean-lite diff inputs of the augmented TAP training rows: per recording, the same placement draw as
+    TF.augment applied to the recording's whole WL history from its first row, then the Lean-lite emulator
+    (as researched; the inputs depend on ~10 s of history, so a per-row transform would be wrong)."""
+    t0 = time.perf_counter()
+    cols = data["columns"]; li = np.array([cols.index(c) for c in TF.LITE_COLUMNS])
+    if "row" not in data:
+        raise ValueError("Lean-lite augmentation needs the row index of each training row (rebuild the cache)")
+    d = TF.draws(len(rpl["recs"]), SEED)
+    starts = rpl["recs"].start.to_numpy(np.int64); ends = rpl["recs"].end.to_numpy(np.int64)
+    check = nominal_check is not None
+    for r, pos in _lite_by_recording(data):
+        a, b = int(starts[r]), int(ends[r])
+        Xr = np.asarray(rpl["X"][a:b]); fr = np.asarray(rpl["frames"][a:b]); rows = data["row"][pos]
+        if check:                                # the cache's nominal values are the emulator's (row mapping right)
+            first = pos[pos < len(nominal_check)]
+            if len(first):
+                want = TF.lite_rows(Xr, cols, fr)[data["row"][first]]
+                if not np.array_equal(want, nominal_check[first]):
+                    raise AssertionError(f"Lean-lite rows of recording {r} do not match the cache")
+                check = False
+        L = TF.lite_rows_placement(Xr, cols, fr, d["gain"][r], d["tilt"][r], d["noise"][r])
+        data["X"][np.ix_(pos, li)] = L[rows]
+    notice("UNIFIED_TAP_LITE_AUGMENTED", len(data["X"]), "rows", round(time.perf_counter() - t0, 1), "s")
+
+
 def stress_enabled(task) -> bool:
     """The placement stress transforms raw EMG fields (and derived TAP inputs); Lean fields would not follow."""
     return task == "tap" and LEAN8_MODE == "off"
@@ -1684,12 +1915,30 @@ def _replay_rec_of_row(rpl):
 
 class _StressView:
     """Replay rows after a simulated band move / contact change (TAP_GENERALIZATION_RESULTS.md 'placement': EMG gain
-    +-1 octave, tilt +-0.5 octave, contact noise 0.1..1.0; ACC unchanged), restricted to `sel` columns."""
-    def __init__(self, X, sel, columns, rec_of_row, draws):
+    +-1 octave, tilt +-0.5 octave, contact noise 0.1..1.0; ACC unchanged), restricted to `sel` columns.
+    Lean-lite diff columns are recomputed from the changed WL history of the whole recording (slices are inside
+    one recording: the replay reads per recording)."""
+    def __init__(self, X, sel, columns, rec_of_row, draws, recs=None, frames=None):
         self.X, self.sel, self.columns, self.rec, self.d = X, sel, columns, rec_of_row, draws
+        self.lite = ([columns.index(c) for c in TF.LITE_COLUMNS] if set(TF.LITE_COLUMNS) <= set(columns) else None)
+        if self.lite is not None and (recs is None or frames is None):
+            raise ValueError("Stressed Lean-lite inputs need the recordings table and frame counters")
+        self.recs, self.frames, self._last = recs, frames, (None, None)
+    def _lite(self, r):
+        if self._last[0] != r:
+            a, b = int(self.recs.start.iloc[r]), int(self.recs.end.iloc[r])
+            self._last = (r, TF.lite_rows_placement(np.asarray(self.X[a:b]), self.columns, np.asarray(self.frames[a:b]),
+                                                    self.d["gain"][r], self.d["tilt"][r], self.d["noise"][r]))
+        return self._last[1]
     def __getitem__(self, s):
         rows = np.asarray(self.X[s]); r = self.rec[s]
         Y = TF.apply_placement(rows, self.columns, self.d["gain"][r], self.d["tilt"][r], self.d["noise"][r])
+        if self.lite is not None and len(rows):
+            rr = int(r[0])
+            if not isinstance(s, slice) or (r != rr).any():
+                raise ValueError("Stressed Lean-lite rows must be read one recording slice at a time")
+            st = int(self.recs.start.iloc[rr]); a = s.start or 0
+            Y[:, self.lite] = self._lite(rr)[a - st:a - st + len(rows)]
         return Y[:, self.sel]
     def __len__(self):
         return len(self.X)
@@ -1698,7 +1947,8 @@ class _StressView:
 def stress_replay(hm, rpl, cols, sel, groups, task):
     if not stress_enabled(task):
         return None
-    view = _StressView(rpl["X"], sel, list(cols), _replay_rec_of_row(rpl), TF.stress_draws(len(rpl["recs"])))
+    view = _StressView(rpl["X"], sel, list(cols), _replay_rec_of_row(rpl), TF.stress_draws(len(rpl["recs"])),
+                       recs=rpl["recs"], frames=rpl["frames"])
     return header_replay(hm, dict(rpl, X=view), groups, task)
 
 
@@ -1977,7 +2227,7 @@ def write_run_manifest(out: Path, task, data, budgets, study):
         lscpu = subprocess.run(["lscpu"], text=True, capture_output=True, timeout=10).stdout
     except Exception:
         pass
-    fw = lean8.firmware_header() if USE_LEAN8 else (lite.HEADER if USE_LITE else None)
+    fw = lean8.firmware_header() if USE_LEAN8 else (lite.HEADER if (USE_LITE or TAP_LITE == "diff") else None)
     fp_file = out / "cache" / "fingerprint.json"
     write_json(out / "run_manifest.json", dict(
         written=time.strftime("%Y-%m-%dT%H:%M:%S%z"), task=task, commit=_git("rev-parse", "HEAD"),
@@ -1989,6 +2239,7 @@ def write_run_manifest(out: Path, task, data, budgets, study):
         memory_total=read("/proc/meminfo", "MemTotal"),
         disk_free_gb=round(shutil.disk_usage(out).free / 1e9, 1),
         hashes=dict(lean8_algorithm=lean8.GENERATOR_SHA if USE_LEAN8 else (lite.GENERATOR_SHA if USE_LITE else None),
+                    lean_lite_diff=dict(emulator=lite.DIFF_SHA, inputs=TF.LITE_VERSION) if TAP_LITE == "diff" else None,
                     firmware_header=sha256(fw) if fw else None, labeler=sha256(CLAUDE_LABELER),
                     cache_fingerprint=json.loads(fp_file.read_text()).get("fingerprint") if fp_file.is_file() else None,
                     data_content=data.get("content_sha256")),
@@ -2018,9 +2269,12 @@ def same_lean8_setting(saved) -> bool:
 
 
 def lean8_setting():
-    return dict(enabled=LEAN8_TAG, train_min_frames=TRAIN_MIN_FRAMES, eval_min_frames=EVAL_MIN_FRAMES,
-                steady_frames=LEAN8_STEADY_FRAMES,
-                generator_sha256=lite.GENERATOR_SHA if USE_LITE else lean8.GENERATOR_SHA)
+    out = dict(enabled=LEAN8_TAG, train_min_frames=TRAIN_MIN_FRAMES, eval_min_frames=EVAL_MIN_FRAMES,
+               steady_frames=LEAN8_STEADY_FRAMES,
+               generator_sha256=lite.GENERATOR_SHA if USE_LITE else lean8.GENERATOR_SHA)
+    if TAP_LITE == "diff":                       # the TAP model reads Lean-lite diff fields (firmware/lean_lite.h)
+        out["lean_lite_diff"] = dict(emulator_sha256=lite.DIFF_SHA, header_sha256=sha256(lite.HEADER))
+    return out
 
 
 def train_task(task: str, tap_files, lp_files):
@@ -2031,8 +2285,19 @@ def train_task(task: str, tap_files, lp_files):
     budgets = [b for b in (budget_bytes(MODEL_BUDGET_KB), budget_bytes(ALT_BUDGET_KB)) if b]
     if len(budgets) == 2 and budgets[1] >= budgets[0]:
         budgets = budgets[:1]
+    records, duplicates = dedupe_records(selected_sources(task, tap_files, lp_files))
+    identity = record_identity(records)
+    notice("UNIFIED_DATA_IDENTITY", task, identity["sha256"][:16], identity["recordings"], "recordings",
+           len(duplicates), "duplicates left out")
     if summary_file.is_file():
         saved = json.loads(summary_file.read_text())
+        stored = saved.get("data_identity")
+        if stored and (out / "data_identity.json").is_file():
+            stored = json.loads((out / "data_identity.json").read_text())   # with the file list (names the changes)
+        changed = identity_changes(stored, identity)
+        if saved.get("status") == "success" and changed:
+            raise ValueError("Existing output was trained on other data: " + "; ".join(changed) +
+                             ". Move it away to train on the current recordings/labels: " + str(out))
         if (saved.get("status") == "success" and saved.get("fixed_threshold") == task_threshold(task)
                 and saved.get("budgets") == budgets and same_lean8_setting(saved.get("lean8"))
                 and saved.get("experiment") == EXPERIMENT
@@ -2044,12 +2309,18 @@ def train_task(task: str, tap_files, lp_files):
         raise ValueError("Existing output does not match this configuration (threshold, budgets, frame gates, "
                          "TAP target or soft labels changed); move it away to start a new experiment: " + str(out))
     out.mkdir(parents=True, exist_ok=True)
-    data, rpl, info = build_task_data(task, selected_sources(task, tap_files, lp_files), out)
+    data, rpl, info = build_task_data(task, records, out)
+    info["duplicate_recordings_left_out"] = len(duplicates)
     if task == "tap" and TAP_AUG == "mild":
         # Training rows only (CV, rankings and final models train on them); every replay / held-out score uses
         # the real recordings. Deterministic: the same draw per recording on every run and resume.
         t_aug = time.perf_counter()
+        nominal_lite = None
+        if TAP_LITE == "diff":                  # kept for the check below
+            nominal_lite = data["X"][:2000, [data["columns"].index(c) for c in TF.LITE_COLUMNS]].copy()
         data["X"] = TF.augment(data["X"], data["columns"], data["rec"], len(rpl["recs"]), SEED)
+        if TAP_LITE == "diff":
+            augment_lite(data, rpl, nominal_lite)
         # The training data differs from the cache files: the study guard and the ranking cache must see that.
         data["content_sha256"] = hashlib.sha256((data["content_sha256"] + "|tap_aug=mild|" + TF.VERSION).encode()).hexdigest()
         notice("UNIFIED_TAP_AUGMENTED", "mild placement", len(data["X"]), "rows", round(time.perf_counter() - t_aug, 1), "s")
@@ -2084,12 +2355,22 @@ def train_task(task: str, tap_files, lp_files):
         pw0 = LP_ANCHOR_POSITIVE_WEIGHT if task == "lp" else 1.0
         # Both anchors are the all-feature control (K = every available field).
         fsel = dict(n_features=min(len(data["columns"]), EXPORT_MAX_FEATURES))
-        study.enqueue_trial(dict(**fsel, positive_weight=pw0, max_depth=6, num_leaves=15,
-                                 n_estimators=160, learning_rate=0.1, min_child_samples=100, reg_lambda=1.0,
-                                 reg_alpha=1e-3, colsample_bytree=0.8, subsample=0.8))
-        study.enqueue_trial(dict(**fsel, positive_weight=pw0, max_depth=10, num_leaves=63,
-                                 n_estimators=200, learning_rate=0.2, min_child_samples=50, reg_lambda=1.0,
-                                 reg_alpha=1e-3, colsample_bytree=0.7, subsample=0.8))
+        if NUM_LEAVES == (8, 127):
+            study.enqueue_trial(dict(**fsel, positive_weight=pw0, max_depth=6, num_leaves=15,
+                                     n_estimators=160, learning_rate=0.1, min_child_samples=100, reg_lambda=1.0,
+                                     reg_alpha=1e-3, colsample_bytree=0.8, subsample=0.8))
+            study.enqueue_trial(dict(**fsel, positive_weight=pw0, max_depth=10, num_leaves=63,
+                                     n_estimators=200, learning_rate=0.2, min_child_samples=50, reg_lambda=1.0,
+                                     reg_alpha=1e-3, colsample_bytree=0.7, subsample=0.8))
+        else:                                    # small-tree range: anchors inside it
+            clip = lambda v: int(min(max(v, NUM_LEAVES[0]), NUM_LEAVES[1]))
+            # the researched reference (TAP_FOCUS_RESULTS.md, 14 KB / 7 leaves: 400 trees fitted, trimmed to the budget)
+            study.enqueue_trial(dict(**fsel, positive_weight=pw0, max_depth=8, num_leaves=clip(7),
+                                     n_estimators=400, learning_rate=0.1, min_child_samples=100, reg_lambda=1.0,
+                                     reg_alpha=1e-3, colsample_bytree=0.7, subsample=0.8))
+            study.enqueue_trial(dict(**fsel, positive_weight=pw0, max_depth=10, num_leaves=clip(15),
+                                     n_estimators=200, learning_rate=0.2, min_child_samples=50, reg_lambda=1.0,
+                                     reg_alpha=1e-3, colsample_bytree=0.7, subsample=0.8))
     optuna.logging.set_verbosity(optuna.logging.WARNING)
     for t in study.trials:                      # trials run one at a time: a RUNNING trial here died with a crash
         if t.state == optuna.trial.TrialState.RUNNING:
@@ -2133,7 +2414,11 @@ def train_task(task: str, tap_files, lp_files):
                    baselines=baselines, experiment=EXPERIMENT, tap_target=target_info, feature_selection=fs_report,
                    tap_soft_labels=TAP_SOFT_MIN_SCORE if task == "tap" else None,
                    tap_generalization=(dict(features=TAP_FEATURES, augmentation=TAP_AUG, derived_inputs=len(TF.DERIVED)
-                                            if TAP_FEATURES == "diff" else 0) if task == "tap" else None),
+                                            if TAP_FEATURES == "diff" else 0, lean_lite_diff=TAP_LITE,
+                                            lean_lite_inputs=len(TF.LITE_COLUMNS) if TAP_LITE == "diff" else 0,
+                                            labels=TAP_LABELS, recipe=TAP_RECIPE or None,
+                                            num_leaves=list(NUM_LEAVES)) if task == "tap" else None),
+                   data_identity={k: identity[k] for k in ("sha256", "recordings", "events")},
                    acceptance=acceptance(task, candidates, baselines),
                    trials=len(done), pruned=len([t for t in study.trials if t.state == optuna.trial.TrialState.PRUNED]),
                    dataset=dict(train_rows=int(len(data["y"])), replay_rows=int(len(rpl["X"])),
@@ -2141,6 +2426,7 @@ def train_task(task: str, tap_files, lp_files):
                    cv_objective=definition["metric"],
                    replay_rules={k: getattr(R, k) for k in dir(R) if k.startswith(("TAP_", "LP_"))},
                    note="No production firmware overwrite; silver labels; LP class 1 is RELEASE.")
+    write_json(out / "data_identity.json", identity)        # every recording and label file by content hash
     write_json(summary_file, summary)
     notice("UNIFIED_TRAIN_END", json.dumps({"task": task, "header": str(out / "models" / (stem + ".h")),
                                             "bytes": default["static_bytes"]}))

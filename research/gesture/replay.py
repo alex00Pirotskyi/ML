@@ -93,6 +93,9 @@ typedef struct {
         float rise10[3];
         float dev3[3];
         float d01[3];
+        float range10[3];
+        float fall10[3];
+        float xm[3];
     } cload_lite;
     /* firmware helpers the trees may call: p_core->diff(a, b), p_core->ratio(a, b) (set by mudra_fill) */
     float (*ratio)(const uint16_t ref, const uint16_t den);
@@ -271,10 +274,30 @@ class TapCounts:
                     **{f"n_{k}": n for k, (n, h) in sorted(self.extra.items())})
 
 
+def match_windows(events, lo, hi):
+    """One-to-one matching of event times to reference windows [lo, hi] (inclusive): an event satisfies at most one
+    window. Maximum cardinality for any window widths: windows by end time (then start), each takes the earliest
+    free event inside it (the optimal greedy for points vs intervals). Returns a bool per window (found)."""
+    ev = np.asarray(events, np.float64); lo = np.asarray(lo, np.float64); hi = np.asarray(hi, np.float64)
+    found = np.zeros(len(lo), bool)
+    if not len(ev) or not len(lo):
+        return found
+    order = np.argsort(ev, kind="stable"); ev = ev[order]
+    used = np.zeros(len(ev), bool)
+    for w in np.lexsort((lo, hi)):
+        i = int(np.searchsorted(ev, lo[w], side="left"))
+        while i < len(ev) and ev[i] <= hi[w]:
+            if not used[i]:
+                used[i] = True; found[w] = True
+                break
+            i += 1
+    return found
+
+
 def tap_replay_recording(decision, t_ms, label, onsets, folder, counts: TapCounts, extra=None):
     """One recording. decision: bool per row; label: tap_label per row; onsets: confirmed onset times (ms).
-    extra: optional {name: (lo_ms, hi_ms) arrays}: reference windows whose recall is REPORTED (a window counts
-    as found if any kept event falls inside it); they never change hits, false events or the objective."""
+    extra: optional {name: (lo_ms, hi_ms) arrays}: reference windows whose recall is REPORTED (one-to-one: a kept
+    event can find only one window, match_windows); they never change hits, false events or the objective."""
     d = np.asarray(decision, bool); t = np.asarray(t_ms, np.float64); lab = np.asarray(label)
     if not len(d):
         return counts
@@ -299,11 +322,7 @@ def tap_replay_recording(decision, t_ms, label, onsets, folder, counts: TapCount
     if extra:
         for name, (lo, hi) in extra.items():
             lo = np.asarray(lo, np.float64); hi = np.asarray(hi, np.float64)
-            if len(et) and len(lo):
-                i = np.searchsorted(et, lo, side="left")
-                found = (i < len(et)) & (et[np.minimum(i, len(et) - 1)] <= hi)
-            else:
-                found = np.zeros(len(lo), bool)
+            found = match_windows(et, lo, hi)
             e = counts.extra.setdefault(name, [0, 0]); e[0] += int(len(lo)); e[1] += int(found.sum())
     dt = np.diff(np.r_[t, t[-1] + (np.median(np.diff(t)) if len(t) > 1 else 0.0)])
     dt = np.clip(dt, 0, 50)

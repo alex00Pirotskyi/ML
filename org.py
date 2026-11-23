@@ -223,7 +223,9 @@ GESTURE_MAP = {
     # FINGER MOTION
 
     "indexfinger": (FOLDER_TAP, "FINGER", 3),
-    "index": (FOLDER_TAP, "FINGER", 3),
+    # "index_finger", not a bare "index": find_mapping searches the whole file name, so "index" also matched
+    # participant names (e.g. "indexuser_..._Swipe_..." went to FINGER). All current files map as before.
+    "index_finger": (FOLDER_TAP, "FINGER", 3),
 
     "midfinger": (FOLDER_TAP, "FINGER", 3),
     "mid_finger": (FOLDER_TAP, "FINGER", 3),

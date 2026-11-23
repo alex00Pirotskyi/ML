@@ -29,6 +29,14 @@ TAP generalization (TAP_GENERALIZATION_RESULTS.md): EMG diffs + placement augmen
 With `MUDRA_USE_LEAN8=0` the TAP `COMPARISON.md` also replays every model and baseline under a simulated band move /
 contact change on the held-out people.
 
+**Final TAP recipe** (TAP_FOCUS_RESULTS.md, "Final recipe"): diffs + augmentation + the 15 gain-invariant Lean-lite
+diff inputs + press2 labels, 14 KB, 4-15 leaves, TAP only:
+
+    MUDRA_TAP_RECIPE=final14 python -u research/gesture/train_unified.py
+
+A completed run is reused only if every recording, label file and event table is byte-for-byte the one it was
+trained on (else it stops and names the change); byte-identical copies of a recording are used once.
+
 ## Stages and what each one guarantees
 
 | Stage | What it does | Guarantee / check |
