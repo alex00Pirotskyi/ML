@@ -193,10 +193,38 @@ Observable 60 ms labels, 7 leaves, budget from 4 to 14 KB. Differences to 14 KB 
      click is cancelled when the contraction is held. This is a product decision.
    - **More fist data:** recordings from many more people. Today there are 10 minutes of fist recordings in total.
 
+## Seed confirmation (3 training seeds each, paired by seed)
+
+Differences to the reference, mean over 3 seeds [min, max]:
+
+| | Normal | Soft | Double 1st | Double 2nd | Fast 240 | Swipe | Finger /min | Fist /min | Latency |
+|---|---|---|---|---|---|---|---|---|---|
+| **obs60**, 2.8/min nominal | +0.8 [+0.2, +1.2] | +0.9 [+0.2, +1.4] | −0.1 | +0.2 [−1.4, +2.1] | +1.1 [0.0, +1.8] | +1.1 [+0.6, +1.5] | −0.16 [−0.3, −0.1] | **+0.53 [+0.5, +0.6]** | +5 ms |
+| obs60, 2.8/min placement | +1.1 | +3.0 | +0.6 | +2.1 | +2.6 | +2.0 | −0.11 | +0.26 [+0.1, +0.5] | +5 ms |
+| obs60, 2.0/min nominal | +1.4 | +2.3 | +0.7 | +2.0 | +2.7 | +2.6 | −0.03 | +0.06 | +5 ms |
+| obs60, 2.0/min placement | +2.3 | +3.4 | +2.4 | +1.5 | +4.4 | +3.0 | 0.00 | +0.11 | +5 ms |
+| obs60 without absolute EMG, 2.8/min nominal | +0.5 | −0.2 | +0.9 | +1.1 | +1.4 | +0.7 | −0.26 | +0.60 | +5 ms |
+| obs60 without absolute EMG, 2.0/min nominal | +1.7 | +2.0 | +3.1 | +4.8 | +3.6 | +2.6 | −0.09 | +0.01 | +5 ms |
+
+At 2.8/min the reference's seed spread is ±0.1 finger and ±0.12 fist per minute; at 2.0/min it is ±0.04 finger and
+±0.08 fist.
+
+**What this means:**
+- **Taps:** observable 60 ms labels are a real gain. Every tap type improves in every seed: +1 to +4 points,
+  soft included, with the largest gains under band movement.
+- **Cost:** fist false taps rise by about 0.5/min (about +20%) at the looser 2.8/min point, consistently across
+  seeds. At the stricter 2.0/min point there is no measurable cost. Finger false taps fall slightly.
+- **Without absolute EMG levels:** mixed. It is better at 2.0/min and worse under band movement at 2.8/min, so
+  it is not adopted.
+
+Trainer: `MUDRA_TAP_RECIPE=final14obs` (`final14` + `MUDRA_TAP_OBS_MS=60`). The window selection is identical to
+the research arm, and the teachers are cross-fitted inside every CV fold's, the development and everyone's
+training people.
+
 **Recommendation:**
-- **Next candidate:** today's final recipe plus observable 60 ms labels and no absolute EMG levels.
-- **Before it goes into the trainer:** confirm it with 2 more training seeds (one run per variant here; the
-  gains are 1–3× the retraining noise).
+- **Next candidate:** today's final recipe plus observable 60 ms labels (`final14obs`), confirmed above. It trades
+  +1 to +4 points on every tap type for about +0.5 fist false taps/min at the looser operating point. Train it next
+  to `final14` and decide on the device.
 - **Size:** keep 14 KB. If the device needs room, 10 KB with observable labels equals today's 14 KB.
 
 ## Reproduce
