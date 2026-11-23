@@ -117,8 +117,14 @@ def build(X, spec):
         add(X[:, EMG_RAW], [COLS[i] for i in EMG_RAW], True)
     if "lean" in spec:
         add(X[:, LEAN], [COLS[i] for i in LEAN], True)
-    if "diff" in spec:
-        add(np.clip(X[:, PA] - X[:, PB], -32768, 32767), [f"p_core->diff({COLS[a]}, {COLS[b]})" for a, b in PAIRS], True)
+    if "diff" in spec or "diffz" in spec or "difft" in spec:
+        # diff = all 135; diffz = the 90 zone-vs-zone pairs (spectral shape); difft = the 45 slot-vs-slot pairs (change
+        # of each zone: now vs oldest history vs mean, i.e. event-local)
+        sel = np.arange(len(PAIRS)) if "diff" in spec else (np.arange(90) if "diffz" in spec else np.arange(90, 135))
+        if "diffz" in spec and "difft" in spec:
+            sel = np.arange(len(PAIRS))
+        add(np.clip(X[:, PA[sel]] - X[:, PB[sel]], -32768, 32767),
+            [f"p_core->diff({COLS[PAIRS[i][0]]}, {COLS[PAIRS[i][1]]})" for i in sel], True)
     if "ratio" in spec:
         add((X[:, PA] + 1.0) / (X[:, PB] + 1.0), [f"p_core->ratio({COLS[a]}, {COLS[b]})" for a, b in PAIRS], True)
     if "logratio" in spec:                      # exact log power ratio (would need a firmware LUT): upper bound
@@ -523,6 +529,119 @@ def filter_positives(X, y, files, w0, rec, ridx, emg_min=None, win_ms=None, recq
     return X[keep], y[keep], files[keep], np.asarray(w0)[keep], rec[keep], ridx[keep], info
 
 
+OBS_TEACHER = dict(objective="binary", n_estimators=300, learning_rate=0.08, num_leaves=31, max_depth=8,
+                   min_child_samples=100, reg_lambda=1.0, reg_alpha=1e-3, colsample_bytree=0.7, subsample=0.8,
+                   subsample_freq=1, max_bin=127, verbosity=-1, deterministic=True)
+OBS_SPEC = ("acc", "emgraw", "diff", "wlratio", "litediff")
+
+
+def observable_scores(X150, y, rec, ridx, fold, tag):
+    """Cross-fitted teacher score of every positive training row of this fold: a full-size model (no budget) on the
+    fold's training rows (same labels, nominal inputs), trained without the row's person (3 person folds inside the
+    fold's training people). High = this frame looks like a tap and unlike everything else, to a model that never
+    saw this person. Cached per fold and label set."""
+    import hashlib
+    import lightgbm as lgb
+    D = load(); recs = D["rpl"]["recs"]
+    key = hashlib.sha256(np.ascontiguousarray(ridx).tobytes() + np.ascontiguousarray(y).tobytes()).hexdigest()[:12]
+    path = OUT / "models" / f"obs_teacher_{tag}_fold{fold}_{key}.npz"
+    if path.is_file():
+        with np.load(path) as z:
+            return z["score"]
+    t0 = time.perf_counter()
+    person = recs.group.to_numpy(object)[rec]
+    people = np.unique(person)
+    F, _, _ = build(np.hstack([X150, lite_rows(ridx, rec)]), OBS_SPEC)
+    w = weights(y, recs.file.to_numpy(object)[rec], np.ones(len(y), np.float32))
+    score = np.full(len(y), np.nan)
+    for k, (a_, b_) in enumerate(GroupKFold(n_splits=3).split(people, groups=people)):
+        fit_rows = np.isin(person, people[a_]); lab = np.isin(person, people[b_]) & (y == 1)
+        m = lgb.LGBMClassifier(**OBS_TEACHER, n_jobs=THREADS, random_state=11 + k).fit(F[fit_rows], y[fit_rows],
+                                                                                      sample_weight=w[fit_rows])
+        score[lab] = m.predict_proba(F[lab])[:, 1]
+        log("GR_OBS_TEACHER", fold, k, json.dumps(dict(fit_rows=int(fit_rows.sum()), scored=int(lab.sum()),
+                                                       seconds=round(time.perf_counter() - t0, 1))))
+    (OUT / "models").mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(path, score=score)
+    return score
+
+
+def observable_positives(X150, y, files, w0, rec, ridx, fold, mode, dur_ms, tag="press2"):
+    """Observable-pattern labels: every tap keeps only the dur_ms of its positive rows where the cross-fitted teacher
+    finds it most distinguishable (mode 'max': the window with the highest mean score; 'first': the earliest window
+    whose mean reaches 90% of that maximum); its other positive rows are left out (never made negatives). Every tap
+    keeps a window, so soft / second / fast taps stay in training."""
+    D = load(); rpl = D["rpl"]; on = D["onsets"]
+    score = observable_scores(X150, y, rec, ridx, fold, tag)
+    anchors = {int(r): np.unique(np.round(v.t_on.to_numpy(float))) for r, v in
+               on[on.kind.isin(["strong", "soft", "press"])].groupby("rec")}
+    t = np.asarray(rpl["t"][ridx], np.float64)
+    pos = np.flatnonzero(y == 1)
+    tap = np.full(len(y), -1, np.int64); off = np.full(len(y), np.nan)
+    owner = {}
+    for i in pos:
+        an = anchors.get(int(rec[i]))
+        if an is None or not len(an):
+            continue
+        k = np.searchsorted(an, t[i] + 5.0, side="right") - 1
+        if k < 0 or t[i] - an[k] > 95:
+            continue
+        key = (int(rec[i]), float(an[k])); tap[i] = owner.setdefault(key, len(owner)); off[i] = t[i] - an[k]
+    keep = np.ones(len(y), bool); n_left = 0; starts = []
+    order = np.lexsort((off[pos], tap[pos])); pp = pos[order]
+    bounds = np.flatnonzero(np.diff(np.r_[-2, tap[pp], -3]) != 0)
+    for a_, b_ in zip(bounds[:-1], bounds[1:]):
+        idx = pp[a_:b_]
+        if tap[idx[0]] < 0 or len(idx) < 2:
+            continue
+        ot = off[idx]; sc = np.nan_to_num(score[idx], nan=0.0)
+        cnt = np.array([int(((ot >= o) & (ot < o + dur_ms)).sum()) for o in ot])
+        full = cnt >= min(max(1, int(round(dur_ms / g.TAP_POSITIVE_STRIDE_MS))), int(cnt.max()))
+        means = np.array([sc[(ot >= o) & (ot < o + dur_ms)].mean() if ok_ else -1.0 for o, ok_ in zip(ot, full)])
+        if mode == "first":
+            j = int(np.flatnonzero(means >= 0.9 * means.max())[0])
+        else:
+            j = int(np.argmax(means))
+        inside = (ot >= ot[j]) & (ot < ot[j] + dur_ms)
+        keep[idx[~inside]] = False; n_left += int((~inside).sum()); starts.append(ot[j])
+    st = np.asarray(starts) if starts else np.zeros(1)
+    info = dict(obs_mode=mode, obs_ms=dur_ms, obs_taps=len(starts), obs_rows_left_out=n_left,
+                obs_start_ms_p10_p50_p90=[float(np.percentile(st, q)) for q in (10, 50, 90)])
+    return X150[keep], y[keep], files[keep], np.asarray(w0)[keep], rec[keep], ridx[keep], info
+
+
+CONS_LOOKALIKE = ("FINGER", "WRIST", "ARM", "BAND")
+
+
+def consistent_features(F, y, person, lookalike, k):
+    """Inputs that separate taps from look-alikes in most people (fold-local: the fold's training rows only).
+    For each training person with >= 30 tap rows and >= 30 look-alike rows: the univariate AUC of every input,
+    taps vs that person's look-alike rows (muscle activity in finger / fist / wrist / arm / band recordings), oriented
+    by the pooled direction. Score = the 25th percentile over people (works for most people, not on average);
+    the k best inputs are kept. Returns (column indices, per-input scores, people used)."""
+    from scipy.stats import rankdata
+    pos_all = y == 1
+    pooled = []
+    def auc(a, b):                                     # Mann-Whitney AUC of every column, a = taps, b = look-alikes
+        r = rankdata(np.vstack([a, b]), axis=0)
+        return (r[:len(a)].sum(0) - len(a) * (len(a) + 1) / 2) / (len(a) * len(b))
+    rng = np.random.default_rng(1)
+    def sub(m, n=4000):
+        idx = np.flatnonzero(m)
+        return idx if len(idx) <= n else np.sort(rng.choice(idx, n, replace=False))
+    direction = np.sign(auc(F[sub(pos_all, 20000)], F[sub(lookalike, 20000)]) - 0.5)
+    direction[direction == 0] = 1
+    per = []
+    people = [p_ for p_ in np.unique(person) if (pos_all & (person == p_)).sum() >= 30
+              and (lookalike & (person == p_)).sum() >= 30]
+    for p_ in people:
+        a_ = auc(F[sub(pos_all & (person == p_))], F[sub(lookalike & (person == p_))])
+        per.append(0.5 + direction * (a_ - 0.5))
+    per = np.asarray(per)
+    score = np.percentile(per, 25, axis=0)
+    return np.sort(np.argsort(-score)[:k]), score, people
+
+
 MINE_FROM = HERE / "results_tap_generalization" / "models"
 
 
@@ -669,7 +788,7 @@ class Val:
             nz = np.flatnonzero(np.asarray(rpl["steady"][a:b], bool))
             self.steady_from.append(int(nz[0]) if len(nz) else None)
 
-    def predict(self, model, k, spec, stress=None, chunk=250_000):
+    def predict(self, model, k, spec, stress=None, chunk=250_000, cols=None):
         """model: LGBMClassifier or Booster (then k is ignored: the saved model is already cut)."""
         booster = getattr(model, "booster_", model)
         lite = lite_rows(self.ridx, self.rec, stress) if ("litediff" in spec or "litediff4" in spec) else None
@@ -682,6 +801,8 @@ class Val:
             if lite is not None:
                 Xb = np.hstack([Xb, lite[s:s + chunk]])
             F, _, _ = build(Xb, spec)
+            if cols is not None:
+                F = F[:, cols]
             p[s:s + chunk] = (booster.predict(F, num_iteration=k, num_threads=THREADS) if hasattr(model, "booster_")
                               else booster.predict(F, num_threads=THREADS))
         return p
@@ -902,6 +1023,9 @@ ARMS = {
     "acc_ratio":        dict(spec=("acc", "ratio", "wlratio")),
     "acc_logratio":     dict(spec=("acc", "logratio", "wlratio")),
     "raw126_diff":      dict(spec=("acc", "emgraw", "diff", "wlratio")),
+    # no absolute EMG levels (codes, WL): EMG only as relative / event-local evidence (TAP_OBSERVABLE_RESULTS.md)
+    "acc_emgrel":       dict(spec=("acc", "diff", "wlratio")),
+    "acc_emgevent":     dict(spec=("acc", "difft", "wlratio")),
     "raw126_aug":       dict(spec=("acc", "emgraw"), aug=1.0),
     "raw126_augp":      dict(spec=("acc", "emgraw"), augp=True),
     "acc_diff_augp":    dict(spec=("acc", "diff", "wlratio"), augp=True),
@@ -951,6 +1075,12 @@ def arm_from_name(name):
             base["seed"] = int(tok[4:])               # seed<k>: another LightGBM seed (training noise)
         elif tok.startswith("recq") and tok[4:].isdigit():
             base["recq"] = float(tok[4:]) / 100       # recq50: weak recordings (< 50% presses confirmed) give no taps
+        elif tok.startswith("cons") and tok[4:].isdigit():
+            base["cons"] = int(tok[4:])                # cons32: only the 32 inputs most consistent across people
+        elif tok.startswith("obsfirst") and tok[8:].isdigit():
+            base["obs"] = ("first", float(tok[8:]))  # obsfirst40: earliest 40 ms window near the teacher's best
+        elif tok.startswith("obs") and tok[3:].isdigit():
+            base["obs"] = ("max", float(tok[3:]))    # obs40: per tap the 40 ms the teacher finds most distinguishable
         elif tok.startswith("win") and tok[3:].isdigit():
             base["win_ms"] = float(tok[3:])           # win40: positive window [-5, 40] ms after the onset
         elif tok == "extra":                          # trained with the MUDRA_GR_EXTRA recordings (train mode)
@@ -1003,6 +1133,10 @@ def run_arm(name):
             X150, y, files, w0, rec, ridx, inf = filter_positives(X150, y, files, w0, rec, ridx,
                                                                   arm.get("emg_min"), arm.get("win_ms"), arm.get("recq"))
             info.update(inf)
+        if arm.get("obs"):                         # observable-pattern labels (cross-fitted teacher, per tap)
+            X150, y, files, w0, rec, ridx, inf = observable_positives(X150, y, files, w0, rec, ridx, f, *arm["obs"],
+                                                                      tag=labels)
+            info.update(inf)
         if arm.get("shift"):                       # positive windows d ms later (decide after the contact)
             X150, y, files, w0, rec, ridx, inf = shift_positives(X150, y, files, w0, rec, ridx, arm["shift"])
             info.update(inf)
@@ -1036,6 +1170,18 @@ def run_arm(name):
             X150[mrow] = apply_emg(X150[mrow], **{k_: v[rec[mrow]] for k_, v in tab.items()})
         F, names, is_emg = build(X150, spec)
         del X150
+        cols = None
+        if arm.get("cons"):                        # person-consistent minimal inputs (fold-local screen)
+            act = data_ridx(trn[data["kind"][trn] == 2])
+            folder_rec = D["rpl"]["recs"].folder.to_numpy(object)[rec]
+            look = (y == 0) & np.isin(folder_rec, CONS_LOOKALIKE) & np.isin(ridx, act)
+            person_rec = D["rpl"]["recs"].group.to_numpy(object)[rec]
+            cols, cscore, cpeople = consistent_features(F, y, person_rec, look, arm["cons"])
+            F = F[:, cols]; is_emg = is_emg[cols]
+            info.update(cons_k=int(arm["cons"]), cons_people=len(cpeople), cons_lookalike_rows=int(look.sum()),
+                        cons_inputs=[names[i] for i in cols],
+                        cons_score_range=[float(cscore[cols].min()), float(cscore[cols].max())])
+            names = [names[i] for i in cols]
         extra = {}
         if arm.get("penalty") is not None:
             extra["feature_contri"] = [arm["penalty"] if e else 1.0 for e in is_emg]
@@ -1060,7 +1206,7 @@ def run_arm(name):
         (OUT / "models").mkdir(parents=True, exist_ok=True)
         m.booster_.save_model(str(OUT / "models" / f"{name}_fold{f}.txt"), num_iteration=k)
         for cond in STRESS:
-            p = val.predict(m, k, spec, tables[cond])
+            p = val.predict(m, k, spec, tables[cond], cols=cols)
             if cond in ("nominal", "placement"):
                 focus_acc.add(val, p, cond)
             for thr in GRID:
