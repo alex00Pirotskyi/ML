@@ -84,6 +84,8 @@ TAP_RECIPES = {
                     MUDRA_ALT_BUDGET_KB="0", MUDRA_NUM_LEAVES="4,15", MUDRA_TRAIN_MIN_FRAMES="50",
                     MUDRA_EVAL_MIN_FRAMES="50", MUDRA_TAP_SOFT_LABELS="off"),
 }
+# final14 + observable-pattern labels (TAP_OBSERVABLE_RESULTS.md): per tap only its most distinguishable 60 ms
+TAP_RECIPES["final14obs"] = dict(TAP_RECIPES["final14"], MUDRA_TAP_OBS_MS="60")
 TAP_RECIPE = os.environ.get("MUDRA_TAP_RECIPE", "").strip().lower()
 if TAP_RECIPE:
     if TAP_RECIPE not in TAP_RECIPES:
@@ -119,16 +121,30 @@ TAP_FEATURES = os.environ.get("MUDRA_TAP_FEATURES", "raw").strip().lower()
 TAP_AUG = os.environ.get("MUDRA_TAP_AUG", "none").strip().lower()
 TAP_LITE = os.environ.get("MUDRA_TAP_LITE", "off").strip().lower()
 TAP_LABELS = os.environ.get("MUDRA_TAP_LABELS", "confirmed").strip().lower()
+#   MUDRA_TAP_OBS_MS=60      observable-pattern labels (TAP_OBSERVABLE_RESULTS.md): of every tap's positive rows only the
+#                            60 ms that a teacher, cross-fitted by person, finds most distinguishable from everything
+#                            else are trained; the tap's other positive rows are left out (never made negatives).
+#                            Done separately inside every CV fold's training people, the development people and
+#                            everyone, so no score sees a teacher fitted on its own people. Training labels only.
+_obs = os.environ.get("MUDRA_TAP_OBS_MS", "off").strip().lower()
+TAP_OBS_MS = None if _obs in ("off", "0", "none", "") else float(_obs)
 if TAP_FEATURES not in ("raw", "diff") or TAP_AUG not in ("none", "mild"):
     raise ValueError("MUDRA_TAP_FEATURES must be raw or diff; MUDRA_TAP_AUG must be none or mild")
 if TAP_LITE not in ("off", "diff") or TAP_LABELS not in ("confirmed", "press2"):
     raise ValueError("MUDRA_TAP_LITE must be off or diff; MUDRA_TAP_LABELS must be confirmed or press2")
-TAP_GENERALIZATION = TAP_FEATURES != "raw" or TAP_AUG != "none" or TAP_LITE != "off" or TAP_LABELS != "confirmed"
+TAP_GENERALIZATION = (TAP_FEATURES != "raw" or TAP_AUG != "none" or TAP_LITE != "off" or TAP_LABELS != "confirmed"
+                      or TAP_OBS_MS is not None)
 if TAP_GENERALIZATION and LEAN8_MODE != "off":
     raise ValueError("MUDRA_TAP_FEATURES / MUDRA_TAP_AUG / MUDRA_TAP_LITE / MUDRA_TAP_LABELS need MUDRA_USE_LEAN8=0 "
                      "(researched without Lean-8 inputs; MUDRA_TAP_LITE=diff brings the Lean-lite diff fields itself)")
 TAP_TAG = (f"_tap-{TAP_FEATURES}-{TAP_AUG}" + ("-litediff" if TAP_LITE == "diff" else "")
-           + ("-press2" if TAP_LABELS == "press2" else "")) if TAP_GENERALIZATION else ""
+           + ("-press2" if TAP_LABELS == "press2" else "")
+           + (f"-obs{TAP_OBS_MS:g}" if TAP_OBS_MS is not None else "")) if TAP_GENERALIZATION else ""
+# Observable-pattern teacher (as researched): a full-size LightGBM (no budget) on all model inputs, 3 person folds.
+OBS_TEACHER = dict(objective="binary", n_estimators=300, learning_rate=0.08, num_leaves=31, max_depth=8,
+                   min_child_samples=100, reg_lambda=1.0, reg_alpha=1e-3, colsample_bytree=0.7, subsample=0.8,
+                   subsample_freq=1, max_bin=127, verbosity=-1, deterministic=True)
+OBS_ANCHOR_MS = (-5.0, 95.0)          # a positive row belongs to the onset / press at most 5 ms after, 95 ms before it
 # press2 constants (as researched): presses of these TAP recordings; soft = the labeller's unknown presses with a tap
 # teacher score >= 0.5 (positive rows in its 0-80 ms onset window), the other unknown presses are anchored at their
 # onset estimate t_on (rows t_on - 5 .. t_on + 90); negatives t_on - 30 .. t_on + 120 of any real press are left out.
@@ -1043,7 +1059,9 @@ def load_cache(cache: Path, columns):
     fr = rp["frames"]
     rpl = dict(X=replay_X, t=rp["t"], label=rp["label"], frames=fr,
                ready=fr >= EVAL_MIN_FRAMES, steady=fr >= LEAN8_STEADY_FRAMES, recs=recs, windows=windows,
-               onsets=_objective_onsets(onsets), extra=_reference_windows(onsets))
+               onsets=_objective_onsets(onsets), extra=_reference_windows(onsets),
+               anchors={int(r): np.unique(np.round(g_.t_on.to_numpy(float))) for r, g_ in
+                        onsets[onsets.kind.isin(["strong", "soft", "press"])].groupby("rec")} if len(onsets) else {})
     info_all = json.loads((cache / "info.json").read_text())
     if "content_sha256" not in info_all:            # first use of this cache (or a cache from older code)
         t0 = time.perf_counter()
@@ -1438,6 +1456,93 @@ def replay_lp(q_fn, rpl, groups, selected, threshold=None):
 _PREPARED = {}
 
 
+def obs_select(tap, offset, score, dur_ms, stride_ms=None):
+    """Observable-pattern window per tap. tap: owner id of each positive row (-1 = none), offset: ms after its
+    onset, score: teacher score. For every tap the window of dur_ms (starting at one of its rows, holding at least
+    dur_ms / stride rows when the tap has that many) with the highest mean score is kept; the tap's other rows are
+    not. Rows without an owner and taps with one row are kept. Returns a keep mask over the rows."""
+    stride_ms = TAP_POSITIVE_STRIDE_MS if stride_ms is None else stride_ms
+    tap = np.asarray(tap); offset = np.asarray(offset, np.float64); score = np.nan_to_num(np.asarray(score, np.float64))
+    keep = np.ones(len(tap), bool)
+    order = np.lexsort((offset, tap))
+    ts = tap[order]
+    bounds = np.flatnonzero(np.r_[True, ts[1:] != ts[:-1], True])
+    need_full = max(1, int(round(dur_ms / stride_ms)))
+    for a, b in zip(bounds[:-1], bounds[1:]):
+        idx = order[a:b]
+        if tap[idx[0]] < 0 or len(idx) < 2:
+            continue
+        ot, sc = offset[idx], score[idx]
+        inside = (ot[None, :] >= ot[:, None]) & (ot[None, :] < ot[:, None] + dur_ms)      # [start, row]
+        cnt = inside.sum(1)
+        mean = (inside * sc[None, :]).sum(1) / np.maximum(cnt, 1)
+        mean[cnt < min(need_full, int(cnt.max()))] = -1.0
+        j = int(np.argmax(mean))
+        keep[idx[~inside[j]]] = False
+    return keep
+
+
+def _obs_owner(data, rpl, rows):
+    """(tap owner id, ms after its onset) of each row: the latest onset / press of the recording at most 5 ms after
+    the row and at most 95 ms before it."""
+    anchors = rpl.get("anchors") or {}
+    rec = data["rec"][rows]; t = data["t"][rows].astype(np.float64)
+    owner = np.full(len(rows), -1, np.int64); off = np.full(len(rows), np.nan)
+    ids = {}
+    for r in np.unique(rec):
+        an = anchors.get(int(r))
+        if an is None or not len(an):
+            continue
+        m = np.flatnonzero(rec == r)
+        k = np.searchsorted(an, t[m] - OBS_ANCHOR_MS[0], side="right") - 1
+        ok = (k >= 0) & (t[m] - an[np.clip(k, 0, None)] <= OBS_ANCHOR_MS[1])
+        for i, kk in zip(m[ok], k[ok]):
+            owner[i] = ids.setdefault((int(r), float(an[kk])), len(ids)); off[i] = t[i] - an[kk]
+    return owner, off
+
+
+def obs_rows(data, rpl, rows, name, cache_dir=None):
+    """The training rows `rows` with observable-pattern positives (MUDRA_TAP_OBS_MS): negatives and unowned rows
+    unchanged, every tap reduced to its most distinguishable window. Teacher scores are cross-fitted by person
+    inside `rows` (3 folds of its people): no row is scored by a teacher that saw its person. Cached by content."""
+    if TAP_OBS_MS is None:
+        return rows
+    rows = np.asarray(rows)
+    key = hashlib.sha256((hashlib.sha256(np.ascontiguousarray(rows).tobytes()).hexdigest() + "|" +
+                          str(data.get("obs_content_sha256")) + "|" + json.dumps(OBS_TEACHER, sort_keys=True) +
+                          f"|{TAP_OBS_MS}|{OBS_ANCHOR_MS}|{SEED}|v1").encode()).hexdigest()[:20]
+    path = (cache_dir / f"obs_{name}_{key}.npz") if cache_dir is not None else None
+    if path is not None and path.is_file():
+        with np.load(path) as z:
+            return z["rows"]
+    t0 = time.perf_counter()
+    X = data.get("X_nominal", data["X"])
+    y = data["y"][rows]; person = data["group"][rows]
+    pos = np.flatnonzero(y == 1)
+    score = np.full(len(rows), np.nan)
+    people = np.unique(person)
+    w = weights_for_task(data, rows, "tap", 1.0)
+    for k, (a_, b_) in enumerate(GroupKFold(n_splits=min(3, len(people))).split(people, groups=people)):
+        fit = np.isin(person, people[a_]); lab = np.isin(person, people[b_]) & (y == 1)
+        m = lgb.LGBMClassifier(**OBS_TEACHER, n_jobs=CPU_THREADS, random_state=SEED + 11 + k).fit(
+            X[rows[fit]], y[fit], sample_weight=w[fit])
+        score[lab] = m.predict_proba(X[rows[lab]])[:, 1]
+    owner, off = _obs_owner(data, rpl, rows[pos])
+    keep = np.ones(len(rows), bool)
+    keep[pos] = obs_select(owner, off, score[pos], TAP_OBS_MS)
+    out = rows[keep]
+    notice("UNIFIED_TAP_OBS", name, json.dumps(dict(rows=int(len(rows)), positives=int(len(pos)),
+           taps=int(len(np.unique(owner[owner >= 0]))), positive_rows_left_out=int((~keep).sum()),
+           seconds=round(time.perf_counter() - t0, 1))))
+    if path is not None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        np.savez_compressed(path, rows=out)
+    return out
+
+
+OBS_CACHE_DIR = None                # set per task (TAP with MUDRA_TAP_OBS_MS)
+
+
 def prepared_folds(data, rpl, train_ids, task):
     """The CV folds, their base sample weights and replay plans, computed once per dataset/split.
 
@@ -1452,6 +1557,8 @@ def prepared_folds(data, rpl, train_ids, task):
             train_ids, data["y"][train_ids], data["group"][train_ids])):
         tr = train_ids[a]
         val_groups = set(data["group"][train_ids[b]])
+        if task == "tap" and TAP_OBS_MS is not None:          # observable labels, inside this fold's training people
+            tr = obs_rows(data, rpl, tr, f"cv{fold}", OBS_CACHE_DIR)
         y = data["y"][tr]
         folds.append(dict(tr=tr, y=y, val_groups=val_groups, classes=set(np.unique(y).tolist()),
                           base_w=weights_for_task(data, tr, task, 1.0), positive=(y == 1),
@@ -1793,6 +1900,9 @@ def export_candidates(data, rpl, task, stem, tr, te, picks, out: Path):
     y = data["y"]; cols = data["columns"]
     held = set(data["group"][te])
     every = np.arange(len(y))
+    if task == "tap" and TAP_OBS_MS is not None:              # observable labels inside the people each model trains on
+        tr = obs_rows(data, rpl, tr, "development", OBS_CACHE_DIR)
+        every = obs_rows(data, rpl, every, "everyone", OBS_CACHE_DIR)
     me = sys.modules[__name__]
     ranking_dev = ranking_all = None
     if any(t.params["n_features"] < len(cols) for _, _, t in picks):
@@ -1832,7 +1942,8 @@ def export_candidates(data, rpl, task, stem, tr, te, picks, out: Path):
         params = trial.user_attrs["training_params"]; pw = float(trial.params["positive_weight"])
         subset = subset_for(trial, ranking_all); ix = [cols.index(x) for x in subset]
         folder = model_dir / "candidates" / role
-        final = fit_model(data["X"][:, ix], y, weights_for_task(data, every, task, pw), params, budget)
+        final = fit_model(data["X"][np.ix_(every, np.asarray(ix, np.intp))], y[every],
+                          weights_for_task(data, every, task, pw), params, budget)
         k_fin, _ = trees_within(final, budget); final = truncated(final, k_fin)
         header, size, checked = write_header(final, subset, stem, folder, task, out)
         if size > budget:
@@ -2315,6 +2426,8 @@ def train_task(task: str, tap_files, lp_files):
         # Training rows only (CV, rankings and final models train on them); every replay / held-out score uses
         # the real recordings. Deterministic: the same draw per recording on every run and resume.
         t_aug = time.perf_counter()
+        if TAP_OBS_MS is not None:              # the observable-label teacher reads the real (nominal) rows
+            data["X_nominal"] = data["X"].copy()
         nominal_lite = None
         if TAP_LITE == "diff":                  # kept for the check below
             nominal_lite = data["X"][:2000, [data["columns"].index(c) for c in TF.LITE_COLUMNS]].copy()
@@ -2324,6 +2437,14 @@ def train_task(task: str, tap_files, lp_files):
         # The training data differs from the cache files: the study guard and the ranking cache must see that.
         data["content_sha256"] = hashlib.sha256((data["content_sha256"] + "|tap_aug=mild|" + TF.VERSION).encode()).hexdigest()
         notice("UNIFIED_TAP_AUGMENTED", "mild placement", len(data["X"]), "rows", round(time.perf_counter() - t_aug, 1), "s")
+    if task == "tap" and TAP_OBS_MS is not None:
+        import inspect
+        data["obs_content_sha256"] = data["content_sha256"]
+        obs_ver = hashlib.sha256((inspect.getsource(obs_select) + inspect.getsource(_obs_owner) +
+                                  inspect.getsource(obs_rows) + json.dumps(OBS_TEACHER, sort_keys=True)).encode()).hexdigest()
+        data["content_sha256"] = hashlib.sha256((data["content_sha256"] + f"|tap_obs={TAP_OBS_MS}|" + obs_ver).encode()).hexdigest()
+        global OBS_CACHE_DIR
+        OBS_CACHE_DIR = out / "cache" / "obs"
     tr, te = split_heldout(data, task)
     notice("UNIFIED_TRAIN_BEGIN", json.dumps({
         "task": task, "subjects": len(set(data["group"])), "train_rows": len(tr), "holdout_rows": len(te),
@@ -2416,7 +2537,7 @@ def train_task(task: str, tap_files, lp_files):
                    tap_generalization=(dict(features=TAP_FEATURES, augmentation=TAP_AUG, derived_inputs=len(TF.DERIVED)
                                             if TAP_FEATURES == "diff" else 0, lean_lite_diff=TAP_LITE,
                                             lean_lite_inputs=len(TF.LITE_COLUMNS) if TAP_LITE == "diff" else 0,
-                                            labels=TAP_LABELS, recipe=TAP_RECIPE or None,
+                                            labels=TAP_LABELS, observable_ms=TAP_OBS_MS, recipe=TAP_RECIPE or None,
                                             num_leaves=list(NUM_LEAVES)) if task == "tap" else None),
                    data_identity={k: identity[k] for k in ("sha256", "recordings", "events")},
                    acceptance=acceptance(task, candidates, baselines),

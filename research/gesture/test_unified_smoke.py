@@ -283,6 +283,15 @@ def tap_final_recipe_checks():
     assert g.press2_recording(Path("DATA_TAP/TAP/B_MidTap_Horizontal_Default_240bpm.csv.gz"))
     assert not g.press2_recording(Path("DATA_TAP/TAP/C_Tap_Horizontal_Default_60bpm.csv.gz"))
     assert not g.press2_recording(Path("DATA_TAP/SWIPE/D_DoubleTaps.csv.gz"))
+    # ---- observable-pattern labels: per tap the best-scoring window of dur ms; other rows of the tap left out.
+    tap = np.array([0] * 8 + [1] * 3 + [-1, 2]); off = np.r_[np.arange(-5, 75, 10.0), [0.0, 10, 20], [50.0], [3.0]]
+    sc = np.r_[[0.1, 0.2, 0.9, 0.95, 0.9, 0.3, 0.2, 0.1], [0.5, 0.4, 0.6], [0.0], [0.2]]
+    k = g.obs_select(tap, off, sc, 40.0, 10)
+    assert k[:8].tolist() == [False, False, True, True, True, True, False, False], k     # rows 15..45 ms of tap 0
+    assert k[8:11].all() and k[11] and k[12]          # short tap: window of all its rows; unowned / single rows kept
+    k20 = g.obs_select(tap, off, sc, 20.0, 10)                 # tie 15+25 vs 25+35: the earlier window
+    assert k20[:8].tolist() == [False, False, True, True, False, False, False, False], k20
+    assert k20[8:11].tolist() == [False, True, True], k20      # 3-row tap, 20 ms: the best 2-row window
     # ---- one-to-one reference matching: one event cannot find two windows; crossing windows; boundaries.
     assert R.match_windows([1150.0], [850.0, 1050.0], [1250.0, 1450.0]).tolist() == [True, False]
     assert R.match_windows([5.0, 12.0], [0.0, 10.0], [20.0, 13.0]).tolist() == [True, True]
@@ -663,6 +672,10 @@ def real_source_smoke(keep_input=False):
                 counts = report["dataset"]["counts"]
                 if g.TAP_LABELS == "press2":
                     assert counts.get("press2_recordings", 0) >= 1, counts
+                if g.TAP_OBS_MS is not None:                          # fold, development and everyone selections
+                    assert tg["observable_ms"] == g.TAP_OBS_MS
+                    names = {p_.name.split("_")[1] for p_ in (out / "cache" / "obs").glob("obs_*.npz")}
+                    assert {"cv0", "cv1", "development", "everyone"} <= names, names
             assert report["data_identity"]["recordings"] > 0 and (out / "data_identity.json").is_file()
             # Completed output + changed data: the rerun refuses to reuse it and names the change.
             ident = json.loads((out / "data_identity.json").read_text())
@@ -790,7 +803,9 @@ if __name__ == "__main__":
             for name, extra in (("Lean-lite", dict(MUDRA_USE_LEAN8="lite")),
                                 ("TAP diff + mild augmentation", dict(MUDRA_USE_LEAN8="0", MUDRA_TAP_FEATURES="diff",
                                                                       MUDRA_TAP_AUG="mild")),
-                                ("TAP final recipe", dict(MUDRA_TAP_RECIPE="final14", MUDRA_TASKS="tap,lp"))):
+                                ("TAP final recipe", dict(MUDRA_TAP_RECIPE="final14", MUDRA_TASKS="tap,lp")),
+                                ("TAP final recipe + observable labels",
+                                 dict(MUDRA_TAP_RECIPE="final14obs", MUDRA_TASKS="tap,lp"))):
                 p = subprocess.run([sys.executable, "-u", __file__, "--second-arm"], env=dict(os.environ, **extra))
                 if p.returncode:
                     raise SystemExit(f"{name} real-source smoke failed ({p.returncode})")

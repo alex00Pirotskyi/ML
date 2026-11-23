@@ -33,6 +33,7 @@ contact change on the held-out people.
 diff inputs + press2 labels, 14 KB, 4-15 leaves, TAP only:
 
     MUDRA_TAP_RECIPE=final14 python -u research/gesture/train_unified.py
+    MUDRA_TAP_RECIPE=final14obs python -u research/gesture/train_unified.py   # + observable-pattern labels (60 ms)
 
 A completed run is reused only if every recording, label file and event table is byte-for-byte the one it was
 trained on (else it stops and names the change); byte-identical copies of a recording are used once.
