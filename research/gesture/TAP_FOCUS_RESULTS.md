@@ -399,6 +399,44 @@ Results go to `results_unified_v3_feature_selection_no_lean8_tap-diff-mild-lited
 - **E1** (keep the labeller's 22 double-tap onsets) is covered more broadly by press2. The labeller is
   unchanged.
 
+## Positive window sweep at 14 KB: 30–80 ms (2026-11-23)
+
+**Setup:**
+- **Model:** the final recipe (Lean-lite diff + press2, 14 KB, 7 leaves).
+- **Window:** positive rows later than *w* ms after their onset are left out of training. They are not made
+  negatives. "80" is the labeller's window as it is: only 0.07% of rows lie beyond 80 ms, so `win80` vs the
+  reference measures retraining noise.
+
+**Positive rows left out** (sum of the 3 training folds, of 220,486): 70 ms 12%, 60 ms 25%, 50 ms 37%,
+40 ms 49%, 30 ms 61%.
+
+**Differences to the reference at 2.8 false/min** (one run each; nominal / placement stress; recall in
+points, false taps per minute; `*` = 95% person bootstrap excludes 0):
+
+| Window | Normal | Soft | Double 1st | Double 2nd | Fast 240 | Swipe | Finger /min | Fist /min | Latency p90 |
+|---|---|---|---|---|---|---|---|---|---|
+| 80 (noise check) | −0.3 / −0.4 | +0.7 / −0.0 | −0.9 / −0.7 | −0.5 / −2.1 | −0.8 / −0.2 | +0.0 / +0.1 | +0.04 / +0.16 | −0.19 / +0.15 | 0 |
+| 70 | +0.3 / +0.7\* | **+1.8\* / +3.1\*** | −1.9 / −0.3 | −0.2 / −1.1 | −1.0 / +0.9 | +0.9 / +1.8\* | −0.21 / +0.09 | +0.22 / +0.46 | 0 / −5 ms |
+| 60 | +0.0 / +0.2 | +1.8\* / +1.4\* | −1.5 / −1.9\* | −1.4 / −2.7 | −1.2 / −0.5 | −0.2 / +0.6 | −0.17 / +0.14 | +0.33 / +0.82\* | −5 ms |
+| 50 | +0.8\* / −0.5 | +2.2\* / +0.1 | −2.4\* / −2.4\* | −1.6 / −3.5\* | −0.8 / −1.7 | +0.3 / −0.9 | −0.28 / +0.15 | +0.70 / +0.93 | −5 / −10 ms |
+| 40 | +0.2 / −0.6 | +2.7\* / +1.3 | −2.5 / −2.6\* | **−5.5\* / −7.8\*** | −2.4 / −2.4 | −0.3 / −0.3 | −0.29 / +0.24 | +0.44 / +0.65 | −10 / −15 ms |
+| 30 | −0.3 / −0.6 | +1.6 / −0.4 | −4.4\* / −3.6\* | **−10.3\* / −11.7\*** | −2.8 / −4.5 | −1.3 / −1.7 | −0.13 / +0.19 | +0.44 / +0.34 | −10 / −15 ms |
+
+**At 2.0 false/min:**
+- **70 ms:** the gain holds. Soft +2.9\* / +3.5\*, swipes +1.5\* / +1.6\*, double 1st +1.2 / +3.3\*, double
+  2nd +1.1 / −0.3, fast +1.7 / +2.6, finger −0.07 / +0.01, fist −0.35 / +0.16.
+- **30 ms:** clearly worse. Normal −2.2\* / −2.3\*, double 2nd −9.1\* / −8.8\*.
+
+**What this means:**
+- **Protection:** the window does not change finger protection. Every window stays within ±0.3/min, the same as
+  the 80 ms noise check. Fist false taps rise slightly with shorter windows at 2.8/min (+0.2 to +0.9) and do not
+  change at 2.0/min.
+- **Taps:** shorter windows trade soft taps (+2 to +4) against second taps of doubles (−1 at 60–50 ms, −5 to −8 at
+  40 ms, −10 to −12 at 30 ms). They also fire 5–15 ms earlier (p90).
+- **Best candidate:** 70 ms is the only window with a gain (soft, swipes) and no measurable cost for doubles, fast
+  taps or protection. It is a single run at about 2× the noise level, so confirm it with 2 more training seeds before
+  changing the recipe.
+
 ## Reproduce
 
     python research/gesture/tap_generalization_research.py focus "raw126_diff+augm"
