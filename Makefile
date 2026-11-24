@@ -2,7 +2,7 @@
 #
 #   make train      update the code, then start the training in the background
 #   make status     is it running, how many trials, last trial lines
-#   make stop       stop the training that `make train` started
+#   make stop       stop every running training (also ones started by hand)
 #
 # Settings (defaults below), for example:
 #   make train RECIPE=final14obs
@@ -58,6 +58,9 @@ status:
 	else echo "No log yet: start with make train"; fi
 
 stop:
-	@if [ -f $(PIDFILE) ] && kill -0 $$(cat $(PIDFILE)) 2>/dev/null; then \
-	  kill $$(cat $(PIDFILE)) && echo "Stopped PID $$(cat $(PIDFILE))"; rm -f $(PIDFILE); \
-	else echo "No training started by make train is running."; fi
+	@pids=$$(pgrep -f '$(TRAIN_RE)'); \
+	if [ -z "$$pids" ]; then echo "No training running."; exit 0; fi; \
+	echo "Stopping:"; pgrep -af '$(TRAIN_RE)'; kill $$pids; \
+	for i in 1 2 3 4 5 6 7 8 9 10; do pgrep -f '$(TRAIN_RE)' >/dev/null || break; sleep 1; done; \
+	if pgrep -f '$(TRAIN_RE)' >/dev/null; then echo "Still running after 10 s:"; pgrep -af '$(TRAIN_RE)'; exit 1; \
+	else echo "Stopped."; fi; rm -f $(PIDFILE)

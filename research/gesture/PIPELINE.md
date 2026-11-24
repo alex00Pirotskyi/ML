@@ -42,7 +42,7 @@ takes part in every fold, and the same person can be on both sides (results fold
 The repository `Makefile` wraps this on the server: `make train` updates the code (`git pull --ff-only`) and starts
 `final14` with the file split and the 10 KB alternative in the background, with a timestamped log under `logs/`.
 It refuses to start while another trainer process runs (`FORCE=1` overrides) and prints the log if the run stops
-within 20 s. `make status` shows the trials done and any error; `make stop` stops the run it started. Settings:
+within 20 s. `make status` shows the trials done and any error; `make stop` stops every running trainer. Settings:
 `RECIPE`, `SPLIT`, `ALT_KB`, `EXTRA` (e.g. `make train EXTRA="MUDRA_TAP_FALSE_PER_MIN_TARGET=3"`), `PULL=0`.
 
 A completed run is reused only if every recording, label file and event table is byte-for-byte the one it was
