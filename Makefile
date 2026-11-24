@@ -7,11 +7,12 @@
 #   make stop       stop every running training (also ones started by hand)
 #
 # Settings (defaults below), for example:
-#   make train RECIPE=final14obs
+#   make train RECIPE=final14protect     (maximum protection, see research/gesture/TAP_FILESPLIT_RESULTS.md)
+#   make train RECIPE=final14            (without the observable labels)
 #   make train SPLIT=person
 #   make train EXTRA="MUDRA_TAP_FALSE_PER_MIN_TARGET=3"
 
-RECIPE ?= final14
+RECIPE ?= final14obs
 SPLIT  ?= file
 ALT_KB ?= 10
 EXTRA  ?=

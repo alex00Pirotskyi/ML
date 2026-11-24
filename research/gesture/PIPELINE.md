@@ -34,6 +34,7 @@ diff inputs + press2 labels, 14 KB, 4-15 leaves, TAP only:
 
     MUDRA_TAP_RECIPE=final14 python -u research/gesture/train_unified.py
     MUDRA_TAP_RECIPE=final14obs python -u research/gesture/train_unified.py   # + observable-pattern labels (60 ms)
+    MUDRA_TAP_RECIPE=final14protect python -u research/gesture/train_unified.py   # obs 40 + distillation + finger x2
     MUDRA_SPLIT=file MUDRA_TAP_RECIPE=final14 python -u research/gesture/train_unified.py   # split / folds by file
 
 `MUDRA_SPLIT=file` groups the held-out split and the CV folds by recording file instead of by person: every person

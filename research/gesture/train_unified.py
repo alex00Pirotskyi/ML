@@ -87,6 +87,11 @@ TAP_RECIPES = {
 }
 # final14 + observable-pattern labels (TAP_OBSERVABLE_RESULTS.md): per tap only its most distinguishable 60 ms
 TAP_RECIPES["final14obs"] = dict(TAP_RECIPES["final14"], MUDRA_TAP_OBS_MS="60")
+# Maximum protection (TAP_FILESPLIT_RESULTS.md): 40 ms observable labels, distillation from a full-size teacher
+# (half label, half teacher) and finger / fist negatives x 2. Same size; keeps the most taps when the false-tap
+# target is strict, and at 0.85 fires far less on finger motion and fists for about 1 point of tap recall.
+TAP_RECIPES["final14protect"] = dict(TAP_RECIPES["final14"], MUDRA_TAP_OBS_MS="40", MUDRA_TAP_DISTILL="0.5",
+                                     MUDRA_TAP_FINGER_WEIGHT="2")
 TAP_RECIPE = os.environ.get("MUDRA_TAP_RECIPE", "").strip().lower()
 if TAP_RECIPE:
     if TAP_RECIPE not in TAP_RECIPES:
@@ -159,6 +164,24 @@ _TAP_KB = float(os.environ.get("MUDRA_MODEL_BUDGET_KB", 32))
 _TAP_LEAVES = os.environ.get("MUDRA_NUM_LEAVES", "8,127").replace(" ", "")
 if TAP_GENERALIZATION and (_TAP_KB != 32 or _TAP_LEAVES != "8,127"):
     TAP_TAG += f"-kb{_TAP_KB:g}" + ("" if _TAP_LEAVES == "8,127" else "-leaves" + _TAP_LEAVES.replace(",", "-"))
+# Distillation (MUDRA_TAP_DISTILL = weight a of the label, e.g. 0.5): the TAP model learns soft targets
+# a*label + (1-a)*teacher, where the teacher is a cross-fitted full-size model (no size budget) on all inputs. The
+# small model then copies how sure a big model is, frame by frame, instead of only 0/1 (TAP_FILESPLIT_RESULTS.md).
+# Trained as the usual binary model (two weighted rows per frame), so the size accounting and C export are unchanged.
+_distill = os.environ.get("MUDRA_TAP_DISTILL", "off").strip().lower()
+TAP_DISTILL = None if _distill in ("off", "none", "") else float(_distill)
+if TAP_DISTILL is not None and not 0.0 <= TAP_DISTILL < 1.0:
+    raise ValueError("MUDRA_TAP_DISTILL is the label weight a in [0, 1) (0.5: half label, half teacher), or off")
+if TAP_GENERALIZATION and TAP_DISTILL is not None:
+    TAP_TAG += f"-distill{round(TAP_DISTILL * 100):d}"
+# Finger-motion and fist negatives weighted x k in the TAP model's training (MUDRA_TAP_FINGER_WEIGHT, default 1):
+# the FINGER folder's frames count k times as much as other "not a tap" frames before the classes are balanced.
+# Teachers (observable labels, distillation) keep plain weights, as researched (TAP_FILESPLIT_RESULTS.md).
+TAP_FINGER_WEIGHT = float(os.environ.get("MUDRA_TAP_FINGER_WEIGHT", "1"))
+if TAP_FINGER_WEIGHT <= 0:
+    raise ValueError("MUDRA_TAP_FINGER_WEIGHT must be > 0")
+if TAP_GENERALIZATION and TAP_FINGER_WEIGHT != 1.0:
+    TAP_TAG += f"-fingerw{TAP_FINGER_WEIGHT:g}"
 # Soft labels on: own results folder too, so a run with and without them can be compared side by side.
 _SOFT_ENV = os.environ.get("MUDRA_TAP_SOFT_LABELS", "off").strip().lower()
 if TAP_GENERALIZATION and _SOFT_ENV not in ("off", "0", "none", ""):
@@ -1250,10 +1273,13 @@ def split_heldout(data, task):
     raise RuntimeError(f"No usable {SPLIT_BY}-grouped {task} split, inspect category coverage")
 
 
-def weights_for_task(data, indices, task, positive_weight):
-    """File-normalized class balancing, then the tunable positive-class weight (see v1 notes)."""
+def weights_for_task(data, indices, task, positive_weight, finger=True):
+    """File-normalized class balancing, then the tunable positive-class weight (see v1 notes). TAP: FINGER-folder
+    negatives first weighted x MUDRA_TAP_FINGER_WEIGHT (finger=False: plain, for the teachers)."""
     y = data["y"][indices]
     w = data["w"][indices].astype(np.float32).copy()
+    if task == "tap" and finger and TAP_FINGER_WEIGHT != 1.0:
+        w[(y == 0) & (data["category"][indices] == "FINGER")] *= np.float32(TAP_FINGER_WEIGHT)
     file_counts = Counter(data["file"][indices])
     w /= np.asarray([math.sqrt(file_counts[f]) for f in data["file"][indices]], dtype=np.float32)
     for cls in (0, 1):
@@ -1296,8 +1322,23 @@ def fit_cap(params, budget):
     return int(max(20, min(params["n_estimators"], math.ceil(3 * budget / full_tree))))
 
 
-def fit_model(X, y, w, params, budget):
+def soft_rows(X, target, w):
+    """Soft targets as plain binary rows: each frame becomes (label 1, weight w*t) and (label 0, weight w*(1-t)).
+    Their weighted binary log loss is exactly w*[t*log p + (1-t)*log(1-p)], the cross-entropy with target t."""
+    t = np.clip(np.asarray(target, np.float64), 0.0, 1.0); w = np.asarray(w, np.float64)
+    one, zero = t > 0, t < 1
+    X2 = np.concatenate([X[one], X[zero]])
+    y2 = np.r_[np.ones(int(one.sum()), np.int8), np.zeros(int(zero.sum()), np.int8)]
+    return X2, y2, np.r_[w[one] * t[one], w[zero] * (1.0 - t[zero])].astype(np.float32)
+
+
+def fit_model(X, y, w, params, budget, target=None):
+    """target (distillation): soft targets per row; fitted as two weighted binary rows per frame, with
+    min_child_samples doubled (it counts rows)."""
     p = dict(params); p["n_estimators"] = fit_cap(params, budget)
+    if target is not None:
+        X, y, w = soft_rows(X, target, w)
+        p["min_child_samples"] = 2 * int(p.get("min_child_samples", 20))
     model = lgb.LGBMClassifier(**p)
     model.fit(X, y, sample_weight=w)
     return model
@@ -1666,7 +1707,7 @@ def obs_rows(data, rpl, rows, name, cache_dir=None):
     pos = np.flatnonzero(y == 1)
     score = np.full(len(rows), np.nan)
     people = np.unique(person)
-    w = weights_for_task(data, rows, "tap", 1.0)
+    w = weights_for_task(data, rows, "tap", 1.0, finger=False)
     for k, (a_, b_) in enumerate(GroupKFold(n_splits=min(3, len(people))).split(people, groups=people)):
         fit = np.isin(person, people[a_]); lab = np.isin(person, people[b_]) & (y == 1)
         m = lgb.LGBMClassifier(**OBS_TEACHER, n_jobs=CPU_THREADS, random_state=SEED + 11 + k).fit(
@@ -1686,6 +1727,46 @@ def obs_rows(data, rpl, rows, name, cache_dir=None):
 
 
 OBS_CACHE_DIR = None                # set per task (TAP with MUDRA_TAP_OBS_MS)
+DISTILL_CACHE_DIR = None            # set per task (TAP with MUDRA_TAP_DISTILL)
+
+
+def distill_targets(data, rows, name, cache_dir=None):
+    """Soft targets of the training rows `rows` (MUDRA_TAP_DISTILL = a): a*label + (1-a)*teacher. The teacher is a
+    full-size model (OBS_TEACHER, no budget) on all inputs of the real (nominal) rows, cross-fitted by group inside
+    `rows` (3 folds of its groups: files with MUDRA_SPLIT=file): no row is scored by a teacher trained on its own
+    group. None when distillation is off. Cached by content."""
+    if TAP_DISTILL is None:
+        return None
+    rows = np.asarray(rows)
+    key = hashlib.sha256((hashlib.sha256(np.ascontiguousarray(rows).tobytes()).hexdigest() + "|" +
+                          str(data.get("distill_content_sha256")) + "|" + json.dumps(OBS_TEACHER, sort_keys=True) +
+                          f"|{TAP_DISTILL}|{SEED}|v1").encode()).hexdigest()[:20]
+    path = (cache_dir / f"distill_{name}_{key}.npz") if cache_dir is not None else None
+    if path is not None and path.is_file():
+        with np.load(path) as z:
+            return z["target"]
+    t0 = time.perf_counter()
+    X = data.get("X_nominal", data["X"])
+    y = data["y"][rows].astype(np.float64); grp = data["group"][rows]
+    groups = np.unique(grp)
+    w = weights_for_task(data, rows, "tap", 1.0, finger=False)
+    score = np.full(len(rows), np.nan)
+    for k, (a_, b_) in enumerate(GroupKFold(n_splits=min(3, len(groups))).split(groups, groups=groups)):
+        fit = np.isin(grp, groups[a_]); sc = np.isin(grp, groups[b_])
+        m = lgb.LGBMClassifier(**OBS_TEACHER, n_jobs=CPU_THREADS, random_state=SEED + 21 + k).fit(
+            X[rows[fit]], y[fit].astype(np.int8), sample_weight=w[fit])
+        score[sc] = m.predict_proba(X[rows[sc]])[:, 1]
+    if not np.isfinite(score).all():
+        raise AssertionError("distillation teacher left rows unscored")
+    target = (TAP_DISTILL * y + (1.0 - TAP_DISTILL) * score).astype(np.float32)
+    notice("UNIFIED_TAP_DISTILL", name, json.dumps(dict(rows=int(len(rows)), label_weight=TAP_DISTILL,
+           teacher_mean_positive=round(float(score[y == 1].mean()), 4) if (y == 1).any() else None,
+           teacher_mean_negative=round(float(score[y == 0].mean()), 4) if (y == 0).any() else None,
+           seconds=round(time.perf_counter() - t0, 1))))
+    if path is not None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        np.savez_compressed(path, target=target)
+    return target
 
 
 def prepared_folds(data, rpl, train_ids, task):
@@ -1703,8 +1784,9 @@ def prepared_folds(data, rpl, train_ids, task):
         val_groups = set(data["group"][train_ids[b]])
         if task == "tap" and TAP_OBS_MS is not None:          # observable labels, inside this fold's training people
             tr = obs_rows(data, rpl, tr, f"cv{fold}", OBS_CACHE_DIR)
+        target = distill_targets(data, tr, f"cv{fold}", DISTILL_CACHE_DIR) if task == "tap" else None
         y = data["y"][tr]
-        folds.append(dict(tr=tr, y=y, val_groups=val_groups, classes=set(np.unique(y).tolist()),
+        folds.append(dict(tr=tr, y=y, val_groups=val_groups, classes=set(np.unique(y).tolist()), target=target,
                           base_w=weights_for_task(data, tr, task, 1.0), positive=(y == 1),
                           replay=(prepare_tap_replay if task == "tap" else prepare_lp_replay)(rpl, val_groups)))
     _PREPARED.clear()
@@ -1792,7 +1874,8 @@ def objective(trial, data, rpl, train_ids, task, budgets):
             X = data["X"][np.ix_(pf["tr"], np.asarray(sel, dtype=np.intp))]   # == data["X"][tr][:, sel], one copy
             w = fold_weights(pf, positive_weight)
         with CLOCK("fit"):
-            model = fit_model(X, pf["y"], w, fold_params, primary)
+            soft = {} if pf.get("target") is None else dict(target=pf["target"])
+            model = fit_model(X, pf["y"], w, fold_params, primary, **soft)
         del X
         with CLOCK("size"):
             ks = {bud: trees_within(model, bud) for bud in budgets}
@@ -2047,6 +2130,10 @@ def export_candidates(data, rpl, task, stem, tr, te, picks, out: Path):
     if task == "tap" and TAP_OBS_MS is not None:              # observable labels inside the people each model trains on
         tr = obs_rows(data, rpl, tr, "development", OBS_CACHE_DIR)
         every = obs_rows(data, rpl, every, "everyone", OBS_CACHE_DIR)
+    soft_dev = soft_all = {}
+    if task == "tap" and TAP_DISTILL is not None:            # teachers inside the rows each model trains on
+        soft_dev = dict(target=distill_targets(data, tr, "development", DISTILL_CACHE_DIR))
+        soft_all = dict(target=distill_targets(data, every, "everyone", DISTILL_CACHE_DIR))
     me = sys.modules[__name__]
     ranking_dev = ranking_all = None
     if any(t.params["n_features"] < len(cols) for _, _, t in picks):
@@ -2063,7 +2150,7 @@ def export_candidates(data, rpl, task, stem, tr, te, picks, out: Path):
         params = trial.user_attrs["training_params"]; pw = float(trial.params["positive_weight"])
         subset = subset_for(trial, ranking_dev); ix = [cols.index(x) for x in subset]
         pre = fit_model(data["X"][np.ix_(tr, np.asarray(ix, np.intp))], y[tr], weights_for_task(data, tr, task, pw),
-                        params, budget)
+                        params, budget, **soft_dev)
         k_pre, _ = trees_within(pre, budget); pre = truncated(pre, k_pre)
         h_pre, b_pre, _ = write_header(pre, subset, stem, out / "_holdout_headers" / role, task, out)
         hm_cols = R.input_columns(subset); hm_ix = [cols.index(x) for x in hm_cols]   # + raw fields of helper calls
@@ -2087,7 +2174,7 @@ def export_candidates(data, rpl, task, stem, tr, te, picks, out: Path):
         subset = subset_for(trial, ranking_all); ix = [cols.index(x) for x in subset]
         folder = model_dir / "candidates" / role
         final = fit_model(data["X"][np.ix_(every, np.asarray(ix, np.intp))], y[every],
-                          weights_for_task(data, every, task, pw), params, budget)
+                          weights_for_task(data, every, task, pw), params, budget, **soft_all)
         k_fin, _ = trees_within(final, budget); final = truncated(final, k_fin)
         header, size, checked = write_header(final, subset, stem, folder, task, out)
         if size > budget:
@@ -2574,7 +2661,7 @@ def train_task(task: str, tap_files, lp_files):
         # Training rows only (CV, rankings and final models train on them); every replay / held-out score uses
         # the real recordings. Deterministic: the same draw per recording on every run and resume.
         t_aug = time.perf_counter()
-        if TAP_OBS_MS is not None:              # the observable-label teacher reads the real (nominal) rows
+        if TAP_OBS_MS is not None or TAP_DISTILL is not None:   # their teachers read the real (nominal) rows
             data["X_nominal"] = data["X"].copy()
         nominal_lite = None
         if TAP_LITE == "diff":                  # kept for the check below
@@ -2593,6 +2680,16 @@ def train_task(task: str, tap_files, lp_files):
         data["content_sha256"] = hashlib.sha256((data["content_sha256"] + f"|tap_obs={TAP_OBS_MS}|" + obs_ver).encode()).hexdigest()
         global OBS_CACHE_DIR
         OBS_CACHE_DIR = out / "cache" / "obs"
+    if task == "tap" and TAP_FINGER_WEIGHT != 1.0:           # rankings and studies are fitted with these weights
+        data["content_sha256"] = hashlib.sha256((data["content_sha256"] + f"|tap_finger_weight={TAP_FINGER_WEIGHT}").encode()).hexdigest()
+    if task == "tap" and TAP_DISTILL is not None:
+        import inspect
+        data["distill_content_sha256"] = data["content_sha256"]
+        d_ver = hashlib.sha256((inspect.getsource(distill_targets) + inspect.getsource(soft_rows) +
+                                json.dumps(OBS_TEACHER, sort_keys=True)).encode()).hexdigest()
+        data["content_sha256"] = hashlib.sha256((data["content_sha256"] + f"|tap_distill={TAP_DISTILL}|" + d_ver).encode()).hexdigest()
+        global DISTILL_CACHE_DIR
+        DISTILL_CACHE_DIR = out / "cache" / "distill"
     tr, te = split_heldout(data, task)
     notice("UNIFIED_TRAIN_BEGIN", json.dumps({
         "task": task, "split_by": SPLIT_BY, "subjects": len(set(data["group"])), "train_rows": len(tr), "holdout_rows": len(te),
@@ -2694,7 +2791,8 @@ def train_task(task: str, tap_files, lp_files):
                    tap_generalization=(dict(features=TAP_FEATURES, augmentation=TAP_AUG, derived_inputs=len(TF.DERIVED)
                                             if TAP_FEATURES == "diff" else 0, lean_lite_diff=TAP_LITE,
                                             lean_lite_inputs=len(TF.LITE_COLUMNS) if TAP_LITE == "diff" else 0,
-                                            labels=TAP_LABELS, observable_ms=TAP_OBS_MS, recipe=TAP_RECIPE or None,
+                                            labels=TAP_LABELS, observable_ms=TAP_OBS_MS, distill_label_weight=TAP_DISTILL,
+                                            finger_weight=TAP_FINGER_WEIGHT, recipe=TAP_RECIPE or None,
                                             num_leaves=list(NUM_LEAVES)) if task == "tap" else None),
                    data_identity={k: identity[k] for k in ("sha256", "recordings", "events")},
                    acceptance=acceptance(task, candidates, baselines),

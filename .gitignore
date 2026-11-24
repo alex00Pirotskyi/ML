@@ -46,3 +46,4 @@ __pycache__/
 
 # make train logs
 /logs/
+/research/gesture/results_tap_filesplit/models/

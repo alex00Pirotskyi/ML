@@ -333,6 +333,26 @@ def tap_final_recipe_checks():
     assert len(seen_) == len(set(seen_)) == len(set(d_["group"][tr_]))     # every training file in one fold
     for _, b in cv_:                                                      # each fold gets its share of each type
         assert {st.split("|")[1] for st in d_["stratum"][tr_[b]]} == {"softtap", "midtap", "swipemid", "pinky", "twist"}
+    # ---- distillation as binary rows: the pair's weighted log loss equals the cross-entropy with the soft target.
+    rng_ = np.random.default_rng(3); t_ = np.r_[rng_.random(50), 0.0, 1.0]; w_ = rng_.random(52) + 0.5
+    X_ = np.arange(52, dtype=np.float32)[:, None]; p_ = np.clip(rng_.random(52), 0.01, 0.99)
+    X2_, y2_, w2_ = g.soft_rows(X_, t_, w_)
+    assert len(y2_) == 2 * 50 + 2 and set(y2_.tolist()) == {0, 1}            # t = 0 and t = 1 give one row each
+    p2_ = p_[X2_[:, 0].astype(int)]
+    ll_pairs = -np.sum(w2_ * np.where(y2_ == 1, np.log(p2_), np.log(1 - p2_)))
+    ll_soft = -np.sum(w_ * (t_ * np.log(p_) + (1 - t_) * np.log(1 - p_)))
+    assert abs(ll_pairs - ll_soft) < 1e-3 * abs(ll_soft), (ll_pairs, ll_soft)
+    # ---- finger-negative weight: FINGER negatives x k before balancing; teachers (finger=False) unchanged.
+    d_ = dict(y=np.array([1, 1, 0, 0, 0, 0]), w=np.ones(6, np.float32), file=np.array(list("aabbcc"), object),
+              category=np.array(["TAP", "TAP", "FINGER", "FINGER", "WRIST", "WRIST"], object))
+    old_fw = g.TAP_FINGER_WEIGHT
+    try:
+        g.TAP_FINGER_WEIGHT = 2.0
+        w2_ = g.weights_for_task(d_, np.arange(6), "tap", 1.0); w1_ = g.weights_for_task(d_, np.arange(6), "tap", 1.0, finger=False)
+    finally:
+        g.TAP_FINGER_WEIGHT = old_fw
+    assert np.isclose(w2_[2:4].sum() / w2_[4:6].sum(), 2.0) and np.isclose(w1_[2:4].sum() / w1_[4:6].sum(), 1.0)
+    assert np.isclose(w2_[d_["y"] == 0].sum(), w1_[d_["y"] == 0].sum())        # class balance unchanged
     # ---- one-to-one reference matching: one event cannot find two windows; crossing windows; boundaries.
     assert R.match_windows([1150.0], [850.0, 1050.0], [1250.0, 1450.0]).tolist() == [True, False]
     assert R.match_windows([5.0, 12.0], [0.0, 10.0], [20.0, 13.0]).tolist() == [True, True]
@@ -589,8 +609,8 @@ def fold_parallel_check():
                   colsample_bytree=0.8, subsample=0.8)
     fit, seen = g.fit_model, []
 
-    def recording_fit(X, y, w, p, b):
-        m = fit(X, y, w, p, b)
+    def recording_fit(X, y, w, p, b, **kw):           # kw: distillation targets (MUDRA_TAP_DISTILL)
+        m = fit(X, y, w, p, b, **kw)
         seen.append(hashlib.sha256(m.booster_.model_to_string().split("\nparameters:")[0].encode()).hexdigest())
         return m
     g.fit_model = recording_fit
@@ -713,6 +733,11 @@ def real_source_smoke(keep_input=False):
                 counts = report["dataset"]["counts"]
                 if g.TAP_LABELS == "press2":
                     assert counts.get("press2_recordings", 0) >= 1, counts
+                assert tg["distill_label_weight"] == g.TAP_DISTILL and tg["finger_weight"] == g.TAP_FINGER_WEIGHT
+                if g.TAP_DISTILL is not None:                         # teachers per fold, development, everyone
+                    names = {p_.name.split("_")[1] for p_ in (out / "cache" / "distill").glob("distill_*.npz")}
+                    assert {"cv0", "cv1", "development", "everyone"} <= names, names
+                    assert "-distill" in g.TAP_TAG
                 if g.TAP_OBS_MS is not None:                          # fold, development and everyone selections
                     assert tg["observable_ms"] == g.TAP_OBS_MS
                     names = {p_.name.split("_")[1] for p_ in (out / "cache" / "obs").glob("obs_*.npz")}
@@ -855,7 +880,9 @@ if __name__ == "__main__":
                                 ("TAP final recipe + observable labels",
                                  dict(MUDRA_TAP_RECIPE="final14obs", MUDRA_TASKS="tap,lp")),
                                 ("TAP final recipe, split and folds by file",
-                                 dict(MUDRA_TAP_RECIPE="final14", MUDRA_TASKS="tap,lp", MUDRA_SPLIT="file"))):
+                                 dict(MUDRA_TAP_RECIPE="final14", MUDRA_TASKS="tap,lp", MUDRA_SPLIT="file")),
+                                ("TAP maximum-protection recipe (obs40 + distillation + finger x2), split by file",
+                                 dict(MUDRA_TAP_RECIPE="final14protect", MUDRA_TASKS="tap,lp", MUDRA_SPLIT="file"))):
                 p = subprocess.run([sys.executable, "-u", __file__, "--second-arm"], env=dict(os.environ, **extra))
                 if p.returncode:
                     raise SystemExit(f"{name} real-source smoke failed ({p.returncode})")

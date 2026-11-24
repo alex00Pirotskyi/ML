@@ -12,6 +12,11 @@ Focus arms (2026-11-20): press2 (every press of DoubleTaps / 240 bpm recordings 
 recordings), litediff (gain-invariant Lean-lite context features in the log domain), pw<k> (positives of
 DoubleTaps / 240 bpm recordings weighted x k). See TAP_FOCUS_RESULTS.md.
 
+File split (2026-11-24): MUDRA_GR_SPLIT=file uses the trainer's gesture-aware file split and folds (results in
+results_tap_filesplit/); MUDRA_GR_STRESS=nominal,placement scores only those conditions. Arms softall (the
+labeller's soft taps of every TAP / SWIPE recording as positives) and distill<a> (soft targets a*label +
+(1-a)*cross-fitted full-size teacher, fitted as two weighted binary rows per frame). See TAP_FILESPLIT_RESULTS.md.
+
 Data: an existing full TAP cache (MUDRA_GR_CACHE, default /tmp/v3soft/tap/cache: RAW_126 + Lean-8 24 columns,
 built by train_unified.build_task_data). Development people only (the trainer's 22% person holdout is never
 touched), 3 person folds (GroupKFold, as the trainer and fs_research). Soft-label rows are not used.
@@ -55,7 +60,13 @@ CACHE = Path(os.environ.get("MUDRA_GR_CACHE", "/tmp/v3soft/tap/cache"))
 # validation fold). The person split and folds of the full cache stay exactly as they are.
 EXTRA = [Path(p_) for p_ in os.environ.get("MUDRA_GR_EXTRA", "").split(",") if p_]
 EXTRA_MODE = os.environ.get("MUDRA_GR_EXTRA_MODE", "eval")
-OUT = Path(os.environ.get("MUDRA_GR_OUT", HERE / "results_tap_generalization"))
+# MUDRA_GR_SPLIT=file: the trainer's gesture-aware file split (train_unified.group_by_file): every recording is its
+# own group, the held-out files and the 3 CV folds are stratified by recording type. Results then go to
+# results_tap_filesplit unless MUDRA_GR_OUT says otherwise. Default: person split and person folds (as researched).
+SPLIT = os.environ.get("MUDRA_GR_SPLIT", "person").strip().lower()
+assert SPLIT in ("person", "file"), SPLIT
+OUT = Path(os.environ.get("MUDRA_GR_OUT", HERE / ("results_tap_generalization" if SPLIT == "person"
+                                                  else "results_tap_filesplit")))
 QUICK = os.environ.get("MUDRA_GR_QUICK") == "1"
 THREADS = int(os.environ.get("MUDRA_GR_THREADS", os.cpu_count() or 2))
 CONFIG = dict(objective="binary", n_estimators=400, learning_rate=0.1, num_leaves=31, max_depth=8,
@@ -63,6 +74,9 @@ CONFIG = dict(objective="binary", n_estimators=400, learning_rate=0.1, num_leave
               subsample_freq=1, max_bin=127, verbosity=-1, deterministic=True)
 GRID = FS.TAP_GRID
 STRESS = ("nominal", "gain", "tilt", "noise", "placement")    # see stress_tables()
+# MUDRA_GR_STRESS=nominal,placement scores only those conditions (faster; their numbers are unchanged)
+STRESS = tuple(c for c in os.environ.get("MUDRA_GR_STRESS", ",".join(STRESS)).split(",") if c) or STRESS
+assert "nominal" in STRESS and set(STRESS) <= {"nominal", "gain", "tilt", "noise", "placement"}, STRESS
 TEACHER_THRESHOLD = 0.5                 # fallback only (no movement recordings among the people)
 NEG_FOLDERS = ("FINGER", "WRIST", "ARM", "BAND", "NOTHING")
 
@@ -794,10 +808,13 @@ def load():
     t0 = time.perf_counter()
     data, rpl, _ = g.load_cache(CACHE, COLS)
     assert data["X"].shape[1] == 150, data["X"].shape
+    if SPLIT == "file":                                             # one group per recording, stratified by type
+        g.group_by_file(data, rpl)
     tr, _te = g.split_heldout(data, "tap")
     tr_soft = tr[data["kind"][tr] == 6]                             # soft rows (only press2 uses them)
     tr = tr[data["kind"][tr] != 6]                                  # confirmed labels only (no soft rows)
-    folds = list(GroupKFold(n_splits=g.CV_FOLDS).split(tr, data["y"][tr], data["group"][tr]))
+    folds = (g.cv_splits(data, tr) if SPLIT == "file" else
+             list(GroupKFold(n_splits=g.CV_FOLDS).split(tr, data["y"][tr], data["group"][tr])))
     onsets = pd.read_csv(CACHE / "tap_onsets.csv")
     _D.update(n_base=len(rpl["recs"]), n_base_rows=rpl["X"].shape[0])
     for ex in EXTRA:                                                # added recordings (person folds unchanged)
@@ -1068,6 +1085,54 @@ def train_set(rows, labels):
     return X, yy, files, w0, rec, ridx, info
 
 
+# ============================================================================ distillation
+def distill_scores(X150, y, rec, ridx, fold, spec):
+    """Cross-fitted teacher probability for EVERY training row of this fold: a full-size model (OBS_TEACHER, no
+    budget) on the student's inputs, 3 group folds inside the fold's training groups (a row is scored by a teacher
+    that never saw its group). Cached per fold and row set."""
+    import hashlib
+    import lightgbm as lgb
+    D = load(); recs = D["rpl"]["recs"]
+    key = hashlib.sha256(np.ascontiguousarray(ridx).tobytes() + np.ascontiguousarray(y).tobytes()
+                         + "|".join(spec).encode()).hexdigest()[:12]
+    path = OUT / "models" / f"distill_teacher_fold{fold}_{key}.npz"
+    if path.is_file():
+        with np.load(path) as z:
+            return z["score"]
+    t0 = time.perf_counter()
+    grp = recs.group.to_numpy(object)[rec]; groups = np.unique(grp)
+    F, _, _ = build(np.hstack([X150, lite_rows(ridx, rec)]) if ("litediff" in spec or "litediff4" in spec) else X150,
+                    spec)
+    w = weights(y, recs.file.to_numpy(object)[rec], np.ones(len(y), np.float32))
+    score = np.full(len(y), np.nan)
+    for k, (a_, b_) in enumerate(GroupKFold(n_splits=3).split(groups, groups=groups)):
+        fit_rows = np.isin(grp, groups[a_]); sc = np.isin(grp, groups[b_])
+        m = lgb.LGBMClassifier(**OBS_TEACHER, n_jobs=THREADS, random_state=21 + k).fit(F[fit_rows], y[fit_rows],
+                                                                                      sample_weight=w[fit_rows])
+        score[sc] = m.predict_proba(F[sc])[:, 1]
+        log("GR_DISTILL_TEACHER", fold, k, json.dumps(dict(fit_rows=int(fit_rows.sum()), scored=int(sc.sum()),
+                                                           seconds=round(time.perf_counter() - t0, 1))))
+    assert np.isfinite(score).all()
+    (OUT / "models").mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(path, score=score)
+    return score
+
+
+def fit_distill(F, target, w, budget, extra_params=None):
+    """Student on soft targets t in [0, 1], as a plain binary classifier: every frame becomes two weighted rows,
+    (label 1, weight w*t) and (label 0, weight w*(1-t)). Their binary log loss is exactly the cross-entropy with the
+    soft target, so the model type, its size accounting and the C export are those of the normal TAP model.
+    min_child_samples is doubled (it counts rows, and most frames are now two rows)."""
+    t = np.clip(np.asarray(target, np.float64), 0.0, 1.0); w = np.asarray(w, np.float64)
+    one, zero = t > 0, t < 1
+    F2 = np.concatenate([F[one], F[zero]])
+    y2 = np.r_[np.ones(int(one.sum()), int), np.zeros(int(zero.sum()), int)]
+    w2 = np.r_[w[one] * t[one], w[zero] * (1.0 - t[zero])].astype(np.float32)
+    ep = dict(extra_params or {})
+    ep["min_child_samples"] = 2 * int(ep.get("min_child_samples", CONFIG["min_child_samples"]))
+    return fit(F2, y2, w2, budget, extra_params=ep)
+
+
 # ============================================================================ training
 def fit(F, y, w, budget, trees=None, extra_params=None):
     params = dict(CONFIG, n_jobs=THREADS, random_state=g.SEED)
@@ -1163,6 +1228,10 @@ def arm_from_name(name):
             base.setdefault("drop", []).append(tok[4:])
         elif tok == "fmine":
             base["fmine"] = True
+        elif tok == "softall":                       # soft labels in every TAP / SWIPE recording (trainer soft 0.5)
+            base["softall"] = True
+        elif tok.startswith("distill") and tok[7:].isdigit():
+            base["distill"] = int(tok[7:]) / 100     # distill50: target = 0.5 label + 0.5 cross-fitted teacher score
         elif tok.startswith("pw"):
             base["pw"] = float(tok[2:])
         elif tok in ("litediff", "accdiff", "litediff4"):
@@ -1228,6 +1297,20 @@ def run_arm(name):
             sel = np.isin(rec, list(press2_recordings())) & (y == 1)
             w0 = np.asarray(w0, np.float32).copy(); w0[sel] *= arm["pw"]
             info["press2_positive_rows_weighted"] = int(sel.sum())
+        if arm.get("softall"):                     # the labeller's soft taps of every TAP / SWIPE recording
+            soft = D["tr_soft"][np.isin(data["group"][D["tr_soft"]], list(set(data["group"][trn])))]
+            if labels == "press2":                 # press2 already added those of its recordings
+                soft = soft[~np.isin(data["rec"][soft], list(press2_recordings()))]
+            X150 = np.concatenate([X150, data["X"][soft]]); y = np.r_[y, np.ones(len(soft), int)]
+            files = np.r_[files, data["file"][soft]]; w0 = np.r_[np.asarray(w0, np.float32), data["w"][soft]]
+            rec = np.r_[rec, data["rec"][soft]]; ridx = np.r_[ridx, data_ridx(soft)]
+            info["softall_rows"] = int(len(soft))
+        target = None
+        if arm.get("distill") is not None:         # soft targets from a cross-fitted full-size teacher
+            ts = distill_scores(X150, y, rec, ridx, f, spec)
+            target = arm["distill"] * y + (1 - arm["distill"]) * ts
+            info.update(distill_alpha=arm["distill"], teacher_mean_pos=round(float(ts[y == 1].mean()), 4),
+                        teacher_mean_neg=round(float(ts[y == 0].mean()), 4))
         aug_tab = None
         if arm.get("aug"):
             X150 = apply_gain(X150, gain_table(D["n_recs"], arm["aug"], 1000 + f)[rec])
@@ -1269,7 +1352,8 @@ def run_arm(name):
             extra["num_leaves"] = arm["leaves"]
         if arm.get("mcs"):
             extra["min_child_samples"] = arm["mcs"]
-        m = fit(F, y, weights(y, files, w0), budget, extra_params=extra)
+        m = (fit_distill(F, target, weights(y, files, w0), budget, extra_params=extra) if target is not None
+             else fit(F, y, weights(y, files, w0), budget, extra_params=extra))
         del F
         k, size = g.trees_within(m, budget)
         imp = m.booster_.feature_importance("gain", iteration=k)
