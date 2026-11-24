@@ -41,6 +41,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -63,7 +64,7 @@ import lightgbm as lgb
 import numpy as np
 import optuna
 import pandas as pd
-from sklearn.model_selection import GroupKFold, GroupShuffleSplit
+from sklearn.model_selection import GroupKFold, GroupShuffleSplit, StratifiedKFold, StratifiedShuffleSplit
 
 import replay as R
 import generate_lean8_features as lean8
@@ -203,10 +204,16 @@ LABEL_LP = ROOT / "DATA" / "LABELS" / "DATA_LONG_PRESS"
 # position) can be on both sides; all people take part in every fold. Scores then mostly describe people the model
 # was trained on (TAP_OBSERVABLE_RESULTS.md: ~4x fewer finger false taps on trained-on people). The shipped header is
 # refitted on everyone either way. Its own results folder (_splitfile) and study.
+# The file split is gesture-aware: the held-out files and the CV folds are stratified by recording type (folder,
+# gesture from the file name, and bpm for TAP / SWIPE), so every part gets its share of each gesture
+# (recording_stratum, file_strata). Types with fewer than STRATUM_MIN_FILES files are pooled per folder.
 SPLIT_BY = os.environ.get("MUDRA_SPLIT", "person").strip().lower()
 if SPLIT_BY not in ("person", "file"):
     raise ValueError("MUDRA_SPLIT must be person or file")
 SPLIT_TAG = "" if SPLIT_BY == "person" else "_splitfile"
+# Study-name suffix: the file split is gesture-aware (stratified, v1); a study scored on the earlier plain file
+# split is never resumed with these folds.
+SPLIT_STUDY_TAG = "" if SPLIT_BY == "person" else "_splitfile_gesture1"
 OUTPUT = ROOT / "research" / "gesture" / (dict(full="results_unified_v3_feature_selection",
                                                off="results_unified_v3_feature_selection_no_lean8",
                                                lite="results_unified_v3_feature_selection_lean_lite")[LEAN8_MODE]
@@ -334,7 +341,7 @@ def study_name(task: str) -> str:
         name += TAP_TAG
     else:
         name += f"_rel{LP_RELEASE_THRESHOLD:.2f}"
-    return name + SPLIT_TAG
+    return name + SPLIT_STUDY_TAG
 
 
 class StageClock:
@@ -1121,13 +1128,108 @@ def group_by_file(data, rpl):
     recs["group"] = (recs.group.astype(str) + "|" + recs.file.astype(str)).to_numpy(object)
     data["person"] = data["group"]
     data["group"] = recs.group.to_numpy(object)[data["rec"]]
-    data["content_sha256"] = hashlib.sha256((data["content_sha256"] + "|split=file").encode()).hexdigest()
+    if "folder" in recs:                         # gesture-aware: the stratum of every recording and training row
+        strata = np.array([recording_stratum(f, fo) for f, fo in zip(recs.file, recs.folder)], object)
+        recs["stratum"] = strata
+        data["stratum"] = strata[data["rec"]]
+    data["content_sha256"] = hashlib.sha256((data["content_sha256"] + "|split=file-gesture1").encode()).hexdigest()
+
+
+STRATUM_MIN_FILES = 5
+GESTURE_ALIASES = {"stretch": "fiststretch", "fist": "fiststretch"}   # Fist_&_Stretch and Fist&Stretch
+_GESTURE_KEYS = []
+
+
+def recording_gesture(name: str) -> str:
+    """Gesture of a recording from its file name, found with org.py's routing keywords (longest first, as org.py
+    routes files): the underscore-separated part that holds the keyword, letters and digits only.
+    SwipeMID -> swipemid, Ring_Finger -> ringfinger, TapOnArm -> taponarm, Fist_&_Stretch -> stretch."""
+    if not _GESTURE_KEYS:
+        if str(ROOT) not in sys.path:
+            sys.path.insert(0, str(ROOT))
+        import org
+        _GESTURE_KEYS.extend(sorted(org.GESTURE_MAP, key=lambda k: (-len(k), k)))
+    s = Path(str(name)).name.lower()
+    for k in _GESTURE_KEYS:
+        i = s.find(k)
+        if i >= 0:
+            a = s.rfind("_", 0, i) + 1
+            b = s.find("_", i + len(k))
+            g_ = re.sub(r"[^a-z0-9]", "", s[a:len(s) if b < 0 else b])
+            return GESTURE_ALIASES.get(g_, g_)
+    return "unknown"
+
+
+def recording_stratum(name: str, folder: str) -> str:
+    """folder|gesture, plus |<bpm> for TAP and SWIPE recordings (60 / 120 / 240 bpm taps are different tasks)."""
+    st = f"{folder}|{recording_gesture(name)}"
+    m = re.search(r"_(\d+)bpm", Path(str(name)).name.lower())
+    return st + (f"|{m.group(1)}" if m and folder in TAP_FOLDERS else "")
+
+
+def merge_rare(labels, min_count: int):
+    """Pool strata with fewer than min_count members one level up (folder|gesture|bpm -> folder|gesture -> folder
+    -> other); a stratum still below 2 members joins the largest one."""
+    lab = np.asarray(labels, object).copy()
+    for level in (2, 1, 0):
+        counts = Counter(lab.tolist())
+        rare = np.array([counts[x] < min_count for x in lab], bool)
+        if not rare.any():
+            break
+        lab[rare] = ["|".join(str(x).split("|")[:level]) or "other" for x in lab[rare]]
+    counts = Counter(lab.tolist())
+    if counts and min(counts.values()) < 2:
+        big = counts.most_common(1)[0][0]
+        lab = np.array([big if counts[x] < 2 else x for x in lab], object)
+    return lab
+
+
+def file_strata(data, rows):
+    """For training rows `rows`: (group code per row, groups, merged stratum per group)."""
+    codes, groups = pd.factorize(pd.Series(data["group"][rows], dtype=object))
+    _, first = np.unique(codes, return_index=True)
+    return codes, np.asarray(groups, object), merge_rare(data["stratum"][rows][first], STRATUM_MIN_FILES)
+
+
+def cv_splits(data, train_ids):
+    """CV folds over train_ids (positions into train_ids). Gesture-aware file split: StratifiedKFold over the files
+    by stratum; otherwise GroupKFold by group (person or file)."""
+    if "stratum" not in data:
+        return list(GroupKFold(n_splits=CV_FOLDS).split(train_ids, data["y"][train_ids], data["group"][train_ids]))
+    codes, groups, strata = file_strata(data, train_ids)
+    out = []
+    for _, b_g in StratifiedKFold(n_splits=CV_FOLDS, shuffle=True, random_state=SEED).split(groups, strata):
+        val = np.zeros(len(groups), bool); val[b_g] = True
+        out.append((np.flatnonzero(~val[codes]), np.flatnonzero(val[codes])))
+    return out
+
+
+def strata_balance(data, tr, te):
+    """Files per stratum on each side of the held-out split (stratum -> [train files, held-out files])."""
+    out = {}
+    for side, rows in ((0, tr), (1, te)):
+        g_, first = np.unique(data["group"][rows], return_index=True)
+        for st in data["stratum"][rows][first]:
+            out.setdefault(str(st), [0, 0])[side] += 1
+    return dict(sorted(out.items()))
+
+
+def _stratified_heldout(data, task):
+    """Gesture-aware file split: TEST_FRACTION of the files of every stratum held out (StratifiedShuffleSplit)."""
+    codes, groups, strata = file_strata(data, np.arange(len(data["y"])))
+    for k in range(200):
+        _, b_g = next(StratifiedShuffleSplit(n_splits=1, test_size=TEST_FRACTION,
+                                             random_state=SEED + int(task == "lp") + k).split(groups, strata))
+        held = np.zeros(len(groups), bool); held[b_g] = True
+        yield np.flatnonzero(~held[codes]), np.flatnonzero(held[codes])
 
 
 def split_heldout(data, task):
     g = data["group"]; y = data["y"]; c = data["category"]
-    splitter = GroupShuffleSplit(n_splits=200, test_size=TEST_FRACTION, random_state=SEED + int(task == "lp"))
-    for tr, te in splitter.split(data["X"], y, g):
+    splitter = (_stratified_heldout(data, task) if "stratum" in data else
+                GroupShuffleSplit(n_splits=200, test_size=TEST_FRACTION,
+                                  random_state=SEED + int(task == "lp")).split(data["X"], y, g))
+    for tr, te in splitter:
         if set(y[tr]) != {0, 1} or set(y[te]) != {0, 1}:
             continue
         if len(set(g[tr])) < CV_FOLDS + 1:
@@ -1141,7 +1243,7 @@ def split_heldout(data, task):
         if set(g[tr]) & set(g[te]):
             raise AssertionError("Subject overlap in holdout")
         return tr, te
-    raise RuntimeError(f"No usable person-disjoint {task} split, inspect category coverage")
+    raise RuntimeError(f"No usable {SPLIT_BY}-grouped {task} split, inspect category coverage")
 
 
 def weights_for_task(data, indices, task, positive_weight):
@@ -1592,8 +1694,7 @@ def prepared_folds(data, rpl, train_ids, task):
         return _PREPARED[key]
     folds = []
     t0 = time.perf_counter()
-    for fold, (a, b) in enumerate(GroupKFold(n_splits=CV_FOLDS).split(
-            train_ids, data["y"][train_ids], data["group"][train_ids])):
+    for fold, (a, b) in enumerate(cv_splits(data, train_ids)):
         tr = train_ids[a]
         val_groups = set(data["group"][train_ids[b]])
         if task == "tap" and TAP_OBS_MS is not None:          # observable labels, inside this fold's training people
@@ -2493,8 +2594,17 @@ def train_task(task: str, tap_files, lp_files):
         "task": task, "split_by": SPLIT_BY, "subjects": len(set(data["group"])), "train_rows": len(tr), "holdout_rows": len(te),
         "holdout_people": sorted(set(data["group"][te])), "budgets_bytes": budgets,
         "class_one": definition["class_one"], "fixed_threshold": task_threshold(task)}))
-    write_json(out / "split.json", dict(train_groups=sorted(set(data["group"][tr])),
-                                         heldout_groups=sorted(set(data["group"][te])), seed=SEED + int(task == "lp")))
+    split_info = dict(train_groups=sorted(set(data["group"][tr])), heldout_groups=sorted(set(data["group"][te])),
+                      seed=SEED + int(task == "lp"))
+    if "stratum" in data:                        # gesture-aware file split: files per type on each side
+        split_info["strata"] = strata_balance(data, tr, te)
+        n_tr, n_te = len(split_info["train_groups"]), len(split_info["heldout_groups"])
+        notice("UNIFIED_SPLIT_GESTURES", task, len(split_info["strata"]), "recording types,", n_tr, "training /",
+               n_te, "held-out files; per folder:",
+               json.dumps({f_: [sum(v[0] for k, v in split_info["strata"].items() if k.split("|")[0] == f_),
+                                sum(v[1] for k, v in split_info["strata"].items() if k.split("|")[0] == f_)]
+                           for f_ in sorted({k.split("|")[0] for k in split_info["strata"]})}))
+    write_json(out / "split.json", split_info)
     global FS_CACHE_DIR
     FS_CACHE_DIR = out / "feature_selection" / "cache"
     target_info = None

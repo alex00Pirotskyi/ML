@@ -37,7 +37,10 @@ diff inputs + press2 labels, 14 KB, 4-15 leaves, TAP only:
     MUDRA_SPLIT=file MUDRA_TAP_RECIPE=final14 python -u research/gesture/train_unified.py   # split / folds by file
 
 `MUDRA_SPLIT=file` groups the held-out split and the CV folds by recording file instead of by person: every person
-takes part in every fold, and the same person can be on both sides (results folder suffix `_splitfile`).
+takes part in every fold, and the same person can be on both sides (results folder suffix `_splitfile`). It is
+gesture-aware: the held-out files and the CV folds are stratified by recording type (folder, gesture from the file
+name, bpm for TAP / SWIPE), so each part holds its share of every gesture (the log line `UNIFIED_SPLIT_GESTURES` and
+`split.json` show the counts).
 
 The repository `Makefile` wraps this on the server: `make train` updates the code (`git pull --ff-only`) and starts
 `final14` with the file split and the 10 KB alternative in the background, with a timestamped log under `logs/`.

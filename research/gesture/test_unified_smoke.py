@@ -298,7 +298,41 @@ def tap_final_recipe_checks():
     g.group_by_file(d_, dict(recs=recs_))
     assert d_["group"].tolist() == ["a|f1", "a|f2", "a|f2", "b|f3"] and d_["person"].tolist() == ["a", "a", "a", "b"]
     assert recs_.group.tolist() == ["a|f1", "a|f2", "b|f3"] and recs_.person.tolist() == ["a", "a", "b"]
-    assert d_["content_sha256"] != "x"
+    assert d_["content_sha256"] != "x" and "stratum" not in d_
+    # ---- gesture-aware file split: recording type from the file name; rare types pooled; stratified parts.
+    gs = {"perry_SwipeMID_Horizontal_Up_Down__Up_Down_120bpm_2026-01-04_10-03-18.csv.gz": ("SWIPE", "SWIPE|swipemid|120"),
+          "alex_new_LeftHand_Ring_Finger_Horizontal_Default_60bpm_2026-11-24_14-26-46-023.csv.gz": ("FINGER", "FINGER|ringfinger"),
+          "x_LeftHand_Fist_&_Stretch_Vertical_Default_60bpm_2026-11-24_14-24-03-427.csv.gz": ("FINGER", "FINGER|fiststretch"),
+          "Shira_TapOnArm_Horizontal_Default_60bpm_2026-01-29_11-59-49.csv.gz": ("ARM", "ARM|taponarm"),
+          "AdiEdelshtein_SoftTap_Reverse_NONE_240bpm_2025-12-31_16-46-30.csv.gz": ("TAP", "TAP|softtap|240")}
+    for name_, (fo_, want) in gs.items():
+        assert g.recording_stratum("DATA/DATA_TAP/" + fo_ + "/" + name_, fo_) == want, (name_, want)
+    m_ = g.merge_rare(["T|a|60"] * 6 + ["T|a|120"] * 3 + ["T|b|60"] * 2 + ["F|c"] * 7 + ["W|d"] * 5, 5)
+    assert m_.tolist() == ["T|a|60"] * 6 + ["T"] * 5 + ["F|c"] * 7 + ["W|d"] * 5, m_.tolist()   # rare pooled per folder
+    m_ = g.merge_rare(["T|a|60"] * 6 + ["T|a|120"] * 2 + ["T|b|60"] * 2 + ["W|d"], 5)
+    assert m_.tolist() == ["T|a|60"] * 6 + ["other"] * 5, m_.tolist()                          # then across folders
+    assert g.merge_rare(["A|x"] * 6 + ["B|y"], 5).tolist() == ["A|x"] * 7                       # a single one: largest
+    n_f = 60; fo_ = np.array(["TAP"] * 20 + ["SWIPE"] * 10 + ["FINGER"] * 20 + ["WRIST"] * 10, object)
+    kind_ = ["SoftTap"] * 10 + ["MidTap"] * 10 + ["SwipeMID"] * 10 + ["Pinky"] * 20 + ["Twist"] * 10
+    nm_ = np.array([f"p{i % 7}_{kind_[i]}_Horizontal_Default_60bpm_{i}.csv.gz" for i in range(n_f)], object)
+    recs_ = pd.DataFrame(dict(group=[f"p{i % 7}" for i in range(n_f)], file=nm_, folder=fo_))
+    rec_ = np.repeat(np.arange(n_f), 2)
+    d_ = dict(group=recs_.group.to_numpy(object)[rec_], rec=rec_, category=fo_[rec_], X=np.zeros((2 * n_f, 1)),
+              y=np.where(np.isin(fo_[rec_], ["TAP", "SWIPE"]) & (np.arange(2 * n_f) % 2 == 0), 1, 0),
+              content_sha256="x")
+    g.group_by_file(d_, dict(recs=recs_))
+    tr_, te_ = g.split_heldout(d_, "tap")
+    bal_ = g.strata_balance(d_, tr_, te_)
+    assert set(bal_) == {"TAP|softtap|60", "TAP|midtap|60", "SWIPE|swipemid|60", "FINGER|pinky", "WRIST|twist"}, bal_
+    assert all(abs(v[1] / sum(v) - g.TEST_FRACTION) <= 0.1 for v in bal_.values()), bal_
+    assert not set(d_["group"][tr_]) & set(d_["group"][te_])              # a file never on both sides
+    assert set(d_["person"][tr_]) & set(d_["person"][te_])                # people are
+    cv_ = g.cv_splits(d_, tr_)
+    assert len(cv_) == g.CV_FOLDS
+    seen_ = np.concatenate([np.unique(d_["group"][tr_[b]]) for _, b in cv_])
+    assert len(seen_) == len(set(seen_)) == len(set(d_["group"][tr_]))     # every training file in one fold
+    for _, b in cv_:                                                      # each fold gets its share of each type
+        assert {st.split("|")[1] for st in d_["stratum"][tr_[b]]} == {"softtap", "midtap", "swipemid", "pinky", "twist"}
     # ---- one-to-one reference matching: one event cannot find two windows; crossing windows; boundaries.
     assert R.match_windows([1150.0], [850.0, 1050.0], [1250.0, 1450.0]).tolist() == [True, False]
     assert R.match_windows([5.0, 12.0], [0.0, 10.0], [20.0, 13.0]).tolist() == [True, True]
@@ -688,6 +722,7 @@ def real_source_smoke(keep_input=False):
             if g.SPLIT_BY == "file":                                   # one group per recording; people on both sides
                 assert all("|" in x for x in sp["train_groups"] + sp["heldout_groups"])
                 assert {x.split("|")[0] for x in sp["train_groups"]} & {x.split("|")[0] for x in sp["heldout_groups"]}
+                assert sp["strata"] and sum(v[1] for v in sp["strata"].values()) == len(sp["heldout_groups"])
             else:                                                      # person split: nobody on both sides
                 assert not set(sp["train_groups"]) & set(sp["heldout_groups"])
             # Completed output + changed data: the rerun refuses to reuse it and names the change.
