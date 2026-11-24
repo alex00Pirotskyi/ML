@@ -43,3 +43,6 @@ __pycache__/
 
 # Filename-supervised gesture correlation research outputs
 /gesture_correlation/results/
+
+# make train logs
+/logs/
