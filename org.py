@@ -531,6 +531,17 @@ def find_mapping(
 
             return keyword, GESTURE_MAP[keyword]
 
+    # Names with an underscore between the words of the gesture (newer app: Tap_on_Hand, Soft_Tap): only when
+    # nothing matched, retry with the underscores removed, so routing of every other file stays as it was.
+
+    squashed = filename_lower.replace("_", "")
+
+    for keyword in sorted_keywords:
+
+        if keyword.replace("_", "") in squashed:
+
+            return keyword, GESTURE_MAP[keyword]
+
     return None
 
 # =============================================================================

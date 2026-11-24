@@ -1184,6 +1184,11 @@ def recording_gesture(name: str) -> str:
             b = s.find("_", i + len(k))
             g_ = re.sub(r"[^a-z0-9]", "", s[a:len(s) if b < 0 else b])
             return GESTURE_ALIASES.get(g_, g_)
+    squashed = s.replace("_", "")                # Tap_on_Hand, Soft_Tap: as org.find_mapping, only if nothing matched
+    for k in _GESTURE_KEYS:
+        k2 = k.replace("_", "")
+        if k2 in squashed:
+            return GESTURE_ALIASES.get(k2, k2)
     return "unknown"
 
 

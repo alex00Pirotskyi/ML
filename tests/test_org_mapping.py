@@ -28,6 +28,11 @@ def test_finger_taps_are_not_finger_motion():
     assert category("Someone_IndexFingerTap_Horizontal_Default_60bpm_2026-01-01_12-00-00.csv") == "INDEX_FINGER_TAP"
 
 
+def test_words_split_by_underscores():
+    assert category("q_new_LeftHand_Tap_on_Hand_Horizontal_Default_60bpm_2026-11-24_18-14-12-511.csv") == "WRIST"
+    assert category("q_new_LeftHand_Soft_Tap_Horizontal_Default_60bpm_2026-11-24_18-14-12-511.csv") == "TAP"
+
+
 def test_no_bare_index_alias():
     assert "index" not in org.GESTURE_MAP
 
