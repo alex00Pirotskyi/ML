@@ -227,6 +227,52 @@ training people.
   to `final14` and decide on the device.
 - **Size:** keep 14 KB. If the device needs room, 10 KB with observable labels equals today's 14 KB.
 
+## Strict tap definition: finger-like taps not taught (2026-11-24)
+
+**Question:** do the finger false taps come from what we call a tap? If the model is never taught the taps that
+look like finger motion, does it stop firing on finger motion?
+
+**Method:**
+- **Teacher:** cross-fitted by person inside each fold's training people. It separates tap rows from
+  muscle-activity rows of the finger-motion and fist recordings.
+- **Score per tap:** its best score over its rows.
+- **Left out:** the q% most finger-like taps (rows removed, never made negatives).
+- **Variants:**
+  - `strictx<q>` judges single taps only; doubles, 240 bpm taps and swipes are exempt.
+  - `strict25` judges every tap.
+
+**Finger and fist false taps per minute at the same normal-tap recall** (differences to the reference, nominal /
+placement; `*` = 95% person-bootstrap interval excludes 0):
+
+| Left out | Taps left out | Finger /min | Fist /min | All false /min | Double 2nd | Fast 240 |
+|---|---|---|---|---|---|---|
+| 15% of single taps | 845 of 11,948 | +0.07 / +0.32\* | +0.79 / +1.01 | +0.07 / +0.15\* | +2.5 / +4.1\* | +1.0 / +2.1 |
+| 25% of single taps | 1,408 | +0.06 / +0.30\* | +0.81 / +0.64 | +0.14\* / +0.15\* | +5.3\* / +6.0\* | +1.2 / +2.2 |
+| 40% of single taps | 2,252 | +0.26 / +0.41\* | +1.07 / +1.09 | +0.24\* / +0.24\* | +6.0\* / +6.9\* | +3.8\* / +5.5\* |
+| 25% of every tap | 2,987 | +0.31 / +0.96\* | +0.28 / +0.49 | +0.13 / +0.31\* | +0.3 / +4.5 | +0.5 / +6.0\* |
+
+At 2.8/min the stricter variants lose 1–3 points of normal, soft and swipe taps. Finger is unchanged
+(−0.13 to +0.25/min) and fist rises by +0.2 to +0.8/min.
+
+**What this means:** being stricter about which taps are taught does not improve finger protection at any
+strictness. It makes finger and fist slightly worse. Double and fast taps gain only because the leftover single
+taps move the threshold.
+
+**Contact-jolt check** (estimated from the event shapes, not trained): no click unless the ACC jolt 22 ms after
+firing is at least 30. It removes 19% of finger and 17% of fist false events, and costs 3% of normal and 6% of
+soft taps. That is the same exchange rate as raising the threshold.
+
+**Conclusion:** finger false taps are not caused by the definition of a tap. Every label-side form of strictness
+gives the same exchange of taps for false taps or none:
+- windows of 60, 40 and 30 ms
+- light EMG confirmation
+- weak-recording gates
+- observable frames
+- finger-like taps left out
+
+The model is wrong on the finger motion of people it has never seen. On people it trained on it makes about 4×
+fewer finger false taps. The negative side, finger motion from many more people, is what is missing.
+
 ## Reproduce
 
     python research/gesture/tap_observable_research.py timeline

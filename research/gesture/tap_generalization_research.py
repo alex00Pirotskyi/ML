@@ -610,6 +610,75 @@ def observable_positives(X150, y, files, w0, rec, ridx, fold, mode, dur_ms, tag=
     return X150[keep], y[keep], files[keep], np.asarray(w0)[keep], rec[keep], ridx[keep], info
 
 
+def strict_taps(X150, y, files, w0, rec, ridx, fold, trn, q, exempt_press2=False):
+    """Strict tap definition: taps that look like finger motion are not taught. A teacher, cross-fitted by person
+    inside the fold's training people (3 folds), separates tap rows from muscle-activity rows of the finger-motion /
+    fist recordings; every tap gets its best (max) score over its positive rows; the q% of taps with the lowest
+    score (most finger-like) are left out of training (rows removed, never made negatives). exempt_press2 keeps
+    every tap of the DoubleTaps / 240 bpm recordings (the firmware handles second / fast taps separately) and every
+    swipe (a swipe is a finger motion by nature): only single taps are judged."""
+    import hashlib
+    import lightgbm as lgb
+    D = load(); data = D["data"]; recs = D["rpl"]["recs"]; on = D["onsets"]
+    act = data_ridx(trn[data["kind"][trn] == 2])
+    folder = recs.folder.to_numpy(object)[rec]
+    look = (y == 0) & (folder == "FINGER") & np.isin(ridx, act)
+    pos = y == 1
+    key = hashlib.sha256(np.ascontiguousarray(ridx).tobytes() + np.ascontiguousarray(y).tobytes()).hexdigest()[:12]
+    path = OUT / "models" / f"strict_teacher_fold{fold}_{key}.npz"
+    if path.is_file():
+        with np.load(path) as z:
+            score = z["score"]
+    else:
+        t0 = time.perf_counter()
+        person = recs.group.to_numpy(object)[rec]
+        people = np.unique(person[pos | look])
+        F, _, _ = build(np.hstack([X150, lite_rows(ridx, rec)]), OBS_SPEC)
+        score = np.full(len(y), np.nan)
+        for k, (a_, b_) in enumerate(GroupKFold(n_splits=3).split(people, groups=people)):
+            fit = (pos | look) & np.isin(person, people[a_]); lab = pos & np.isin(person, people[b_])
+            if (look & fit).sum() < 100:           # no finger-motion people in this inner fold: no judgement
+                score[lab] = 1.0
+                continue
+            yy = y[fit]; w = np.where(yy == 1, 0.5 / max(1, yy.sum()), 0.5 / max(1, (yy == 0).sum())) * len(yy)
+            m = lgb.LGBMClassifier(**OBS_TEACHER, n_jobs=THREADS, random_state=21 + k).fit(F[fit], yy, sample_weight=w)
+            score[lab] = m.predict_proba(F[lab])[:, 1]
+            log("GR_STRICT_TEACHER", fold, k, json.dumps(dict(fit_rows=int(fit.sum()), finger_rows=int((look & fit).sum()),
+                                                            scored=int(lab.sum()), seconds=round(time.perf_counter() - t0, 1))))
+        (OUT / "models").mkdir(parents=True, exist_ok=True)
+        np.savez_compressed(path, score=score)
+    anchors = {int(r): np.unique(np.round(v.t_on.to_numpy(float))) for r, v in
+               on[on.kind.isin(["strong", "soft", "press"])].groupby("rec")}
+    t = np.asarray(D["rpl"]["t"][ridx], np.float64)
+    owner = np.full(len(y), -1, np.int64); ids = {}
+    for i in np.flatnonzero(pos):
+        an = anchors.get(int(rec[i]))
+        if an is None or not len(an):
+            continue
+        k = np.searchsorted(an, t[i] + 5.0, side="right") - 1
+        if k >= 0 and t[i] - an[k] <= 95:
+            owner[i] = ids.setdefault((int(rec[i]), float(an[k])), len(ids))
+    o = owner[owner >= 0]; sc = np.nan_to_num(score[owner >= 0], nan=0.0)
+    best = np.full(len(ids), -1.0); np.maximum.at(best, o, sc)
+    tap_rec = np.zeros(len(ids), np.int64)
+    for (r_, _), i_ in ids.items():
+        tap_rec[i_] = r_
+    eligible = np.ones(len(ids), bool)
+    if exempt_press2:
+        names = recs.file.to_numpy(object)
+        eligible = np.array([recs.folder.iloc[r_] == "TAP" and not any(k_ in names[r_] for k_ in g.PRESS2_NAME_KEYS)
+                             for r_ in tap_rec])
+    thr = np.percentile(best[eligible], q) if eligible.any() else -1
+    drop_tap = eligible & (best < thr)
+    drop = (owner >= 0) & drop_tap[np.clip(owner, 0, None)]
+    keep = ~drop
+    kinds = [rec_type(recs.folder.iloc[r_], recs.file.iloc[r_]) for r_ in tap_rec[drop_tap]]
+    info = dict(strict_q=q, strict_exempt_press2=exempt_press2, strict_taps=int(len(ids)), strict_taps_left_out=int(drop_tap.sum()),
+                strict_rows_left_out=int(drop.sum()), strict_threshold=float(thr),
+                strict_left_out_by_type=pd.Series(kinds).value_counts().to_dict() if kinds else {})
+    return X150[keep], y[keep], files[keep], np.asarray(w0)[keep], rec[keep], ridx[keep], info
+
+
 CONS_LOOKALIKE = ("FINGER", "WRIST", "ARM", "BAND")
 
 
@@ -1075,6 +1144,10 @@ def arm_from_name(name):
             base["seed"] = int(tok[4:])               # seed<k>: another LightGBM seed (training noise)
         elif tok.startswith("recq") and tok[4:].isdigit():
             base["recq"] = float(tok[4:]) / 100       # recq50: weak recordings (< 50% presses confirmed) give no taps
+        elif tok.startswith("strictx") and tok[7:].isdigit():
+            base["strict"] = (int(tok[7:]), True)    # strictx20: 20% most finger-like single taps (doubles, 240 bpm, swipes exempt)
+        elif tok.startswith("strict") and tok[6:].isdigit():
+            base["strict"] = (int(tok[6:]), False)   # strict20: drop the 20% most finger-like taps
         elif tok.startswith("cons") and tok[4:].isdigit():
             base["cons"] = int(tok[4:])                # cons32: only the 32 inputs most consistent across people
         elif tok.startswith("obsfirst") and tok[8:].isdigit():
@@ -1132,6 +1205,9 @@ def run_arm(name):
         if arm.get("emg_min") or arm.get("win_ms") or arm.get("recq"):   # tighter positives
             X150, y, files, w0, rec, ridx, inf = filter_positives(X150, y, files, w0, rec, ridx,
                                                                   arm.get("emg_min"), arm.get("win_ms"), arm.get("recq"))
+            info.update(inf)
+        if arm.get("strict"):                      # strict tap definition: finger-like taps are not taught
+            X150, y, files, w0, rec, ridx, inf = strict_taps(X150, y, files, w0, rec, ridx, f, trn, *arm["strict"])
             info.update(inf)
         if arm.get("obs"):                         # observable-pattern labels (cross-fitted teacher, per tap)
             X150, y, files, w0, rec, ridx, inf = observable_positives(X150, y, files, w0, rec, ridx, f, *arm["obs"],
