@@ -91,5 +91,6 @@ jobs:
             research/gesture/_smoke_results_no_lean8_tap-diff-mild-litediff-press2-kb14-leaves4-15/tap/COMPARISON.md
             research/gesture/_smoke_results_no_lean8_tap-diff-mild-litediff-press2-obs60-kb14-leaves4-15/tap/summary.json
             research/gesture/_smoke_results_no_lean8_tap-diff-mild-litediff-press2-obs60-kb14-leaves4-15/tap/COMPARISON.md
+            research/gesture/_smoke_results_no_lean8_tap-diff-mild-litediff-press2-kb14-leaves4-15_splitfile/tap/summary.json
           if-no-files-found: warn
           retention-days: 7

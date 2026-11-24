@@ -292,6 +292,13 @@ def tap_final_recipe_checks():
     k20 = g.obs_select(tap, off, sc, 20.0, 10)                 # tie 15+25 vs 25+35: the earlier window
     assert k20[:8].tolist() == [False, False, True, True, False, False, False, False], k20
     assert k20[8:11].tolist() == [False, True, True], k20      # 3-row tap, 20 ms: the best 2-row window
+    # ---- MUDRA_SPLIT=file: one group per recording, in the rows and in the replay table, persons kept.
+    recs_ = pd.DataFrame(dict(group=["a", "a", "b"], file=["f1", "f2", "f3"], start=[0, 5, 9], end=[5, 9, 12]))
+    d_ = dict(group=np.array(["a", "a", "a", "b"], object), rec=np.array([0, 1, 1, 2]), content_sha256="x")
+    g.group_by_file(d_, dict(recs=recs_))
+    assert d_["group"].tolist() == ["a|f1", "a|f2", "a|f2", "b|f3"] and d_["person"].tolist() == ["a", "a", "a", "b"]
+    assert recs_.group.tolist() == ["a|f1", "a|f2", "b|f3"] and recs_.person.tolist() == ["a", "a", "b"]
+    assert d_["content_sha256"] != "x"
     # ---- one-to-one reference matching: one event cannot find two windows; crossing windows; boundaries.
     assert R.match_windows([1150.0], [850.0, 1050.0], [1250.0, 1450.0]).tolist() == [True, False]
     assert R.match_windows([5.0, 12.0], [0.0, 10.0], [20.0, 13.0]).tolist() == [True, True]
@@ -595,7 +602,7 @@ SMOKE_RESULTS = dict(full="_smoke_results", off="_smoke_results_no_lean8", lite=
 def real_source_smoke(keep_input=False):
     """Runs in the trainer's own mode (MUDRA_USE_LEAN8). keep_input: reuse the sample and labels of a previous run."""
     sample_root = ROOT / "research" / "gesture" / "_smoke_input"
-    results = ROOT / "research" / "gesture" / (SMOKE_RESULTS[g.LEAN8_MODE] + g.TAP_TAG)
+    results = ROOT / "research" / "gesture" / (SMOKE_RESULTS[g.LEAN8_MODE] + g.TAP_TAG + g.SPLIT_TAG)
     for d in ((results,) if keep_input else (sample_root, ROOT / "research" / "gesture" / "_smoke_labels", results)):
         if d.exists():
             shutil.rmtree(d)
@@ -677,6 +684,12 @@ def real_source_smoke(keep_input=False):
                     names = {p_.name.split("_")[1] for p_ in (out / "cache" / "obs").glob("obs_*.npz")}
                     assert {"cv0", "cv1", "development", "everyone"} <= names, names
             assert report["data_identity"]["recordings"] > 0 and (out / "data_identity.json").is_file()
+            sp = json.loads((out / "split.json").read_text())
+            if g.SPLIT_BY == "file":                                   # one group per recording; people on both sides
+                assert all("|" in x for x in sp["train_groups"] + sp["heldout_groups"])
+                assert {x.split("|")[0] for x in sp["train_groups"]} & {x.split("|")[0] for x in sp["heldout_groups"]}
+            else:                                                      # person split: nobody on both sides
+                assert not set(sp["train_groups"]) & set(sp["heldout_groups"])
             # Completed output + changed data: the rerun refuses to reuse it and names the change.
             ident = json.loads((out / "data_identity.json").read_text())
             ident_bad = dict(ident, sha256="0" * 64, files=[[f[0], "x", f[2]] for f in ident["files"]])
@@ -805,7 +818,9 @@ if __name__ == "__main__":
                                                                       MUDRA_TAP_AUG="mild")),
                                 ("TAP final recipe", dict(MUDRA_TAP_RECIPE="final14", MUDRA_TASKS="tap,lp")),
                                 ("TAP final recipe + observable labels",
-                                 dict(MUDRA_TAP_RECIPE="final14obs", MUDRA_TASKS="tap,lp"))):
+                                 dict(MUDRA_TAP_RECIPE="final14obs", MUDRA_TASKS="tap,lp")),
+                                ("TAP final recipe, split and folds by file",
+                                 dict(MUDRA_TAP_RECIPE="final14", MUDRA_TASKS="tap,lp", MUDRA_SPLIT="file"))):
                 p = subprocess.run([sys.executable, "-u", __file__, "--second-arm"], env=dict(os.environ, **extra))
                 if p.returncode:
                     raise SystemExit(f"{name} real-source smoke failed ({p.returncode})")

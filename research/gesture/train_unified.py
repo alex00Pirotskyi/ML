@@ -198,9 +198,19 @@ PRESS_WINDOW_MS = (150, 250)         # pointer-press reference: [min(press, onse
 TAP_TARGET_FALLBACK = 1.0
 LABEL_TAP = ROOT / "DATA" / "LABELS" / "DATA_TAP"
 LABEL_LP = ROOT / "DATA" / "LABELS" / "DATA_LONG_PRESS"
+# What the held-out split and the CV folds group by. person (default): a person is never on both sides (scores =
+# people the model never saw). file: every recording file is its own group, so the same person (same day, same band
+# position) can be on both sides; all people take part in every fold. Scores then mostly describe people the model
+# was trained on (TAP_OBSERVABLE_RESULTS.md: ~4x fewer finger false taps on trained-on people). The shipped header is
+# refitted on everyone either way. Its own results folder (_splitfile) and study.
+SPLIT_BY = os.environ.get("MUDRA_SPLIT", "person").strip().lower()
+if SPLIT_BY not in ("person", "file"):
+    raise ValueError("MUDRA_SPLIT must be person or file")
+SPLIT_TAG = "" if SPLIT_BY == "person" else "_splitfile"
 OUTPUT = ROOT / "research" / "gesture" / (dict(full="results_unified_v3_feature_selection",
                                                off="results_unified_v3_feature_selection_no_lean8",
-                                               lite="results_unified_v3_feature_selection_lean_lite")[LEAN8_MODE] + TAP_TAG)
+                                               lite="results_unified_v3_feature_selection_lean_lite")[LEAN8_MODE]
+                                          + TAP_TAG + SPLIT_TAG)
 PREVIOUS_UNIFIED = ROOT / "research" / "gesture" / "results_unified_20261117"
 CLAUDE_LABELER = ROOT / "claude_labeling" / "label_gestures.py"
 TRIALS_PER_MODEL = 40
@@ -324,7 +334,7 @@ def study_name(task: str) -> str:
         name += TAP_TAG
     else:
         name += f"_rel{LP_RELEASE_THRESHOLD:.2f}"
-    return name
+    return name + SPLIT_TAG
 
 
 class StageClock:
@@ -391,7 +401,24 @@ def sha256(path: Path) -> str:
     return h.hexdigest()
 
 
+def _json_safe(obj, where="", found=None):
+    """NaN / inf (an undefined metric, e.g. a latency without any hit) -> null, with the places reported once."""
+    if isinstance(obj, dict):
+        return {k: _json_safe(v, f"{where}.{k}", found) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_json_safe(v, f"{where}[{i}]", found) for i, v in enumerate(obj)]
+    if isinstance(obj, (float, np.floating)) and not np.isfinite(obj):
+        if found is not None:
+            found.append(where)
+        return None
+    return obj
+
+
 def write_json(path: Path, obj) -> None:
+    found = []
+    obj = _json_safe(obj, "", found)
+    if found:
+        notice("UNIFIED_JSON_UNDEFINED", Path(path).name, len(found), "undefined values written as null, e.g.", found[:6])
     v6.save_json(path, obj)
 
 
@@ -1085,6 +1112,18 @@ def load_cache(cache: Path, columns):
 
 
 # ============================================================================ split, weights, params
+def group_by_file(data, rpl):
+    """MUDRA_SPLIT=file: every recording file becomes its own group (person|file) in the training rows and in the
+    replay table, so the held-out split, the CV folds, the feature-ranking folds, the observable-label teachers and
+    every replay selection group by file. In memory only (the cache keeps the person groups)."""
+    recs = rpl["recs"]
+    recs["person"] = recs.group.to_numpy(object)
+    recs["group"] = (recs.group.astype(str) + "|" + recs.file.astype(str)).to_numpy(object)
+    data["person"] = data["group"]
+    data["group"] = recs.group.to_numpy(object)[data["rec"]]
+    data["content_sha256"] = hashlib.sha256((data["content_sha256"] + "|split=file").encode()).hexdigest()
+
+
 def split_heldout(data, task):
     g = data["group"]; y = data["y"]; c = data["category"]
     splitter = GroupShuffleSplit(n_splits=200, test_size=TEST_FRACTION, random_state=SEED + int(task == "lp"))
@@ -2422,6 +2461,10 @@ def train_task(task: str, tap_files, lp_files):
     out.mkdir(parents=True, exist_ok=True)
     data, rpl, info = build_task_data(task, records, out)
     info["duplicate_recordings_left_out"] = len(duplicates)
+    if SPLIT_BY == "file":
+        group_by_file(data, rpl)
+        notice("UNIFIED_SPLIT_BY_FILE", task, len(set(data["group"])), "files as groups,",
+               len(set(data["person"])), "people (the same person can be on both sides)")
     if task == "tap" and TAP_AUG == "mild":
         # Training rows only (CV, rankings and final models train on them); every replay / held-out score uses
         # the real recordings. Deterministic: the same draw per recording on every run and resume.
@@ -2447,7 +2490,7 @@ def train_task(task: str, tap_files, lp_files):
         OBS_CACHE_DIR = out / "cache" / "obs"
     tr, te = split_heldout(data, task)
     notice("UNIFIED_TRAIN_BEGIN", json.dumps({
-        "task": task, "subjects": len(set(data["group"])), "train_rows": len(tr), "holdout_rows": len(te),
+        "task": task, "split_by": SPLIT_BY, "subjects": len(set(data["group"])), "train_rows": len(tr), "holdout_rows": len(te),
         "holdout_people": sorted(set(data["group"][te])), "budgets_bytes": budgets,
         "class_one": definition["class_one"], "fixed_threshold": task_threshold(task)}))
     write_json(out / "split.json", dict(train_groups=sorted(set(data["group"][tr])),
