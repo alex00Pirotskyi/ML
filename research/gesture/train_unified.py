@@ -159,6 +159,10 @@ _TAP_KB = float(os.environ.get("MUDRA_MODEL_BUDGET_KB", 32))
 _TAP_LEAVES = os.environ.get("MUDRA_NUM_LEAVES", "8,127").replace(" ", "")
 if TAP_GENERALIZATION and (_TAP_KB != 32 or _TAP_LEAVES != "8,127"):
     TAP_TAG += f"-kb{_TAP_KB:g}" + ("" if _TAP_LEAVES == "8,127" else "-leaves" + _TAP_LEAVES.replace(",", "-"))
+# Soft labels on: own results folder too, so a run with and without them can be compared side by side.
+_SOFT_ENV = os.environ.get("MUDRA_TAP_SOFT_LABELS", "off").strip().lower()
+if TAP_GENERALIZATION and _SOFT_ENV not in ("off", "0", "none", ""):
+    TAP_TAG += f"-soft{float(_SOFT_ENV):g}"
 TASKS_TO_RUN = [t.strip() for t in os.environ.get("MUDRA_TASKS", "tap,lp").lower().split(",") if t.strip()]
 if not TASKS_TO_RUN or not set(TASKS_TO_RUN) <= {"tap", "lp"}:
     raise ValueError("MUDRA_TASKS must list tap and/or lp")
