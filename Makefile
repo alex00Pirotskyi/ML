@@ -1,6 +1,8 @@
 # TAP training on the server.
 #
 #   make train      update the code, then start the training in the background
+#                   (new recordings: old labels are moved aside and rebuilt; a finished run of the same
+#                   settings is renamed <folder>.done_<time>, so every make train trains from scratch)
 #   make status     is it running, how many trials, last trial lines
 #   make stop       stop every running training (also ones started by hand)
 #
@@ -32,6 +34,8 @@ train:
 	  echo "A training is already running:"; echo "$$running"; \
 	  echo "Wait for it to finish (make status), or start anyway with: make train FORCE=1"; exit 1; fi
 	@if [ "$(PULL)" = "1" ]; then git pull --ff-only; fi
+	@MUDRA_TAP_RECIPE=$(RECIPE) MUDRA_SPLIT=$(SPLIT) MUDRA_ALT_BUDGET_KB=$(ALT_KB) $(EXTRA) \
+	  $(PYTHON) research/gesture/prepare_run.py
 	@mkdir -p $(LOGDIR)
 	@MUDRA_TAP_RECIPE=$(RECIPE) MUDRA_SPLIT=$(SPLIT) MUDRA_ALT_BUDGET_KB=$(ALT_KB) $(EXTRA) \
 	  nohup $(PYTHON) -u $(SCRIPT) > $(LOG) 2>&1 & echo $$! > $(PIDFILE)
