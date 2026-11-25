@@ -65,9 +65,10 @@ EXTRA = [Path(p_) for p_ in os.environ.get("MUDRA_GR_EXTRA", "").split(",") if p
 EXTRA_MODE = os.environ.get("MUDRA_GR_EXTRA_MODE", "eval")
 # MUDRA_GR_SPLIT=file: the trainer's gesture-aware file split (train_unified.group_by_file): every recording is its
 # own group, the held-out files and the 3 CV folds are stratified by recording type. Results then go to
-# results_tap_filesplit unless MUDRA_GR_OUT says otherwise. Default: person split and person folds (as researched).
-SPLIT = os.environ.get("MUDRA_GR_SPLIT", "person").strip().lower()
-assert SPLIT in ("person", "file"), SPLIT
+# results_tap_filesplit unless MUDRA_GR_OUT says otherwise. File split only.
+SPLIT = os.environ.get("MUDRA_GR_SPLIT", "file").strip().lower()
+if SPLIT != "file":       # person splits are not allowed (as in the trainer); results_tap_generalization is history
+    raise SystemExit("MUDRA_GR_SPLIT must be file: research splits and folds by recording file only")
 OUT = Path(os.environ.get("MUDRA_GR_OUT", HERE / ("results_tap_generalization" if SPLIT == "person"
                                                   else "results_tap_filesplit")))
 QUICK = os.environ.get("MUDRA_GR_QUICK") == "1"

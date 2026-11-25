@@ -9,7 +9,6 @@
 # Settings (defaults below), for example:
 #   make train RECIPE=final14protect     (14 KB finger protection; at 32 KB final14obs + TARGET protects more)
 #   make train RECIPE=final14            (without the observable labels)
-#   make train SPLIT=person
 #   make train KB=32 ALT_KB=14   (32 KB TAP model, plus a 14 KB candidate from the same search)
 #   make train TARGET=4      (stricter taps: at most 4 false taps/min in training, instead of the old header's ~6)
 #   make train KB=32 ALT_KB=14 TARGET=3     (about half the false taps of the default, taps kept; stricter
@@ -17,7 +16,7 @@
 #   Model size: at most 100 KB (MAX_MODEL_SIZE_BYTES = 102400, fixed in the trainer)
 
 RECIPE ?= final14obs
-SPLIT  ?= file
+override SPLIT := file# fixed: splits and folds by recording file only (a person split is not allowed)
 ALT_KB ?= 10
 EXTRA  ?=
 PYTHON ?= python

@@ -16,6 +16,9 @@ only), and the per-person AUC (taps vs look-alikes of the same person).
 """
 from __future__ import annotations
 
+import sys as _sys
+_sys.exit(f"{__file__}: retired. It folds by person, which is not allowed; research and training split by recording file only (tap_generalization_research.py, train_unified.py).")
+
 import json
 import sys
 import time

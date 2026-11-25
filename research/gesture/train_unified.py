@@ -257,17 +257,16 @@ PRESS_WINDOW_MS = (150, 250)         # pointer-press reference: [min(press, onse
 TAP_TARGET_FALLBACK = 1.0
 LABEL_TAP = ROOT / "DATA" / "LABELS" / "DATA_TAP"
 LABEL_LP = ROOT / "DATA" / "LABELS" / "DATA_LONG_PRESS"
-# What the held-out split and the CV folds group by. person (default): a person is never on both sides (scores =
-# people the model never saw). file: every recording file is its own group, so the same person (same day, same band
-# position) can be on both sides; all people take part in every fold. Scores then mostly describe people the model
-# was trained on (TAP_OBSERVABLE_RESULTS.md: ~4x fewer finger false taps on trained-on people). The shipped header is
-# refitted on everyone either way. Its own results folder (_splitfile) and study.
+# What the held-out split and the CV folds group by: FILES only. Every recording file is its own group, so all
+# people take part in every fold and in the held-out part. A person split (people held out) is not allowed: models
+# selected that way were clearly worse on the band. The shipped header is refitted on every file. Folder _splitfile.
 # The file split is gesture-aware: the held-out files and the CV folds are stratified by recording type (folder,
 # gesture from the file name, and bpm for TAP / SWIPE), so every part gets its share of each gesture
 # (recording_stratum, file_strata). Types with fewer than STRATUM_MIN_FILES files are pooled per folder.
-SPLIT_BY = os.environ.get("MUDRA_SPLIT", "person").strip().lower()
-if SPLIT_BY not in ("person", "file"):
-    raise ValueError("MUDRA_SPLIT must be person or file")
+SPLIT_BY = os.environ.get("MUDRA_SPLIT", "file").strip().lower()
+if SPLIT_BY != "file":
+    raise ValueError("MUDRA_SPLIT must be file: the trainer splits and folds by recording file (gesture-aware) only; "
+                     "a person split is not allowed")
 SPLIT_TAG = "" if SPLIT_BY == "person" else "_splitfile"
 # Study-name suffix: the file split is gesture-aware (stratified, v1); a study scored on the earlier plain file
 # split is never resumed with these folds.

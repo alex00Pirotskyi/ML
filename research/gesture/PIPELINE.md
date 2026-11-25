@@ -35,10 +35,10 @@ diff inputs + press2 labels, 14 KB, 4-15 leaves, TAP only:
     MUDRA_TAP_RECIPE=final14 python -u research/gesture/train_unified.py
     MUDRA_TAP_RECIPE=final14obs python -u research/gesture/train_unified.py   # + observable-pattern labels (60 ms)
     MUDRA_TAP_RECIPE=final14protect python -u research/gesture/train_unified.py   # obs 40 + distillation + finger x2
-    MUDRA_SPLIT=file MUDRA_TAP_RECIPE=final14 python -u research/gesture/train_unified.py   # split / folds by file
 
-`MUDRA_SPLIT=file` groups the held-out split and the CV folds by recording file instead of by person: every person
-takes part in every fold, and the same person can be on both sides (results folder suffix `_splitfile`). It is
+The held-out split and the CV folds group by recording file, always (a person split is not allowed; `MUDRA_SPLIT`
+accepts only `file`): every person takes part in every fold and in the held-out part (results folder suffix
+`_splitfile`). The shipped header is refitted on every file. It is
 gesture-aware: the held-out files and the CV folds are stratified by recording type (folder, gesture from the file
 name, bpm for TAP / SWIPE), so each part holds its share of every gesture (the log line `UNIFIED_SPLIT_GESTURES` and
 `split.json` show the counts).

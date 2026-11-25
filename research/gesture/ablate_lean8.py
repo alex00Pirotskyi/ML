@@ -11,6 +11,9 @@ reach. Analysis only; nothing here changes the fixed 0.85 used on the device.
 """
 from __future__ import annotations
 
+import sys as _sys
+_sys.exit(f"{__file__}: retired. It folds by person, which is not allowed; research and training split by recording file only (tap_generalization_research.py, train_unified.py).")
+
 import json
 import os
 import sys

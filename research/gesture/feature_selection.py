@@ -228,7 +228,7 @@ def fit_fold_ranker(g, R, data, rpl, outer_train_ids, task, *, seed=0, cache_dir
                           threshold_curve={str(k): v for k, v in curve.items()},
                           importance=imp.tolist(), group_importance=gimp.tolist(),
                           gain=(gain / max(gain.sum(), 1e-12)).tolist()))
-        log(f"FS_RANKER {task} inner {i}: people={len(val_people)} thr={thr} S0={s0:.4f} "
+        log(f"FS_RANKER {task} inner {i}: groups={len(val_people)} thr={thr} S0={s0:.4f} "
             f"top={[columns[k] for k in np.argsort(-imp)[:5]]}")
         del ev
     if inner:
