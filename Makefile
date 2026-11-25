@@ -12,7 +12,8 @@
 #   make train SPLIT=person
 #   make train KB=32 ALT_KB=14   (32 KB TAP model, plus a 14 KB candidate from the same search)
 #   make train TARGET=4      (stricter taps: at most 4 false taps/min in training, instead of the old header's ~6)
-#   make train KB=32 ALT_KB=14 TARGET=1.5   (maximum protection, about 88% of taps kept on the training people)
+#   make train KB=64 ALT_KB=32 TARGET=1.5   (maximum protection: same protection as 32 KB, more taps;
+#                                            KB=128 ALT_KB=64 for a little more, see TAP_FILESPLIT_RESULTS.md)
 
 RECIPE ?= final14obs
 SPLIT  ?= file

@@ -146,6 +146,65 @@ For comparison, the 14 KB obs60 model at the old header's target (6.2) keeps 97.
 somewhat fewer on new people. If the band test keeps too few taps, use `TARGET=2` (about 92%); for even more
 protection, use `TARGET=1.2` (about 83%).
 
+## More taps at the same protection (2026-11-25, after the band test)
+
+**Band test of the 32 KB / target 1.5 model:**
+- Pinky and taps on the hand: very good.
+- Twist: better.
+- Taps: much less sensitive, many more misses.
+
+The research picture agrees. Against the old 6.2/min point, these tap types are lost:
+
+| tap type | points lost |
+|---|---|
+| normal | 10 |
+| soft | 11 |
+| second tap of a double | 21 |
+| fast (240 bpm) | 16 |
+| swipe | 15 |
+
+The question: what keeps the protection and brings taps back?
+
+The candidates were compared at the trainer's 1.5/min, which is what `make train TARGET=1.5` produces. Movement
+false taps come out equal or lower than for the tested model.
+
+| config | normal | soft | 2nd of double | fast 240 | swipe | finger /min | fist /min | wrist /min | band /min |
+|---|---|---|---|---|---|---|---|---|---|
+| 32 KB (band-tested) | 88.2% | 84.7% | 74.7% | 80.8% | 78.9% | 1.10 | 2.64 | 1.44 | 1.41 |
+| **64 KB** | **90.4%** | **86.1%** | **80.3%** | **85.2%** | **81.5%** | 1.02 | 2.75 | 1.43 | 0.85 |
+| 128 KB | 90.9% | 85.5% | 82.3% | 85.9% | 82.2% | 1.08 | 2.73 | 1.21 | 0.98 |
+
+All three rows use the same recipe (`final14obs`: obs60, press2, diff + lite, mild augmentation) with 15 leaves.
+
+**Under placement stress:** at the same movement false rate, the gains are about half:
+- 64 KB: normal +1.1, second taps +4.4, fast +2.4.
+- 128 KB: +2.2, +6.6, +3.7.
+
+**Tested and left out.** Differences to 32 KB at the same movement false taps (finger + fist + wrist + band).
+For scale, seed noise is about ±2 points (±3 on second taps).
+
+| variant | normal | soft | 2nd of double | fast | verdict |
+|---|---|---|---|---|---|
+| XGBoost, depth 4, same bytes | −0.6 | −1.7 | −1.8 | −0.5 | no gain |
+| XGBoost, depth 5, same bytes | −2.7 | −4.5 | −5.5 | −5.6 | worse |
+| firmware rule: 2 frames in a row ≥ threshold | +0.1 | +0.5 | +0.7 | 0.0 | no gain |
+| 100 ms window instead of 60 (`obs100`) | −0.6 | −1.6 | +0.2 | −0.9 | no gain, more latency |
+| soft taps of every recording as positives | +0.2 | −0.8 | −4.0 | +1.5 | no gain |
+| double / 240 bpm positives ×2 (`pw2`), 32 and 64 KB | −0.5 to +0.2 | −0.8 to −1.8 | +1.4 to +2.6 | −0.7 to +1.8 | noise |
+| 64 KB, 31 leaves, depth 10 | −1.2 vs 64 KB / 15 leaves | | | | smaller trees win |
+| 64 KB + ACC differences | +0.4 vs 64 KB | | | | fist +0.9/min: left out |
+
+**Cost:** 64 KB is about 367 trees of up to 15 leaves, against 183 at 32 KB, so about twice the tree walk per
+frame; 128 KB is about 4×. The C export supports both: root offsets switch to uint32 past 65,535 nodes.
+
+**Command:** `make train KB=64 ALT_KB=32 TARGET=1.5`. If flash and CPU allow, use `KB=128 ALT_KB=64` for a
+little more on second taps and fast taps.
+
+Reproduce: same as above with `P=raw126_diff+augm+litediff+press2`:
+- the arms `$P+kb64+leaves15+obs60` and `$P+kb128+leaves15+obs60+trees900`;
+- `$P+kb32+obs60+xgb` (needs `pip install xgboost`);
+- `rule $P+kb32+leaves15+obs60 min2` (re-scores saved fold models with another decision rule).
+
 ## Limits
 
 - **These numbers describe people who are in the data.** File-split scores are optimistic for a new user. The

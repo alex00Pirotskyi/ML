@@ -10,7 +10,9 @@ placement and electrode contact, without losing taps or adding false taps?
 Focus arms (2026-11-20): press2 (every press of DoubleTaps / 240 bpm recordings is a positive), fingerw<k>
 (FINGER-folder negatives, finger motion and fist, weighted x k), fmine (hard negatives mined from FINGER
 recordings), litediff (gain-invariant Lean-lite context features in the log domain), pw<k> (positives of
-DoubleTaps / 240 bpm recordings weighted x k), posw<c> (positive-class weight c/100, as Optuna sets it). See TAP_FOCUS_RESULTS.md.
+DoubleTaps / 240 bpm recordings weighted x k), posw<c> (positive-class weight c/100, as Optuna sets it), trees<n>,
+lr<k> (learning rate k/100), depth<k>, xgb (XGBoost, same byte accounting). "rule <arm> min2 ..." re-scores saved fold models
+with another firmware decision rule. See TAP_FOCUS_RESULTS.md.
 
 File split (2026-11-24): MUDRA_GR_SPLIT=file uses the trainer's gesture-aware file split and folds (results in
 results_tap_filesplit/); MUDRA_GR_STRESS=nominal,placement scores only those conditions. Arms softall (the
@@ -1148,6 +1150,41 @@ def fit(F, y, w, budget, trees=None, extra_params=None):
     return lgb.LGBMClassifier(**params).fit(F, y, sample_weight=w)
 
 
+class XgbModel:
+    """XGBoost model behind the LightGBM calls used here (Val.predict, importance, save). Size: the exporter's
+    packed node (NODE_BYTES per split or leaf, as LightGBM) + 2 bytes per tree + 300 fixed: the same C format
+    would hold these trees (a converter maps XGBoost's x < t to x <= nextafter(t, -inf))."""
+
+    def __init__(self, clf):
+        self.b = clf.get_booster(); self.booster_ = self
+        nodes = self.b.trees_to_dataframe().groupby("Tree").size().sort_index().to_numpy()
+        self.bytes = g.NODE_BYTES * np.cumsum(nodes) + 2 * np.arange(1, len(nodes) + 1) + 300
+
+    def trees_within(self, budget):
+        k = int(np.searchsorted(self.bytes, budget, side="right"))
+        return k, int(self.bytes[k - 1])
+
+    def predict(self, F, num_iteration=None, num_threads=None):
+        return self.b.inplace_predict(np.asarray(F, np.float32), iteration_range=(0, int(num_iteration or 0)))
+
+    def feature_importance(self, kind="gain", iteration=None):
+        sc = self.b.get_score(importance_type="total_gain")
+        return np.array([sc.get(f"f{i}", 0.0) for i in range(self.b.num_features())])
+
+    def save_model(self, path, num_iteration=None):
+        self.b[:int(num_iteration or 0) or None].save_model(str(path).replace(".txt", ".xgb.json"))
+
+
+def fit_xgb(F, y, w, arm):
+    import xgboost as xgb
+    clf = xgb.XGBClassifier(n_estimators=arm.get("trees", 600), max_depth=arm.get("depth", 4),
+                            learning_rate=arm.get("lr", 0.1), subsample=0.8, colsample_bytree=0.7,
+                            min_child_weight=5.0, reg_lambda=1.0, reg_alpha=1e-3, tree_method="hist", max_bin=127,
+                            n_jobs=THREADS, random_state=arm.get("seed", g.SEED), verbosity=0)
+    clf.fit(np.asarray(F, np.float32), y, sample_weight=w)
+    return XgbModel(clf)
+
+
 # Arms: features (spec), labels, train-time EMG gain augmentation (octaves), EMG split-gain penalty (weight).
 ARMS = {
     "raw126":           dict(spec=("acc", "emgraw")),
@@ -1205,6 +1242,14 @@ def arm_from_name(name):
             base["kb"] = float(tok[2:])                # kb14: model size budget 14 KB (exported static bytes)
         elif tok.startswith("leaves") and tok[6:].isdigit():
             base["leaves"] = int(tok[6:])             # leaves15: smaller trees (more of them fit the budget)
+        elif tok == "xgb":                            # XGBoost (depth-wise trees, max depth: depth<k>, default 4)
+            base["xgb"] = True
+        elif tok.startswith("trees") and tok[5:].isdigit():
+            base["trees"] = int(tok[5:])              # trees800: n_estimators cap (bigger budgets need more trees)
+        elif tok.startswith("lr") and tok[2:].isdigit():
+            base["lr"] = int(tok[2:]) / 100           # lr5: learning rate 0.05 (default 0.1)
+        elif tok.startswith("depth") and tok[5:].isdigit():
+            base["depth"] = int(tok[5:])              # depth10: max_depth (default 8)
         elif tok.startswith("mcs") and tok[3:].isdigit():
             base["mcs"] = int(tok[3:])                # mcs400: min_child_samples (leaf size)
         elif tok.startswith("seed") and tok[4:].isdigit():
@@ -1354,13 +1399,24 @@ def run_arm(name):
             extra["num_leaves"] = arm["leaves"]
         if arm.get("mcs"):
             extra["min_child_samples"] = arm["mcs"]
+        if arm.get("trees"):
+            extra["n_estimators"] = arm["trees"]
+        if arm.get("lr"):
+            extra["learning_rate"] = arm["lr"]
+        if arm.get("depth"):
+            extra["max_depth"] = arm["depth"]
         w = weights(y, files, w0)
         if arm.get("posw"):                        # train_unified.weights_for_task: w[y == 1] *= positive_weight
             w[y == 1] *= np.float32(arm["posw"])
-        m = (fit_distill(F, target, w, budget, extra_params=extra) if target is not None
-             else fit(F, y, w, budget, extra_params=extra))
-        del F
-        k, size = g.trees_within(m, budget)
+        if arm.get("xgb"):
+            m = fit_xgb(F, y, w, arm)
+            del F
+            k, size = m.trees_within(budget)
+        else:
+            m = (fit_distill(F, target, w, budget, extra_params=extra) if target is not None
+                 else fit(F, y, w, budget, extra_params=extra))
+            del F
+            k, size = g.trees_within(m, budget)
         imp = m.booster_.feature_importance("gain", iteration=k)
         emg_gain = float(imp[is_emg].sum() / max(imp.sum(), 1e-9))
         t_fit = time.perf_counter() - t0
@@ -1387,6 +1443,55 @@ def run_arm(name):
                   pooled={c: {str(thr): slim(sums["usable"][c][thr].report()) for thr in GRID} for c in STRESS},
                   pooled_steady={c: {str(thr): slim(sums["steady"][c][thr].report()) for thr in GRID} for c in STRESS})
     OUT.mkdir(parents=True, exist_ok=True)
+    (OUT / f"{name}.json").write_text(json.dumps(result, indent=1, default=float))
+    focus_acc.save(name)
+    log("GR_ARM_DONE", name, json.dumps(headline(result)))
+    return result
+
+
+RULES = ("min2", "min3", "mean2", "mean3")
+
+
+def apply_rule(p, rule):
+    """Firmware decision rule on one recording's frame probabilities, as a transformed probability (threshold it
+    as usual): min<k> = the last k frames all >= threshold; mean<k> = mean of the last k frames >= threshold."""
+    k = int(rule[-1]); q = np.asarray(p, np.float64)
+    lag = [np.r_[np.zeros(j), q[:len(q) - j]] for j in range(k)]     # frames before the start count as 0
+    return np.minimum.reduce(lag) if rule.startswith("min") else np.mean(lag, axis=0)
+
+
+def rule_arm(base, rule):
+    """Re-score the saved fold models of `base` with another decision rule (no training): `base+rule<rule>`."""
+    import lightgbm as lgb
+    assert rule in RULES, rule
+    name = f"{base}+rule{rule}"
+    res0 = json.loads((OUT / f"{base}.json").read_text()); spec = tuple(res0["config"]["spec"])
+    D = load(); data = D["data"]; tr = D["tr"]
+    conds = tuple(c for c in STRESS if c in ("nominal", "placement"))
+    tables = stress_tables(D["n_recs"])
+    sums = {v: {c: {thr: R.TapCounts() for thr in GRID} for c in conds} for v in ("usable", "steady")}
+    focus_acc = FocusCounts(); per_fold = []
+    for f, (a, b) in enumerate(D["folds"]):
+        t0 = time.perf_counter()
+        val = Val(set(data["group"][tr[b]]))
+        m = lgb.Booster(model_file=str(OUT / "models" / f"{base}_fold{f}.txt"))
+        rep = dict(fold=f)
+        for cond in conds:
+            p = val.predict(m, None, spec, tables[cond])
+            for s_, e_ in val.seg:
+                p[s_:e_] = apply_rule(p[s_:e_], rule)
+            focus_acc.add(val, p, cond)
+            for thr in GRID:
+                for view in ("usable", "steady"):
+                    sums[view][cond][thr].add(val.counts(p, thr, steady=view == "steady"))
+            rep[cond] = summarize({thr: val.counts(p, thr).report() for thr in (0.85,)})
+        rep["seconds"] = round(time.perf_counter() - t0, 1)
+        rep["emg_gain_share"] = res0["folds"][f].get("emg_gain_share", float("nan")); per_fold.append(rep)
+        log("GR_RULE_FOLD", name, f, json.dumps(rep))
+        del val, m
+    result = dict(arm=name, config=dict(res0["config"], rule=rule), lgbm=res0.get("lgbm"), quick=QUICK, folds=per_fold,
+                  pooled={c: {str(thr): slim(sums["usable"][c][thr].report()) for thr in GRID} for c in conds},
+                  pooled_steady={c: {str(thr): slim(sums["steady"][c][thr].report()) for thr in GRID} for c in conds})
     (OUT / f"{name}.json").write_text(json.dumps(result, indent=1, default=float))
     focus_acc.save(name)
     log("GR_ARM_DONE", name, json.dumps(headline(result)))
@@ -1887,6 +1992,10 @@ if __name__ == "__main__":
         report(sys.argv[2] if len(sys.argv) > 2 else "pooled"); sys.exit(0)
     if sys.argv[1] == "table":
         table(sys.argv[2] if len(sys.argv) > 2 else "pooled"); sys.exit(0)
+    if sys.argv[1] == "rule":                  # rule <base arm> <rule> [<rule> ...]: re-score saved models
+        for r_ in sys.argv[3:]:
+            rule_arm(sys.argv[2], r_)
+        sys.exit(0)
     if sys.argv[1] == "rescore":
         print(json.dumps(rescore(sys.argv[2:]), indent=1)); sys.exit(0)
     if sys.argv[1] == "focus":
