@@ -10,7 +10,7 @@
 #   make train RECIPE=final14protect     (maximum protection, see research/gesture/TAP_FILESPLIT_RESULTS.md)
 #   make train RECIPE=final14            (without the observable labels)
 #   make train SPLIT=person
-#   make train EXTRA="MUDRA_TAP_FALSE_PER_MIN_TARGET=3"
+#   make train TARGET=4      (stricter taps: at most 4 false taps/min in training, instead of the old header's ~6)
 
 RECIPE ?= final14obs
 SPLIT  ?= file
@@ -18,6 +18,7 @@ ALT_KB ?= 10
 EXTRA  ?=
 PYTHON ?= python
 PULL   ?= 1
+TARGET ?=
 FORCE  ?= 0
 
 SCRIPT := research/gesture/train_unified.py
@@ -35,13 +36,13 @@ train:
 	  echo "A training is already running:"; echo "$$running"; \
 	  echo "Wait for it to finish (make status), or start anyway with: make train FORCE=1"; exit 1; fi
 	@if [ "$(PULL)" = "1" ]; then git pull --ff-only; fi
-	@MUDRA_TAP_RECIPE=$(RECIPE) MUDRA_SPLIT=$(SPLIT) MUDRA_ALT_BUDGET_KB=$(ALT_KB) $(EXTRA) \
+	@MUDRA_TAP_RECIPE=$(RECIPE) MUDRA_SPLIT=$(SPLIT) MUDRA_ALT_BUDGET_KB=$(ALT_KB) $(if $(TARGET),MUDRA_TAP_FALSE_PER_MIN_TARGET=$(TARGET)) $(EXTRA) \
 	  $(PYTHON) research/gesture/prepare_run.py
 	@mkdir -p $(LOGDIR)
-	@MUDRA_TAP_RECIPE=$(RECIPE) MUDRA_SPLIT=$(SPLIT) MUDRA_ALT_BUDGET_KB=$(ALT_KB) $(EXTRA) \
+	@MUDRA_TAP_RECIPE=$(RECIPE) MUDRA_SPLIT=$(SPLIT) MUDRA_ALT_BUDGET_KB=$(ALT_KB) $(if $(TARGET),MUDRA_TAP_FALSE_PER_MIN_TARGET=$(TARGET)) $(EXTRA) \
 	  nohup $(PYTHON) -u $(SCRIPT) > $(LOG) 2>&1 & echo $$! > $(PIDFILE)
 	@ln -sfn $(notdir $(LOG)) $(LOGDIR)/latest.log
-	@echo "Started: recipe=$(RECIPE) split=$(SPLIT) alt_kb=$(ALT_KB) $(EXTRA)"
+	@echo "Started: recipe=$(RECIPE) split=$(SPLIT) alt_kb=$(ALT_KB) $(if $(TARGET),target=$(TARGET)) $(EXTRA)"
 	@echo "PID $$(cat $(PIDFILE)), log $(LOG)"
 	@sleep 20; \
 	if kill -0 $$(cat $(PIDFILE)) 2>/dev/null; then \

@@ -182,6 +182,11 @@ if TAP_FINGER_WEIGHT <= 0:
     raise ValueError("MUDRA_TAP_FINGER_WEIGHT must be > 0")
 if TAP_GENERALIZATION and TAP_FINGER_WEIGHT != 1.0:
     TAP_TAG += f"-fingerw{TAP_FINGER_WEIGHT:g}"
+# A fixed false-tap target (MUDRA_TAP_FALSE_PER_MIN_TARGET=<number>): own results folder and study, so runs with
+# different targets never share trials and can be compared side by side.
+_TARGET_ENV = os.environ.get("MUDRA_TAP_FALSE_PER_MIN_TARGET", "baseline").strip().lower()
+if TAP_GENERALIZATION and _TARGET_ENV != "baseline":
+    TAP_TAG += f"-target{float(_TARGET_ENV):g}"
 # Soft labels on: own results folder too, so a run with and without them can be compared side by side.
 _SOFT_ENV = os.environ.get("MUDRA_TAP_SOFT_LABELS", "off").strip().lower()
 if TAP_GENERALIZATION and _SOFT_ENV not in ("off", "0", "none", ""):
