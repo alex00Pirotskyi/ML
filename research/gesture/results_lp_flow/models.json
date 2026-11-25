@@ -1,0 +1,44 @@
+[
+ {
+  "fold": 0,
+  "state": {
+   "rows": 497224,
+   "trees": 172,
+   "bytes": 14268
+  },
+  "event": {
+   "rows": 635823,
+   "positives": 57720,
+   "trees": 172,
+   "bytes": 14268
+  }
+ },
+ {
+  "fold": 1,
+  "state": {
+   "rows": 495178,
+   "trees": 172,
+   "bytes": 14268
+  },
+  "event": {
+   "rows": 632060,
+   "positives": 57421,
+   "trees": 172,
+   "bytes": 14268
+  }
+ },
+ {
+  "fold": 2,
+  "state": {
+   "rows": 487054,
+   "trees": 172,
+   "bytes": 14268
+  },
+  "event": {
+   "rows": 627217,
+   "positives": 57151,
+   "trees": 172,
+   "bytes": 14268
+  }
+ }
+]

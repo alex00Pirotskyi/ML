@@ -47,3 +47,6 @@ __pycache__/
 # make train logs
 /logs/
 /research/gesture/results_tap_filesplit/models/
+/research/gesture/results_lp_flow*/traces.npz
+/research/gesture/results_lp_flow*/models/
+/research/gesture/results_lp_flow*/per_press_*.csv.gz
