@@ -1,0 +1,185 @@
+nohup: ignoring input
+UNIFIED_TRAINER_START cpu_threads 76 of 96 fold_workers 3 x 25 threads lean8_inputs off tap_threshold 0.85 lp_release_threshold 0.5 budget_kb 14.0 alt_budget_kb 10.0 trials 40 tasks tap tap_features diff tap_aug mild output results_unified_v3_feature_selection_no_lean8_tap-diff-mild-litediff-press2-obs60-kb14-leaves4-15
+LEAN8_FILES DATA_TAP: 5878 reused, 0 generated
+LEAN8_FILES DATA_LONG_PRESS: 4862 reused, 0 generated
+LEAN8_FIRMWARE_PARITY {"status": "not run", "reason": "firmware header not found (set MUDRA_LEAN8_FIRMWARE_HEADER)"}
+UNIFIED_LABELS_REUSED DATA_TAP 2939 /root/tree_run_script/ML/DATA/LABELS/DATA_TAP
+UNIFIED_LABELS_REUSED DATA_LONG_PRESS 2431 /root/tree_run_script/ML/DATA/LABELS/DATA_LONG_PRESS
+UNIFIED_DUPLICATE_RECORDINGS 137 byte-identical copies left out, e.g. [["DATA/DATA_LONG_PRESS_LEAN8/MID_LONG_PRESS/s_MidLongPress_Horizontal_NONE_0bpm_2026-06-03_12-53-00.csv.gz", "DATA/DATA_LONG_PRESS_LEAN8/MID_LONG_PRESS/kirilleft_MidLongPress_Horizontal_NONE_0bpm_2026-01-04_13-53-00.csv.gz"], ["DATA/DATA_LONG_PRESS_LEAN8/MID_LONG_PRESS/s_MidLongPress_Reverse_NONE_0bpm_2026-06-03_12-54-15.csv.gz", "DATA/DATA_LONG_PRESS_LEAN8/MID_LONG_PRESS/kirilleft_MidLongPress_Reverse_NONE_0bpm_2026-01-04_13-54-15.csv.gz"], ["DATA/DATA_LONG_PRESS_LEAN8/MID_LONG_PRESS/s_MidLongPress_Vertical_NONE_0bpm_2026-06-03_12-53-38.csv.gz", "DATA/DATA_LONG_PRESS_LEAN8/MID_LONG_PRESS/kirilleft_MidLongPress_Vertical_NONE_0bpm_2026-01-04_13-53-38.csv.gz"]]
+UNIFIED_DATA_IDENTITY tap 78f8d7433cf45cdd 2940 recordings 137 duplicates left out
+UNIFIED_FEATURES 126 / 126 missing []
+UNIFIED_DATASET_EXTRACT tap 300 2940 234885 replay_rows 1372743
+UNIFIED_DATASET_EXTRACT tap 600 2940 374496 replay_rows 2016567
+UNIFIED_DATASET_EXTRACT tap 900 2940 436142 replay_rows 2524595
+UNIFIED_DATASET_EXTRACT tap 1200 2940 483881 replay_rows 3033683
+UNIFIED_DATASET_EXTRACT tap 1500 2940 529291 replay_rows 3560805
+UNIFIED_DATASET_EXTRACT tap 1800 2940 598673 replay_rows 3983821
+UNIFIED_DATASET_EXTRACT tap 2100 2940 686844 replay_rows 4545121
+UNIFIED_DATASET_EXTRACT tap 2400 2940 785394 replay_rows 5174082
+UNIFIED_DATASET_EXTRACT tap 2700 2940 878664 replay_rows 5762082
+UNIFIED_CACHE_CONTENT_SHA f47db2747177844d 5.4 s
+UNIFIED_LEAN8_GATE {"min_frames": 50, "eval_min_frames": 50, "steady_frames": 500, "lean8": false, "train_rows_built": 996265, "train_rows_used": 921226, "positives_built": 140448, "positives_used": 131461, "tap_onsets_ready": "17028/18487", "tap_onsets_steady": "2465/18487"}
+UNIFIED_DATA {"train_rows": 921226, "positives": 131461, "negatives": 789765, "replay_rows": 6365597, "recordings": 2887, "train_GB": 1.05, "replay_GB": 7.26, "kinds": {"background": 173282, "hard_near_press": 301672, "hard_muscle_activity": 314811, "positive": 126039, "positive_soft": 5422}}
+UNIFIED_TAP_LITE_AUGMENTED 921226 rows 6.7 s
+UNIFIED_TAP_AUGMENTED mild placement 921226 rows 9.1 s
+UNIFIED_TRAIN_BEGIN {"task": "tap", "subjects": 58, "train_rows": 775090, "holdout_rows": 146136, "holdout_people": ["alisa", "benkiviti", "erex", "galnevo", "gonenyemini", "nikolk", "perry", "roi", "sarina", "shahark", "test", "tomerbiran", "yam"], "budgets_bytes": [14336, 10240], "class_one": "TAP/SWIPE onset", "fixed_threshold": 0.85}
+UNIFIED_TAP_TARGET {"setting": "baseline", "value": 6.21, "source": "previous_tap_thr085 replayed on the development people", "baseline": "/root/tree_run_script/ML/research/tap_real/results_claude_v2_optuna_126_thr085/models/TAP_SWIPE.h", "baseline_sha256": "7e86d0e5b5dfa4c5986210e09c42fcd32315acf3a66b2982c6662ac9278e5815", "baseline_development_recall": 0.97761685319289, "baseline_development_false_per_min": 6.210358396721631}
+/root/tree_run_script/tree_run_script/myenv/lib/python3.12/site-packages/optuna/_experimental.py:32: ExperimentalWarning: Argument ``multivariate`` is an experimental feature. The interface can change in the future.
+  warnings.warn(
+[I 2026-11-24 10:03:41,452] A new study created in RDB with name: unified_v3_tap_fsfs-2_lean80_train50_eval50_fpm6.210_tap-diff-mild-litediff-press2-obs60-kb14-leaves4-15
+/root/tree_run_script/tree_run_script/myenv/lib/python3.12/site-packages/sklearn/utils/validation.py:2749: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+/root/tree_run_script/tree_run_script/myenv/lib/python3.12/site-packages/sklearn/utils/validation.py:2749: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+/root/tree_run_script/tree_run_script/myenv/lib/python3.12/site-packages/sklearn/utils/validation.py:2749: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+UNIFIED_TAP_OBS cv0 {"rows": 516934, "positives": 82233, "taps": 11407, "positive_rows_left_out": 16565, "seconds": 13.5}
+/root/tree_run_script/tree_run_script/myenv/lib/python3.12/site-packages/sklearn/utils/validation.py:2749: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+/root/tree_run_script/tree_run_script/myenv/lib/python3.12/site-packages/sklearn/utils/validation.py:2749: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+/root/tree_run_script/tree_run_script/myenv/lib/python3.12/site-packages/sklearn/utils/validation.py:2749: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+UNIFIED_TAP_OBS cv1 {"rows": 516797, "positives": 67427, "taps": 9373, "positive_rows_left_out": 13643, "seconds": 13.1}
+/root/tree_run_script/tree_run_script/myenv/lib/python3.12/site-packages/sklearn/utils/validation.py:2749: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+/root/tree_run_script/tree_run_script/myenv/lib/python3.12/site-packages/sklearn/utils/validation.py:2749: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+/root/tree_run_script/tree_run_script/myenv/lib/python3.12/site-packages/sklearn/utils/validation.py:2749: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+UNIFIED_TAP_OBS cv2 {"rows": 516449, "positives": 61860, "taps": 8348, "positive_rows_left_out": 12812, "seconds": 12.7}
+UNIFIED_FOLDS_PREPARED tap 3 40.57 s
+FS_RANKER tap inner 0: people=12 thr=0.9 S0=0.9724 top=['p_core->acc_psd_mean[Y][4]', 'p_core->acc_psd_mean[Z][4]', 'p_core->acc_psd[0][X][1]', 'p_core->acc_psd_mean[X][4]', 'p_core->acc_psd_mean[X][1]']
+FS_RANKER tap inner 1: people=12 thr=0.97 S0=0.9235 top=['p_core->acc_psd_mean[Y][4]', 'p_core->acc_psd_mean[X][4]', 'p_core->acc_psd_mean[Z][4]', 'p_core->acc_psd[0][Z][4]', 'p_core->acc_psd_mean[X][1]']
+FS_RANKER tap inner 2: people=13 thr=0.9 S0=0.9747 top=['p_core->acc_psd_mean[Z][4]', 'p_core->acc_psd_mean[X][4]', 'p_core->acc_psd_mean[Y][4]', 'p_core->acc_psd_mean[X][1]', 'p_core->acc_psd[0][X][1]']
+FS_RANKER tap inner 0: people=1 thr=0.97 S0=0.9366 top=['p_core->acc_psd_mean[Y][4]', 'p_core->acc_psd_mean[X][4]', 'p_core->acc_psd[0][X][5]', 'p_core->acc_psd[0][X][1]', 'p_core->diff(p_core->emg_psd[0][CH1][4], p_core->emg_psd_mean[CH1][4])']
+FS_RANKER tap inner 1: people=13 thr=0.5 S0=0.9681 top=['p_core->acc_psd_mean[X][1]', 'p_core->acc_psd_mean[Y][4]', 'p_core->acc_psd[0][X][1]', 'p_core->acc_psd_mean[Z][4]', 'p_core->acc_psd_mean[X][4]']
+FS_RANKER tap inner 2: people=12 thr=0.95 S0=0.9479 top=['p_core->acc_psd_mean[X][4]', 'p_core->acc_psd_mean[Y][4]', 'p_core->acc_psd_mean[X][2]', 'p_core->acc_psd_mean[Z][4]', 'p_core->acc_psd_mean[X][1]']
+FS_RANKER tap inner 0: people=1 thr=0.95 S0=0.9406 top=['p_core->acc_psd_mean[Z][4]', 'p_core->acc_psd_mean[X][1]', 'p_core->acc_psd_mean[X][4]', 'p_core->acc_psd_mean[Y][4]', 'p_core->acc_psd[0][Z][2]']
+FS_RANKER tap inner 1: people=13 thr=0.7 S0=0.9726 top=['p_core->acc_psd_mean[X][4]', 'p_core->acc_psd[0][Z][2]', 'p_core->acc_psd_mean[X][1]', 'p_core->acc_psd_mean[Z][4]', 'p_core->acc_psd[0][Z][3]']
+FS_RANKER tap inner 2: people=13 thr=0.9 S0=0.9559 top=['p_core->acc_psd[0][Z][0]', 'p_core->acc_psd[0][Y][0]', 'p_core->cload_lite.rise10[CH3]', 'p_core->cload_lite.fall10[CH1]', 'p_core->ratio(p_core->wl[CH3], p_core->wl_head[CH3])']
+UNIFIED_FS_FOLD_RANKING tap 0 287.9 s ['p_core->acc_psd[0][Z][5]', 'p_core->acc_psd_mean[X][4]', 'p_core->acc_psd_mean[Z][4]', 'p_core->acc_psd_mean[Y][4]', 'p_core->diff(p_core->emg_psd[0][CH1][4], p_core->emg_psd_mean[CH1][4])', 'p_core->ratio(p_core->wl_head[CH1], p_core->wl_tail[CH1])', 'p_core->acc_rate[Z][5]', 'p_core->ratio(p_core->wl_head[CH2], p_core->wl_tail[CH2])']
+UNIFIED_FS_FOLD_RANKING tap 1 266.4 s ['p_core->acc_psd_mean[Y][4]', 'p_core->acc_psd_mean[X][0]', 'p_core->diff(p_core->emg_psd[0][CH1][4], p_core->emg_psd_mean[CH1][4])', 'p_core->acc_rate[Z][5]', 'p_core->diff(p_core->emg_psd[0][CH2][4], p_core->emg_psd_mean[CH2][4])', 'p_core->cload_lite.xm[CH1]', 'p_core->acc_rate[Z][0]', 'p_core->cload_lite.xm[CH2]']
+UNIFIED_FS_FOLD_RANKING tap 2 245.4 s ['p_core->acc_psd_mean[Z][4]', 'p_core->acc_psd[0][Z][0]', 'p_core->diff(p_core->emg_psd[0][CH1][4], p_core->emg_psd_mean[CH1][4])', 'p_core->diff(p_core->emg_psd[0][CH2][4], p_core->emg_psd_mean[CH2][4])', 'p_core->acc_rate[Z][5]', 'p_core->cload_lite.dev3[CH1]', 'p_core->cload_lite.fall10[CH1]', 'p_core->wl[CH1]']
+UNIFIED_TRIAL {"task": "tap", "trial": 0, "score": 0.5562, "recall": 0.9745, "false_per_min": 13.51, "bytes": 14268, "seconds": 853.1, "leaves": 7, "K": 254, "depth": 8}
+UNIFIED_TRIAL {"task": "tap", "trial": 1, "score": 0.5603, "recall": 0.9768, "false_per_min": 13.387, "bytes": 14228, "seconds": 10.3, "leaves": 15, "K": 254, "depth": 10}
+UNIFIED_TRIAL {"task": "tap", "trial": 2, "score": 0.0955, "recall": 0.9736, "false_per_min": 75.57, "bytes": 9564, "seconds": 1.9, "leaves": 8, "K": 6, "depth": 6}
+UNIFIED_TRIAL {"task": "tap", "trial": 3, "score": 0.6988, "recall": 0.9574, "false_per_min": 8.328, "bytes": 14228, "seconds": 4.1, "leaves": 15, "K": 124, "depth": 9}
+UNIFIED_TRIAL {"task": "tap", "trial": 4, "score": 0.5326, "recall": 0.9672, "false_per_min": 14.768, "bytes": 5684, "seconds": 5.0, "leaves": 4, "K": 175, "depth": 9}
+UNIFIED_TRIAL {"task": "tap", "trial": 5, "score": 0.47, "recall": 0.4673, "false_per_min": 1.709, "bytes": 4764, "seconds": 3.9, "leaves": 4, "K": 161, "depth": 10}
+UNIFIED_TRIAL {"task": "tap", "trial": 6, "score": 0.5105, "recall": 0.9818, "false_per_min": 17.377, "bytes": 14268, "seconds": 5.5, "leaves": 9, "K": 111, "depth": 8}
+UNIFIED_TRIAL {"task": "tap", "trial": 7, "score": 0.5234, "recall": 0.962, "false_per_min": 15.533, "bytes": 14268, "seconds": 6.1, "leaves": 9, "K": 203, "depth": 4}
+UNIFIED_TRIAL {"task": "tap", "trial": 10, "score": 0.6373, "recall": 0.9429, "false_per_min": 9.396, "bytes": 13284, "seconds": 3.9, "leaves": 7, "K": 128, "depth": 9}
+UNIFIED_TRIAL {"task": "tap", "trial": 11, "score": 0.6136, "recall": 0.9589, "false_per_min": 10.598, "bytes": 14332, "seconds": 3.4, "leaves": 13, "K": 112, "depth": 9}
+UNIFIED_TRIAL {"task": "tap", "trial": 12, "score": 0.6359, "recall": 0.949, "false_per_min": 9.658, "bytes": 12924, "seconds": 3.4, "leaves": 5, "K": 75, "depth": 9}
+UNIFIED_TRIAL {"task": "tap", "trial": 13, "score": 0.6146, "recall": 0.9689, "false_per_min": 11.703, "bytes": 14280, "seconds": 3.3, "leaves": 14, "K": 104, "depth": 7}
+UNIFIED_TRIAL {"task": "tap", "trial": 14, "score": 0.6062, "recall": 0.933, "false_per_min": 10.03, "bytes": 10764, "seconds": 2.4, "leaves": 9, "K": 55, "depth": 10}
+UNIFIED_TRIAL {"task": "tap", "trial": 15, "score": 0.8204, "recall": 0.8912, "false_per_min": 5.645, "bytes": 12484, "seconds": 3.0, "leaves": 13, "K": 80, "depth": 10}
+UNIFIED_TRIAL {"task": "tap", "trial": 16, "score": 0.8271, "recall": 0.874, "false_per_min": 5.401, "bytes": 14332, "seconds": 5.3, "leaves": 13, "K": 133, "depth": 9}
+UNIFIED_TRIAL {"task": "tap", "trial": 17, "score": 0.6979, "recall": 0.8828, "false_per_min": 7.111, "bytes": 13444, "seconds": 3.9, "leaves": 14, "K": 181, "depth": 9}
+UNIFIED_TRIAL {"task": "tap", "trial": 18, "score": 0.6736, "recall": 0.9045, "false_per_min": 7.916, "bytes": 14224, "seconds": 7.4, "leaves": 12, "K": 153, "depth": 7}
+UNIFIED_TRIAL {"task": "tap", "trial": 21, "score": 0.6151, "recall": 0.9141, "false_per_min": 10.208, "bytes": 11524, "seconds": 2.2, "leaves": 12, "K": 26, "depth": 9}
+UNIFIED_TRIAL {"task": "tap", "trial": 22, "score": 0.7902, "recall": 0.8764, "false_per_min": 5.777, "bytes": 11964, "seconds": 3.0, "leaves": 10, "K": 73, "depth": 10}
+UNIFIED_TRIAL {"task": "tap", "trial": 23, "score": 0.7708, "recall": 0.9413, "false_per_min": 6.957, "bytes": 14268, "seconds": 4.0, "leaves": 9, "K": 100, "depth": 8}
+UNIFIED_TRIAL {"task": "tap", "trial": 24, "score": 0.8434, "recall": 0.874, "false_per_min": 5.157, "bytes": 14268, "seconds": 8.3, "leaves": 9, "K": 205, "depth": 8}
+UNIFIED_TRIAL {"task": "tap", "trial": 26, "score": 0.8327, "recall": 0.9132, "false_per_min": 5.868, "bytes": 14268, "seconds": 8.7, "leaves": 9, "K": 254, "depth": 6}
+UNIFIED_TRIAL {"task": "tap", "trial": 27, "score": 0.695, "recall": 0.9376, "false_per_min": 8.014, "bytes": 14224, "seconds": 9.3, "leaves": 12, "K": 238, "depth": 6}
+UNIFIED_TRIAL {"task": "tap", "trial": 28, "score": 0.7782, "recall": 0.8352, "false_per_min": 5.489, "bytes": 14268, "seconds": 6.0, "leaves": 8, "K": 213, "depth": 10}
+UNIFIED_TRIAL {"task": "tap", "trial": 30, "score": 0.6939, "recall": 0.6865, "false_per_min": 3.415, "bytes": 14228, "seconds": 6.6, "leaves": 15, "K": 169, "depth": 7}
+UNIFIED_TRIAL {"task": "tap", "trial": 31, "score": 0.7286, "recall": 0.9329, "false_per_min": 7.347, "bytes": 14268, "seconds": 7.0, "leaves": 7, "K": 198, "depth": 6}
+UNIFIED_TRIAL {"task": "tap", "trial": 32, "score": 0.8035, "recall": 0.937, "false_per_min": 6.436, "bytes": 14268, "seconds": 7.6, "leaves": 7, "K": 194, "depth": 5}
+UNIFIED_TRIAL {"task": "tap", "trial": 33, "score": 0.7538, "recall": 0.9326, "false_per_min": 6.965, "bytes": 14204, "seconds": 9.6, "leaves": 11, "K": 244, "depth": 8}
+UNIFIED_TRIAL {"task": "tap", "trial": 35, "score": 0.7627, "recall": 0.9245, "false_per_min": 6.775, "bytes": 14332, "seconds": 6.2, "leaves": 13, "K": 99, "depth": 9}
+UNIFIED_TRIAL {"task": "tap", "trial": 37, "score": 0.7255, "recall": 0.8712, "false_per_min": 6.549, "bytes": 14268, "seconds": 4.7, "leaves": 8, "K": 138, "depth": 10}
+UNIFIED_TRIAL {"task": "tap", "trial": 39, "score": 0.7405, "recall": 0.9429, "false_per_min": 7.296, "bytes": 11964, "seconds": 4.0, "leaves": 10, "K": 158, "depth": 9}
+/root/tree_run_script/tree_run_script/myenv/lib/python3.12/site-packages/sklearn/utils/validation.py:2749: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+/root/tree_run_script/tree_run_script/myenv/lib/python3.12/site-packages/sklearn/utils/validation.py:2749: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+/root/tree_run_script/tree_run_script/myenv/lib/python3.12/site-packages/sklearn/utils/validation.py:2749: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+UNIFIED_TAP_OBS development {"rows": 775090, "positives": 105760, "taps": 14564, "positive_rows_left_out": 21411, "seconds": 50.4}
+/root/tree_run_script/tree_run_script/myenv/lib/python3.12/site-packages/sklearn/utils/validation.py:2749: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+/root/tree_run_script/tree_run_script/myenv/lib/python3.12/site-packages/sklearn/utils/validation.py:2749: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+/root/tree_run_script/tree_run_script/myenv/lib/python3.12/site-packages/sklearn/utils/validation.py:2749: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+UNIFIED_TAP_OBS everyone {"rows": 921226, "positives": 131461, "taps": 18140, "positive_rows_left_out": 26504, "seconds": 54.6}
+FS_RANKER tap inner 0: people=9 thr=0.95 S0=0.9811 top=['p_core->acc_psd_mean[Y][4]', 'p_core->acc_psd_mean[Z][4]', 'p_core->acc_psd_mean[X][4]', 'p_core->acc_psd[0][X][1]', 'p_core->acc_psd_mean[X][1]']
+FS_RANKER tap inner 1: people=18 thr=0.95 S0=0.9415 top=['p_core->acc_psd_mean[Y][4]', 'p_core->acc_psd_mean[X][1]', 'p_core->acc_psd_mean[X][4]', 'p_core->acc_psd[0][X][1]', 'p_core->acc_psd_mean[Z][4]']
+FS_RANKER tap inner 2: people=18 thr=0.8 S0=0.9751 top=['p_core->acc_psd_mean[Z][4]', 'p_core->acc_psd_mean[X][4]', 'p_core->acc_psd_mean[X][1]', 'p_core->acc_psd_mean[Y][4]', 'p_core->acc_psd[0][Z][4]']
+✓ Exported LGBM BINARY_CLASSIFIER to /root/tree_run_script/ML/research/gesture/results_unified_v3_feature_selection_no_lean8_tap-diff-mild-litediff-press2-obs60-kb14-leaves4-15/tap/_holdout_headers/rank_01/TAP_SWIPE.h with preprocessing=none, validated on 1252 samples (max error 0.0248, decisions identical).
+✓ Exported LGBM BINARY_CLASSIFIER to /root/tree_run_script/ML/research/gesture/results_unified_v3_feature_selection_no_lean8_tap-diff-mild-litediff-press2-obs60-kb14-leaves4-15/tap/_holdout_headers/budget_10kb/TAP_SWIPE.h with preprocessing=none, validated on 1246 samples (max error 0.025, decisions identical).
+✓ Exported LGBM BINARY_CLASSIFIER to /root/tree_run_script/ML/research/gesture/results_unified_v3_feature_selection_no_lean8_tap-diff-mild-litediff-press2-obs60-kb14-leaves4-15/tap/_holdout_headers/rank_02/TAP_SWIPE.h with preprocessing=none, validated on 1411 samples (max error 0.025, decisions identical).
+✓ Exported LGBM BINARY_CLASSIFIER to /root/tree_run_script/ML/research/gesture/results_unified_v3_feature_selection_no_lean8_tap-diff-mild-litediff-press2-obs60-kb14-leaves4-15/tap/_holdout_headers/rank_03/TAP_SWIPE.h with preprocessing=none, validated on 1183 samples (max error 0.025, decisions identical).
+✓ Exported LGBM BINARY_CLASSIFIER to /root/tree_run_script/ML/research/gesture/results_unified_v3_feature_selection_no_lean8_tap-diff-mild-litediff-press2-obs60-kb14-leaves4-15/tap/_holdout_headers/rank_04/TAP_SWIPE.h with preprocessing=none, validated on 1030 samples (max error 0.025, decisions identical).
+FS_RANKER tap inner 0: people=13 thr=0.95 S0=0.9782 top=['p_core->acc_psd_mean[Y][4]', 'p_core->acc_psd_mean[Z][4]', 'p_core->acc_psd_mean[X][1]', 'p_core->acc_psd_mean[X][4]', 'p_core->acc_psd[0][X][1]']
+FS_RANKER tap inner 1: people=23 thr=0.8 S0=0.9844 top=['p_core->acc_psd_mean[Y][4]', 'p_core->acc_psd_mean[X][4]', 'p_core->acc_psd_mean[Z][4]', 'p_core->acc_psd_mean[X][1]', 'p_core->acc_psd[0][X][1]']
+FS_RANKER tap inner 2: people=22 thr=0.95 S0=0.9567 top=['p_core->acc_psd_mean[Z][4]', 'p_core->acc_psd_mean[X][4]', 'p_core->acc_psd_mean[X][1]', 'p_core->acc_psd_mean[Y][4]', 'p_core->acc_psd[0][Z][2]']
+✓ Exported LGBM BINARY_CLASSIFIER to /root/tree_run_script/ML/research/gesture/results_unified_v3_feature_selection_no_lean8_tap-diff-mild-litediff-press2-obs60-kb14-leaves4-15/tap/models/candidates/rank_01/TAP_SWIPE.h with preprocessing=none, validated on 1195 samples (max error 0.025, decisions identical).
+UNIFIED_MODEL_EXPORT {"task": "tap", "role": "rank_01", "trial": 24, "bytes": 14268, "trees": 133, "features": 205, "cv": 0.8433880130069914, "holdout": 0.9207625856419422, "parity": {"rows": 200000, "decision_mismatch": 0.0}}
+✓ Exported LGBM BINARY_CLASSIFIER to /root/tree_run_script/ML/research/gesture/results_unified_v3_feature_selection_no_lean8_tap-diff-mild-litediff-press2-obs60-kb14-leaves4-15/tap/models/candidates/budget_10kb/TAP_SWIPE.h with preprocessing=none, validated on 1153 samples (max error 0.0249, decisions identical).
+UNIFIED_MODEL_EXPORT {"task": "tap", "role": "budget_10kb", "trial": 26, "bytes": 10236, "trees": 95, "features": 254, "cv": 0.8433449609180155, "holdout": 0.9249329758713136, "parity": {"rows": 200000, "decision_mismatch": 0.0}}
+✓ Exported LGBM BINARY_CLASSIFIER to /root/tree_run_script/ML/research/gesture/results_unified_v3_feature_selection_no_lean8_tap-diff-mild-litediff-press2-obs60-kb14-leaves4-15/tap/models/candidates/rank_02/TAP_SWIPE.h with preprocessing=none, validated on 1363 samples (max error 0.0249, decisions identical).
+UNIFIED_MODEL_EXPORT {"task": "tap", "role": "rank_02", "trial": 26, "bytes": 14268, "trees": 133, "features": 254, "cv": 0.8326758366392695, "holdout": 0.9505510872803098, "parity": {"rows": 200000, "decision_mismatch": 0.0}}
+✓ Exported LGBM BINARY_CLASSIFIER to /root/tree_run_script/ML/research/gesture/results_unified_v3_feature_selection_no_lean8_tap-diff-mild-litediff-press2-obs60-kb14-leaves4-15/tap/models/candidates/rank_03/TAP_SWIPE.h with preprocessing=none, validated on 1159 samples (max error 0.0249, decisions identical).
+UNIFIED_MODEL_EXPORT {"task": "tap", "role": "rank_03", "trial": 16, "bytes": 14332, "trees": 92, "features": 133, "cv": 0.8271027926179538, "holdout": 0.9130175752159666, "parity": {"rows": 200000, "decision_mismatch": 0.0}}
+✓ Exported LGBM BINARY_CLASSIFIER to /root/tree_run_script/ML/research/gesture/results_unified_v3_feature_selection_no_lean8_tap-diff-mild-litediff-press2-obs60-kb14-leaves4-15/tap/models/candidates/rank_04/TAP_SWIPE.h with preprocessing=none, validated on 991 samples (max error 0.025, decisions identical).
+UNIFIED_MODEL_EXPORT {"task": "tap", "role": "rank_04", "trial": 15, "bytes": 12484, "trees": 80, "features": 80, "cv": 0.8204333203208991, "holdout": 0.9463806970509383, "parity": {"rows": 200000, "decision_mismatch": 0.0}}
+UNIFIED_BASELINE tap previous_tap_thr085 replayed
+UNIFIED_BASELINE tap unified_20261117 replayed
+UNIFIED_BASELINE tap extra_baseline replayed
+| Model | Bytes | recall | recall_press | false_per_min | latency_ms_median | objective_score |
+| --- | --- | --- | --- | --- | --- | --- |
+| new rank_01 (trial 24, K=205) **default** | 14268 | 0.921 | 0.879 | 3.320 | 0.000 | 0.921 |
+| new budget_10kb (trial 26, K=254) | 10236 | 0.925 | 0.885 | 3.444 | 0.000 | 0.925 |
+| new rank_02 (trial 26, K=254) | 14268 | 0.951 | 0.914 | 3.712 | -1.000 | 0.951 |
+| new rank_03 (trial 16, K=133) | 14332 | 0.913 | 0.874 | 3.423 | 1.000 | 0.913 |
+| new rank_04 (trial 15, K=80) | 12484 | 0.946 | 0.907 | 3.918 | 1.000 | 0.946 |
+| baseline previous_tap_thr085 (replayed) | - | 0.982 | 0.960 | 4.475 | -6.000 | 0.982 |
+| baseline unified_20261117 (replayed) | - | 0.986 | 0.973 | 10.723 | -11.000 | 0.571 |
+| baseline extra_baseline (replayed) | - | 0.985 | 0.961 | 3.856 | -4.000 | 0.985 |
+
+Steady state only (rows after 500 Lean-8 frames, ~10.8 s, i.e. lean_8_features_ready()):
+
+| Model | Bytes | recall | recall_press | false_per_min | latency_ms_median | objective_score |
+| --- | --- | --- | --- | --- | --- | --- |
+| new rank_01 (trial 24, K=205) **default** | 14268 | 0.860 | 0.810 | 1.204 | 0.000 | 0.860 |
+| new budget_10kb (trial 26, K=254) | 10236 | 0.874 | 0.822 | 1.287 | 0.000 | 0.874 |
+| new rank_02 (trial 26, K=254) | 14268 | 0.905 | 0.856 | 1.370 | -1.000 | 0.905 |
+| new rank_03 (trial 16, K=133) | 14332 | 0.851 | 0.801 | 1.121 | 1.000 | 0.851 |
+| new rank_04 (trial 15, K=80) | 12484 | 0.900 | 0.851 | 1.287 | 1.000 | 0.900 |
+| baseline previous_tap_thr085 (replayed) | - | 0.937 | 0.908 | 1.536 | -6.000 | 0.937 |
+| baseline unified_20261117 (replayed) | - | 0.965 | 0.935 | 2.034 | -11.000 | 0.965 |
+| baseline extra_baseline (replayed) | - | 0.949 | 0.906 | 1.411 | -3.000 | 0.949 |
+
+Simulated band move / contact change on the same held-out people (TAP_GENERALIZATION_RESULTS.md: EMG gain +-1 octave, spectral tilt +-0.5 octave, contact noise; ACC unchanged; the same draw for every model). A model that generalizes keeps recall without more false events:
+
+| Model | Bytes | recall | recall_press | false_per_min | latency_ms_median | objective_score |
+| --- | --- | --- | --- | --- | --- | --- |
+| new rank_01 (trial 24, K=205) **default** | 14268 | 0.893 | 0.851 | 2.825 | 0.000 | 0.893 |
+| new budget_10kb (trial 26, K=254) | 10236 | 0.906 | 0.866 | 2.866 | -1.000 | 0.906 |
+| new rank_02 (trial 26, K=254) | 14268 | 0.934 | 0.898 | 3.093 | -2.000 | 0.934 |
+| new rank_03 (trial 16, K=133) | 14332 | 0.894 | 0.850 | 2.763 | 0.000 | 0.894 |
+| new rank_04 (trial 15, K=80) | 12484 | 0.919 | 0.878 | 3.114 | 0.000 | 0.919 |
+| baseline previous_tap_thr085 (replayed) | - | 0.977 | 0.953 | 7.052 | -4.000 | 0.861 |
+| baseline unified_20261117 (replayed) | - | 0.985 | 0.974 | 14.455 | -10.000 | 0.423 |
+| baseline extra_baseline (replayed) | - | 0.962 | 0.933 | 3.072 | -5.000 | 0.962 |
+
+Acceptance of the default header against each replayed baseline, held-out people (PIPELINE.md; report only, the choice is made on CV):
+
+| Baseline | Metric | New | Baseline | Rule | Result |
+| --- | --- | --- | --- | --- | --- |
+| previous_tap_thr085 | recall_press | 0.879 | 0.960 | >= baseline - 0.01 | **review** |
+| previous_tap_thr085 | recall | 0.921 | 0.982 | >= baseline - 0.01 | **review** |
+| previous_tap_thr085 | false_per_min | 3.320 | 4.475 | <= baseline x 1.1 + 0.1 | pass |
+| unified_20261117 | recall_press | 0.879 | 0.973 | >= baseline - 0.01 | **review** |
+| unified_20261117 | recall | 0.921 | 0.986 | >= baseline - 0.01 | **review** |
+| unified_20261117 | false_per_min | 3.320 | 10.723 | <= baseline x 1.1 + 0.1 | pass |
+| extra_baseline | recall_press | 0.879 | 0.961 | >= baseline - 0.01 | **review** |
+| extra_baseline | recall | 0.921 | 0.985 | >= baseline - 0.01 | **review** |
+| extra_baseline | false_per_min | 3.320 | 3.856 | <= baseline x 1.1 + 0.1 | pass |
+
+UNIFIED_TRAIN_END {"task": "tap", "header": "/root/tree_run_script/ML/research/gesture/results_unified_v3_feature_selection_no_lean8_tap-diff-mild-litediff-press2-obs60-kb14-leaves4-15/tap/models/TAP_SWIPE.h", "bytes": 14268}
+UNIFIED_BOTH_READY /root/tree_run_script/ML/research/gesture/results_unified_v3_feature_selection_no_lean8_tap-diff-mild-litediff-press2-obs60-kb14-leaves4-15/tap/models/TAP_SWIPE.h
