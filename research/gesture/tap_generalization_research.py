@@ -10,7 +10,7 @@ placement and electrode contact, without losing taps or adding false taps?
 Focus arms (2026-11-20): press2 (every press of DoubleTaps / 240 bpm recordings is a positive), fingerw<k>
 (FINGER-folder negatives, finger motion and fist, weighted x k), fmine (hard negatives mined from FINGER
 recordings), litediff (gain-invariant Lean-lite context features in the log domain), pw<k> (positives of
-DoubleTaps / 240 bpm recordings weighted x k). See TAP_FOCUS_RESULTS.md.
+DoubleTaps / 240 bpm recordings weighted x k), posw<c> (positive-class weight c/100, as Optuna sets it). See TAP_FOCUS_RESULTS.md.
 
 File split (2026-11-24): MUDRA_GR_SPLIT=file uses the trainer's gesture-aware file split and folds (results in
 results_tap_filesplit/); MUDRA_GR_STRESS=nominal,placement scores only those conditions. Arms softall (the
@@ -1191,6 +1191,8 @@ def arm_from_name(name):
             base["penalty"] = float(tok[3:])
         elif tok.startswith("fingerw"):
             base["fingerw"] = float(tok[7:])
+        elif tok.startswith("posw") and tok[4:].isdigit():
+            base["posw"] = float(tok[4:]) / 100       # posw5: Optuna-style positive-class weight 0.05 (trainer default 1)
         elif tok.startswith("movew"):
             base["movew"] = float(tok[5:])
         elif tok.startswith("shift"):
@@ -1352,8 +1354,11 @@ def run_arm(name):
             extra["num_leaves"] = arm["leaves"]
         if arm.get("mcs"):
             extra["min_child_samples"] = arm["mcs"]
-        m = (fit_distill(F, target, weights(y, files, w0), budget, extra_params=extra) if target is not None
-             else fit(F, y, weights(y, files, w0), budget, extra_params=extra))
+        w = weights(y, files, w0)
+        if arm.get("posw"):                        # train_unified.weights_for_task: w[y == 1] *= positive_weight
+            w[y == 1] *= np.float32(arm["posw"])
+        m = (fit_distill(F, target, w, budget, extra_params=extra) if target is not None
+             else fit(F, y, w, budget, extra_params=extra))
         del F
         k, size = g.trees_within(m, budget)
         imp = m.booster_.feature_importance("gain", iteration=k)

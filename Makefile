@@ -7,11 +7,12 @@
 #   make stop       stop every running training (also ones started by hand)
 #
 # Settings (defaults below), for example:
-#   make train RECIPE=final14protect     (maximum protection, see research/gesture/TAP_FILESPLIT_RESULTS.md)
+#   make train RECIPE=final14protect     (14 KB finger protection; at 32 KB final14obs + TARGET protects more)
 #   make train RECIPE=final14            (without the observable labels)
 #   make train SPLIT=person
 #   make train KB=32 ALT_KB=14   (32 KB TAP model, plus a 14 KB candidate from the same search)
 #   make train TARGET=4      (stricter taps: at most 4 false taps/min in training, instead of the old header's ~6)
+#   make train KB=32 ALT_KB=14 TARGET=1.5   (maximum protection, about 88% of taps kept on the training people)
 
 RECIPE ?= final14obs
 SPLIT  ?= file

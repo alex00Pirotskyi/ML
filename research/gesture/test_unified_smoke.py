@@ -353,6 +353,18 @@ def tap_final_recipe_checks():
         g.TAP_FINGER_WEIGHT = old_fw
     assert np.isclose(w2_[2:4].sum() / w2_[4:6].sum(), 2.0) and np.isclose(w1_[2:4].sum() / w1_[4:6].sum(), 1.0)
     assert np.isclose(w2_[d_["y"] == 0].sum(), w1_[d_["y"] == 0].sum())        # class balance unchanged
+    # ---- TAP logit shift: exact on predict, truncation and the exporter's tree dump; 0.85 then means sigmoid(logit 0.85 + s).
+    rng_ = np.random.default_rng(5); X_ = rng_.normal(size=(600, 4)); y_ = (X_[:, 0] + rng_.normal(size=600) > 0).astype(int)
+    p_ = dict(n_estimators=12, num_leaves=7, verbose=-1, deterministic=True)
+    m0_ = g.fit_model(X_, y_, np.ones(600), p_, 10 ** 6); m1_ = g.fit_model(X_, y_, np.ones(600), p_, 10 ** 6, shift=2.5)
+    r0_ = m0_.booster_.predict(X_, raw_score=True); r1_ = m1_.booster_.predict(X_, raw_score=True)
+    assert np.allclose(r0_ - 2.5, r1_, atol=1e-9)
+    assert np.allclose(g.truncated(m1_, 5).booster_.predict(X_, raw_score=True),
+                       m0_.booster_.predict(X_, raw_score=True, num_iteration=5) - 2.5, atol=1e-9)
+    dump_ = m1_.booster_.dump_model(); walk_ = g.export_plus._walk_lgbm_dump_tree
+    assert np.allclose([sum(walk_(t["tree_structure"], x) for t in dump_["tree_info"]) for x in X_[:20]], r1_[:20], atol=1e-5)
+    sig_ = lambda z: 1 / (1 + np.exp(-z))
+    assert ((sig_(r1_) >= 0.85) == (sig_(r0_) >= sig_(np.log(0.85 / 0.15) + 2.5))).all()
     # ---- one-to-one reference matching: one event cannot find two windows; crossing windows; boundaries.
     assert R.match_windows([1150.0], [850.0, 1050.0], [1250.0, 1450.0]).tolist() == [True, False]
     assert R.match_windows([5.0, 12.0], [0.0, 10.0], [20.0, 13.0]).tolist() == [True, True]
@@ -889,8 +901,10 @@ if __name__ == "__main__":
                                  dict(MUDRA_TAP_RECIPE="final14obs", MUDRA_TASKS="tap,lp")),
                                 ("TAP final recipe, split and folds by file",
                                  dict(MUDRA_TAP_RECIPE="final14", MUDRA_TASKS="tap,lp", MUDRA_SPLIT="file")),
-                                ("TAP maximum-protection recipe (obs40 + distillation + finger x2), split by file",
-                                 dict(MUDRA_TAP_RECIPE="final14protect", MUDRA_TASKS="tap,lp", MUDRA_SPLIT="file"))):
+                                ("TAP maximum-protection recipe (obs40 + distillation + finger x2), split by file, "
+                                 "strict target 1.5 (logit shift search)",
+                                 dict(MUDRA_TAP_RECIPE="final14protect", MUDRA_TASKS="tap,lp", MUDRA_SPLIT="file",
+                                      MUDRA_TAP_FALSE_PER_MIN_TARGET="1.5"))):
                 p = subprocess.run([sys.executable, "-u", __file__, "--second-arm"], env=dict(os.environ, **extra))
                 if p.returncode:
                     raise SystemExit(f"{name} real-source smoke failed ({p.returncode})")

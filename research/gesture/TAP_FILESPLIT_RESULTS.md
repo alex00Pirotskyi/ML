@@ -102,6 +102,50 @@ At the trainer's own false-tap level (6.2/min, where Optuna puts the model), the
    drops when the band moves (-0.76).
 9. **Absolute EMG levels make no difference** (acc_emgrel ≈ baseline); the current inputs stay.
 
+## Maximum protection at 85-90% of taps (2026-11-25)
+
+The question: keep 85-90% of taps and fire as little as possible on finger motion, fists, wrist and band motion.
+
+False taps per minute at the same share of normal taps kept (threshold moved until normal-tap recall matches):
+
+| normal taps kept | config | trainer target | soft taps | finger | fist | wrist | band |
+|---|---|---|---|---|---|---|---|
+| 88% | 14 KB obs60 (`final14obs`) | 1.8 | 83.4% | 1.86 | 4.10 | 2.81 | 1.61 |
+| 88% | 14 KB protect | 1.9 | 83.2% | 1.64 | 4.00 | 3.31 | 2.83 |
+| 88% | **32 KB obs60, 15 leaves** | **1.5** | 84.5% | **1.06** | **2.55** | **1.41** | 1.37 |
+| 88% | 32 KB protect, 15 leaves | 1.6 | 83.1% | 1.03 | 3.07 | 1.72 | 1.79 |
+| 85% | 32 KB obs60, 15 leaves | 1.3 | 81.3% | 0.76 | 1.56 | 1.09 | 1.10 |
+| 90% | 32 KB obs60, 15 leaves | 1.7 | 86.6% | 1.50 | 3.42 | 1.95 | 1.60 |
+
+For comparison, the 14 KB obs60 model at the old header's target (6.2) keeps 97.9% of normal taps and fires
+10.3 / 18.3 / 14.8 / 17.2 per minute (finger / fist / wrist / band).
+
+1. **32 KB is what buys protection.** At 88% of taps it fires about 40% less on fingers and fists than 14 KB.
+2. **At 32 KB, `final14obs` beats `final14protect`.** Finger false taps are the same. Protect fires more on fists,
+   wrist and band, and keeps fewer soft taps. The finger weight only moves errors to other motions.
+3. **The firmware threshold stays 0.85, so the trainer needs another way to reach a strict target.** A lower
+   positive-class weight does not work. At 32 KB and 0.85:
+
+   | positive weight | false taps/min | recall |
+   |---|---|---|
+   | 1 | 5.5 | 0.989 |
+   | 0.05 | 2.37 | 0.956 |
+   | 0.01 | 2.25 | 0.938 |
+
+   The weight saturates. At the same false rate it also keeps 1-2 points fewer taps than moving the threshold.
+   The trainer's 0.2 floor stops near 3/min.
+
+   So with a numeric target below 4/min, Optuna also searches a **logit shift** `s` in 0..5:
+   - `s` is subtracted from every leaf of the first tree. That is exact in Python and in the C export, whose
+     leaves are float.
+   - The firmware's 0.85 then means probability `sigmoid(logit(0.85) + s)` of the fitted model. For example,
+     `s = 3` gives 0.991, the 1.5/min point.
+   - Setting: `MUDRA_TAP_LOGIT_SHIFT` (auto / off / lo,hi). The run gets its own folder and study (`-shift0-5`).
+
+**Command:** `make train KB=32 ALT_KB=14 TARGET=1.5`. This keeps about 88% of taps on people in the data, and
+somewhat fewer on new people. If the band test keeps too few taps, use `TARGET=2` (about 92%); for even more
+protection, use `TARGET=1.2` (about 83%).
+
 ## Limits
 
 - **These numbers describe people who are in the data.** File-split scores are optimistic for a new user. The
@@ -136,5 +180,8 @@ Each option gets its own results folder and study (`-distill50`, `-fingerw2`).
         acc_emgrel+augm+litediff+press2+kb14+leaves7 raw126_diff+litediff+press2+kb14+leaves7
     # seeds: append +seed1 / +seed2 to $B, $B+obs60 and $B+obs40+distill50+fingerw2
     python research/gesture/tap_generalization_research.py focus_table "$B" "$B+obs60"   # per-type tables
+    # maximum protection (32 KB): P=raw126_diff+augm+litediff+press2+kb32
+    #   "$P+leaves7+obs60" "$P+leaves15+obs60" "$P+leaves15+obs40+distill50+fingerw2"
+    #   "$P+leaves15+obs60+posw5" "$P+leaves15+obs60+posw1"   (positive weight 0.05 / 0.01)
 
 Results: `results_tap_filesplit/<arm>.json` and `focus_<arm>.npz`.

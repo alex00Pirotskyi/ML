@@ -187,6 +187,24 @@ if TAP_GENERALIZATION and TAP_FINGER_WEIGHT != 1.0:
 _TARGET_ENV = os.environ.get("MUDRA_TAP_FALSE_PER_MIN_TARGET", "baseline").strip().lower()
 if TAP_GENERALIZATION and _TARGET_ENV != "baseline":
     TAP_TAG += f"-target{float(_TARGET_ENV):g}"
+# Strict TAP targets need a moved decision point, and the firmware threshold stays 0.85 (Q20 17). A lower
+# positive-class weight cannot do it: at 32 KB weight 1 -> 5.5 false taps/min at 0.85, 0.05 -> 2.4, 0.01 -> 2.25
+# (it saturates, and costs taps). Moving the threshold reaches any rate on the best curve (TAP_FILESPLIT_RESULTS.md,
+# "Maximum protection"). So with a numeric target below 4/min Optuna also searches a logit shift s in 0..5: s is
+# subtracted from every leaf of the first tree (exact, also in the C export, which keeps float leaves), so 0.85 in
+# the firmware means probability sigmoid(logit(0.85) + s) of the fitted model (s = 3: 0.991). The setting
+# MUDRA_TAP_LOGIT_SHIFT=lo,hi searches that range, off never shifts. Own folder and study (-shift0-5).
+_SHIFT_ENV = os.environ.get("MUDRA_TAP_LOGIT_SHIFT", "auto").strip().lower()
+if _SHIFT_ENV == "auto":
+    TAP_LOGIT_SHIFT = (0.0, 5.0) if _TARGET_ENV != "baseline" and float(_TARGET_ENV) < 4.0 else None
+elif _SHIFT_ENV in ("off", "none", ""):
+    TAP_LOGIT_SHIFT = None
+else:
+    TAP_LOGIT_SHIFT = tuple(float(v) for v in _SHIFT_ENV.split(","))
+    if len(TAP_LOGIT_SHIFT) != 2 or not 0.0 <= TAP_LOGIT_SHIFT[0] < TAP_LOGIT_SHIFT[1] <= 8.0:
+        raise ValueError("MUDRA_TAP_LOGIT_SHIFT must be auto, off, or lo,hi with 0 <= lo < hi <= 8")
+if TAP_LOGIT_SHIFT is not None:
+    TAP_TAG += f"-shift{TAP_LOGIT_SHIFT[0]:g}-{TAP_LOGIT_SHIFT[1]:g}"
 # Soft labels on: own results folder too, so a run with and without them can be compared side by side.
 _SOFT_ENV = os.environ.get("MUDRA_TAP_SOFT_LABELS", "off").strip().lower()
 if TAP_GENERALIZATION and _SOFT_ENV not in ("off", "0", "none", ""):
@@ -1346,16 +1364,44 @@ def soft_rows(X, target, w):
     return X2, y2, np.r_[w[one] * t[one], w[zero] * (1.0 - t[zero])].astype(np.float32)
 
 
-def fit_model(X, y, w, params, budget, target=None):
+def fit_model(X, y, w, params, budget, target=None, shift=0.0):
     """target (distillation): soft targets per row; fitted as two weighted binary rows per frame, with
-    min_child_samples doubled (it counts rows)."""
+    min_child_samples doubled (it counts rows). shift: TAP logit shift (see TAP_LOGIT_SHIFT)."""
     p = dict(params); p["n_estimators"] = fit_cap(params, budget)
     if target is not None:
         X, y, w = soft_rows(X, target, w)
         p["min_child_samples"] = 2 * int(p.get("min_child_samples", 20))
     model = lgb.LGBMClassifier(**p)
     model.fit(X, y, sample_weight=w)
+    return shift_raw_score(model, shift)
+
+
+def shift_raw_score(model, shift):
+    """Subtract `shift` from the raw score: every leaf of the first tree. Exact for predict, truncation
+    (model_to_string) and the C export (dump_model leaves); the firmware's 0.85 then means probability
+    sigmoid(logit(0.85) + shift) of the fitted model."""
+    if not shift:
+        return model
+    b = model.booster_
+    for leaf in range(int(b.dump_model(num_iteration=1)["tree_info"][0]["num_leaves"])):
+        b.set_leaf_output(0, leaf, b.get_leaf_output(0, leaf) - float(shift))
     return model
+
+
+# Anchor trials' logit shift for a target (false taps/min at 0.85): the researched weight-1 curves (14 and 32 KB,
+# file split) reach 4/min at ~0.92, 2 at ~0.982, 1.5 at ~0.991, 1 at ~0.9965 (shift = logit(threshold) - logit(0.85)).
+ANCHOR_SHIFT_BY_TARGET = ((0.5, 5.0), (1.0, 3.9), (1.2, 3.6), (1.5, 3.0), (2.0, 2.3), (3.0, 1.3), (4.0, 0.7))
+
+
+def anchor_shift(target):
+    t, sh = zip(*ANCHOR_SHIFT_BY_TARGET)
+    v = float(np.interp(math.log(max(float(target), 1e-6)), np.log(t), sh))
+    return float(min(max(v, TAP_LOGIT_SHIFT[0]), TAP_LOGIT_SHIFT[1]))
+
+
+def tap_shift(trial):
+    """The trial's TAP logit shift (0 when the study has none)."""
+    return float(trial.params.get("tap_logit_shift", 0.0))
 
 
 # ============================================================================ exact budget trimming
@@ -1860,6 +1906,7 @@ def objective(trial, data, rpl, train_ids, task, budgets):
     selected = list(range(n_all))
     lo, hi = POSITIVE_WEIGHT[task]
     positive_weight = trial.suggest_float("positive_weight", lo, hi, log=True)
+    shift = trial.suggest_float("tap_logit_shift", *TAP_LOGIT_SHIFT) if task == "tap" and TAP_LOGIT_SHIFT else 0.0
     params = suggest_params(trial, task)
     primary = budgets[0]
     totals = {b: (R.TapCounts() if task == "tap" else R.LpCounts()) for b in budgets}
@@ -1889,7 +1936,7 @@ def objective(trial, data, rpl, train_ids, task, budgets):
             w = fold_weights(pf, positive_weight)
         with CLOCK("fit"):
             soft = {} if pf.get("target") is None else dict(target=pf["target"])
-            model = fit_model(X, pf["y"], w, fold_params, primary, **soft)
+            model = fit_model(X, pf["y"], w, fold_params, primary, shift=shift, **soft)
         del X
         with CLOCK("size"):
             ks = {bud: trees_within(model, bud) for bud in budgets}
@@ -2164,7 +2211,7 @@ def export_candidates(data, rpl, task, stem, tr, te, picks, out: Path):
         params = trial.user_attrs["training_params"]; pw = float(trial.params["positive_weight"])
         subset = subset_for(trial, ranking_dev); ix = [cols.index(x) for x in subset]
         pre = fit_model(data["X"][np.ix_(tr, np.asarray(ix, np.intp))], y[tr], weights_for_task(data, tr, task, pw),
-                        params, budget, **soft_dev)
+                        params, budget, shift=tap_shift(trial), **soft_dev)
         k_pre, _ = trees_within(pre, budget); pre = truncated(pre, k_pre)
         h_pre, b_pre, _ = write_header(pre, subset, stem, out / "_holdout_headers" / role, task, out)
         hm_cols = R.input_columns(subset); hm_ix = [cols.index(x) for x in hm_cols]   # + raw fields of helper calls
@@ -2188,7 +2235,7 @@ def export_candidates(data, rpl, task, stem, tr, te, picks, out: Path):
         subset = subset_for(trial, ranking_all); ix = [cols.index(x) for x in subset]
         folder = model_dir / "candidates" / role
         final = fit_model(data["X"][np.ix_(every, np.asarray(ix, np.intp))], y[every],
-                          weights_for_task(data, every, task, pw), params, budget, **soft_all)
+                          weights_for_task(data, every, task, pw), params, budget, shift=tap_shift(trial), **soft_all)
         k_fin, _ = trees_within(final, budget); final = truncated(final, k_fin)
         header, size, checked = write_header(final, subset, stem, folder, task, out)
         if size > budget:
@@ -2198,6 +2245,8 @@ def export_candidates(data, rpl, task, stem, tr, te, picks, out: Path):
                     model_dir / (tag + ".pkl"), compress=3)
         report = dict(role=role, trial=trial.number, budget_bytes=budget, static_bytes=size, trees=k_fin,
                       params=params, positive_weight=pw, features=subset, n_features=len(subset),
+                      tap_logit_shift=tap_shift(trial),
+                      fitted_probability_at_085=float(1.0 / (1.0 + math.exp(-(math.log(0.85 / 0.15) + tap_shift(trial))))),
                       header=str(header.relative_to(out)), cv=trial.user_attrs["cv"].get(str(budget)),
                       holdout_c_header=pre_rep["holdout_c_header"],
                       holdout_c_header_steady_state=pre_rep["holdout_c_header_steady_state"],
@@ -2726,6 +2775,7 @@ def train_task(task: str, tap_files, lp_files):
     if task == "tap":
         R.TAP_FALSE_PER_MIN_TARGET, target_info = resolve_tap_target(data, rpl, tr, out)
         notice("UNIFIED_TAP_TARGET", json.dumps({k: v for k, v in target_info.items() if k != "per_folder"}))
+        notice("UNIFIED_TAP_LOGIT_SHIFT", json.dumps({"range": list(TAP_LOGIT_SHIFT) if TAP_LOGIT_SHIFT else None}))
     db = out / "optuna_study.sqlite3"
     backup = backup_study_db(db, out)
     global TIMING_LOG
@@ -2744,6 +2794,8 @@ def train_task(task: str, tap_files, lp_files):
         pw0 = LP_ANCHOR_POSITIVE_WEIGHT if task == "lp" else 1.0
         # Both anchors are the all-feature control (K = every available field).
         fsel = dict(n_features=min(len(data["columns"]), EXPORT_MAX_FEATURES))
+        if task == "tap" and TAP_LOGIT_SHIFT:
+            fsel["tap_logit_shift"] = anchor_shift(R.TAP_FALSE_PER_MIN_TARGET)
         if NUM_LEAVES == (8, 127):
             study.enqueue_trial(dict(**fsel, positive_weight=pw0, max_depth=6, num_leaves=15,
                                      n_estimators=160, learning_rate=0.1, min_child_samples=100, reg_lambda=1.0,
@@ -2778,7 +2830,9 @@ def train_task(task: str, tap_files, lp_files):
                    "bytes": trial.user_attrs[f"max_bytes_{budgets[0]}"], "seconds": trial.user_attrs["seconds"],
                    "leaves": trial.user_attrs["training_params"]["num_leaves"],
                    "K": trial.user_attrs["n_features"],
-                   "depth": trial.user_attrs["training_params"]["max_depth"]}))
+                   "depth": trial.user_attrs["training_params"]["max_depth"],
+                   "positive_weight": round(float(trial.params["positive_weight"]), 4),
+                   **({"logit_shift": round(tap_shift(trial), 3)} if task == "tap" and TAP_LOGIT_SHIFT else {})}))
             return z
         study.optimize(fn, n_trials=1, n_jobs=1, show_progress_bar=False, catch=())
     picks = pick_trials(study, budgets)
