@@ -365,6 +365,47 @@ def tap_final_recipe_checks():
     assert np.allclose([sum(walk_(t["tree_structure"], x) for t in dump_["tree_info"]) for x in X_[:20]], r1_[:20], atol=1e-5)
     sig_ = lambda z: 1 / (1 + np.exp(-z))
     assert ((sig_(r1_) >= 0.85) == (sig_(r0_) >= sig_(np.log(0.85 / 0.15) + 2.5))).all()
+    # ---- balanced TAP objective: recording kinds, per-kind counts, worst movement; size-aware ladder choice.
+    kinds_ = {("DATA/x/TAP/a_SoftTap_Horizontal_60bpm_2026.csv.gz", "TAP"): "tap:soft",
+              ("DATA/x/TAP/a_DoubleTaps_Horizontal_60bpm_2026.csv.gz", "TAP"): "tap:double",
+              ("DATA/x/TAP/a_MidTap_Horizontal_240bpm_2026.csv.gz", "TAP"): "tap:fast",
+              ("DATA/x/TAP/a_StrongTap_Horizontal_120bpm_2026.csv.gz", "TAP"): "tap:strong",
+              ("DATA/x/SWIPE/a_SwipeMID_Horizontal_60bpm_2026.csv.gz", "SWIPE"): "tap:swipe",
+              ("DATA/x/FINGER/a_Fist&Stretch_NONE_60bpm_2026.csv.gz", "FINGER"): "move:fist",
+              ("DATA/x/FINGER/a_Pinky_NONE_60bpm_2026.csv.gz", "FINGER"): "move:finger",
+              ("DATA/x/WRIST/a_Twist_NONE_60bpm_2026.csv.gz", "WRIST"): "move:wrist",
+              ("DATA/x/NOTHING/a_Nothing_NONE_0bpm_2026.csv.gz", "NOTHING"): None}
+    for (f_, fo_), k_ in kinds_.items():
+        assert g.tap_kind(f_, fo_) == k_, (f_, g.tap_kind(f_, fo_), k_)
+    obj0, lim0 = R.TAP_OBJECTIVE, R.TAP_MOVEMENT_LIMIT
+    try:
+        R.TAP_OBJECTIVE, R.TAP_MOVEMENT_LIMIT = "balanced", 4.0
+        tt_ = np.arange(0, 120000, 5.0); c_ = R.TapCounts()
+        for kind_, n_hit in (("tap:soft", 20), ("tap:double", 30)):        # 40 onsets each: recall 0.5 and 0.75
+            ons_ = np.arange(2000, 42000, 1000.0); d_ = np.zeros(len(tt_), bool)
+            for o_ in ons_[:n_hit]:
+                d_[int(o_ / 5) + 1] = True
+            R.tap_replay_recording(d_, tt_, np.full(len(tt_), -1), ons_, "TAP", c_, kind=kind_)
+        for kind_, every in (("move:fist", 7500), ("move:finger", 30000)):   # 8 and 2 false taps per minute
+            d_ = np.zeros(len(tt_), bool); d_[np.arange(10, len(tt_), every // 5)] = True
+            R.tap_replay_recording(d_, tt_, np.zeros(len(tt_), int), [], "FINGER", c_, kind=kind_)
+        b_ = c_.report()["balanced"]
+        assert b_["worst_movement"] == "fist" and abs(b_["worst_false_per_min"] - 8.0) < 1e-6, b_
+        assert abs(b_["mean_recall"] - 0.625) < 1e-9 and abs(b_["score"] - 0.625 * 0.5) < 1e-9, b_
+        assert c_.report()["objective_score"] == b_["score"]
+        R.TAP_OBJECTIVE = "overall"
+        assert c_.report()["objective_score"] != b_["score"]
+    finally:
+        R.TAP_OBJECTIVE, R.TAP_MOVEMENT_LIMIT = obj0, lim0
+    pen0 = g.SIZE_PENALTY_PER_KB
+    try:
+        g.SIZE_PENALTY_PER_KB = 0.0001
+        attrs_ = {"score_102400": 0.910, "max_bytes_102400": 102400, "score_65536": 0.907, "max_bytes_65536": 65536,
+                  "score_32768": 0.890, "max_bytes_32768": 32768}
+        b_, v_ = g.ladder_choice(attrs_, [102400, 65536, 32768])          # 64 KB: 0.907 - 0.0064 > 0.910 - 0.01
+        assert b_ == 65536 and abs(v_ - (0.907 - 0.0064)) < 1e-9, (b_, v_)
+    finally:
+        g.SIZE_PENALTY_PER_KB = pen0
     # ---- one-to-one reference matching: one event cannot find two windows; crossing windows; boundaries.
     assert R.match_windows([1150.0], [850.0, 1050.0], [1250.0, 1450.0]).tolist() == [True, False]
     assert R.match_windows([5.0, 12.0], [0.0, 10.0], [20.0, 13.0]).tolist() == [True, True]
@@ -614,11 +655,14 @@ def fold_parallel_check():
     import optuna
     ft = g.canonical_files(g.RAW_SOURCE_TAP); fl = g.canonical_files(g.RAW_SOURCE_LP)
     data, rpl, _ = g.build_task_data("tap", g.selected_sources("tap", ft, fl), g.OUTPUT / "tap")
+    g.group_by_file(data, rpl)                             # as the trainer: file groups only
     tr, _ = g.split_heldout(data, "tap")
     budgets = [g.budget_bytes(g.MODEL_BUDGET_KB)]
     params = dict(n_features=len(data["columns"]) // 2, positive_weight=1.0, max_depth=4, num_leaves=15,
                   n_estimators=40, learning_rate=0.1, min_child_samples=50, reg_lambda=1.0, reg_alpha=1e-3,
                   colsample_bytree=0.8, subsample=0.8)
+    if g.TAP_LOGIT_SHIFT:                                  # strict target / balanced objective: the shift is searched
+        params["tap_logit_shift"] = 1.0
     fit, seen = g.fit_model, []
 
     def recording_fit(X, y, w, p, b, **kw):           # kw: distillation targets (MUDRA_TAP_DISTILL)
@@ -704,6 +748,8 @@ def real_source_smoke(keep_input=False):
     FS.INNER_FOLDS = 2; FS.SCREEN_PARAMS["n_estimators"] = 20; FS.REPEATS_GROUP = 1     # small data, fast ranker
     g.EVAL_MIN_FRAMES = 150              # short smoke recordings: enough events at this gate (default 500)
     g.MODEL_BUDGET_KB = 8; g.ALT_BUDGET_KB = 6           # small budgets keep the smoke fast
+    if g.SIZE_LADDER_KB:                                   # final recipe: a small ladder, largest = MODEL_BUDGET_KB
+        g.SIZE_LADDER_KB = (4.0, 6.0, 8.0)
     g.REPLAY_LP_TAPS_PER_RECORDING = 2
     g.FOLD_WORKERS = 2; g.FOLD_THREADS = 1                # CV folds and fold rankings run concurrently
     fake = Path(tempfile.mkdtemp())
@@ -715,7 +761,15 @@ def real_source_smoke(keep_input=False):
         assert report["status"] == "success" and report["fixed_threshold"] == g.task_threshold(task)
         assert report["threshold_tuned"] is False and g.task_threshold("tap") == 0.85
         assert report["class_one"] == ("RELEASE/REST" if task == "lp" else "TAP/SWIPE onset")
-        assert report["budgets"] == [8192, 6144]
+        assert report["budgets"] == ([8192, 6144, 4096] if task == "tap" and g.SIZE_LADDER_KB else [8192, 6144])
+        if task == "tap" and g.TAP_OBJECTIVE == "balanced":    # final recipe: kinds, worst movement, size ladder
+            cv_ = report["selected"]["cv"]
+            assert cv_["objective"] == "balanced" and cv_["balanced"]["recall_by_kind"], cv_.get("balanced")
+            assert abs(cv_["pooled_objective_score"] - cv_["balanced"]["score"]) < 1e-9
+            assert report["selected"]["tap_logit_shift"] <= g.TAP_LOGIT_SHIFT[1]
+            assert report["selected"]["positive_weight"] == 1.0
+            if g.SIZE_LADDER_KB:
+                assert report["selected"]["budget_bytes"] in report["budgets"], report["selected"]["budget_bytes"]
         assert report["lean8"]["enabled"] == g.LEAN8_TAG
         allowed = (set(g.ALL_FEATURES) | (set(TF.DERIVED) if task == "tap" and g.TAP_FEATURES == "diff" else set())
                    | (set(TF.LITE_COLUMNS) if task == "tap" and g.TAP_LITE == "diff" else set()))
@@ -782,11 +836,14 @@ def real_source_smoke(keep_input=False):
         assert "Steady state only" in (out / "COMPARISON.md").read_text()
         assert all("holdout_c_header_steady_state" in c for c in report["candidates"])
         roles = [c["role"] for c in report["candidates"]]
-        assert roles[0] == "rank_01" and "budget_6kb" in roles, roles
+        ladder = bool(task == "tap" and g.SIZE_LADDER_KB)     # budget_<kb>kb only when the best raw score differs
+        assert roles[0] == "rank_01" and (ladder or "budget_6kb" in roles), roles
         sel = report["selected"]; assert sel["role"].startswith("rank_") and sel.get("default") is True, sel
         assert all("reason" in s_ for s_ in report["skipped"]), report["skipped"]
         assert all("CV fold" in s_["reason"] for s_ in report["skipped"]), report["skipped"]
-        assert (out / "models" / "budget_6kb" / (stem + ".h")).is_file()
+        for r_ in (roles if ladder else ["budget_6kb"]):
+            if r_.startswith("budget_"):
+                assert (out / "models" / r_ / (stem + ".h")).is_file(), r_
         assert (out / "models" / (stem + ".h")).read_bytes() == (out / sel["header"]).read_bytes()
         for c in report["candidates"]:
             assert c["static_bytes"] <= c["budget_bytes"], c
@@ -808,6 +865,7 @@ def real_source_smoke(keep_input=False):
         g.BASELINES[task] = [("copy_of_new_default", str(copy))]
         data, rpl, _ = g.build_task_data(task, g.selected_sources(task, g.canonical_files(g.RAW_SOURCE_TAP),
                                                                    g.canonical_files(g.RAW_SOURCE_LP)), out)
+        g.group_by_file(data, rpl)                         # as the trainer: file groups only
         tr, te = g.split_heldout(data, task)
         # Trial-invariant fold weights == the original per-trial computation, at several positive weights.
         for pf in g.prepared_folds(data, rpl, tr, task):
@@ -899,8 +957,8 @@ if __name__ == "__main__":
                                 ("TAP final recipe", dict(MUDRA_TAP_RECIPE="final14", MUDRA_TASKS="tap,lp")),
                                 ("TAP final recipe + observable labels",
                                  dict(MUDRA_TAP_RECIPE="final14obs", MUDRA_TASKS="tap,lp")),
-                                ("TAP final recipe, split and folds by file",
-                                 dict(MUDRA_TAP_RECIPE="final14", MUDRA_TASKS="tap,lp", MUDRA_SPLIT="file")),
+                                ("TAP final pipeline (balanced objective, size ladder, logit shift)",
+                                 dict(MUDRA_TAP_RECIPE="final", MUDRA_TASKS="tap,lp")),
                                 ("TAP maximum-protection recipe (obs40 + distillation + finger x2), split by file, "
                                  "strict target 1.5 (logit shift search)",
                                  dict(MUDRA_TAP_RECIPE="final14protect", MUDRA_TASKS="tap,lp", MUDRA_SPLIT="file",

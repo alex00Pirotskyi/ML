@@ -282,6 +282,44 @@ person split = new people; same model threshold):
 **Model size limit:** `MAX_MODEL_SIZE_BYTES = 102400` (100 KB) is fixed in the trainer. Larger budgets are refused
 at start (and by `make train`), and every export is checked against it.
 
+## Final pipeline (2026-11-25): `make train`
+
+The goal: every tap kind works, no movement makes taps, and Optuna keeps the model as small as it can. No extra
+tricks.
+
+**Data recipe** (`final14obs`, unchanged, all researched above):
+- press2 labels, so every press of a double / 240 bpm recording is a tap;
+- observable 60 ms windows;
+- diff + Lean-lite inputs;
+- mild placement augmentation;
+- trees of 4–15 leaves;
+- the file split.
+
+**What is new:**
+1. **Balanced objective.** Score = mean recall over the tap kinds × min(1, 7 / the worst movement kind's false
+   taps per minute).
+   - Tap kinds (from the file name): soft, mid, strong, double, fast (240 bpm), other taps, swipes.
+   - Movement kinds: finger, fist (Fist & Stretch), wrist (twist, wrist moves, tap on hand), arm, band.
+   - So a soft or double tap counts as much as a strong one, and fist cannot hide behind the other movements.
+     `make train LIMIT=5` is stricter.
+2. **One operating control:** the threshold shift (0..3, positive weight fixed at 1). The device threshold keeps its
+   full range.
+3. **Size ladder.**
+   - Each trial is fitted once at 100 KB and scored at 8, 12, 16, 24, 32, 48, 64 and 100 KB. The first trees of a
+     boosted model are exactly the smaller model.
+   - Optuna maximises score − 0.0001 per KB, so a bigger model has to be 1 point better per 100 KB.
+   - The header is the best (trial, size). The best raw score is exported beside it (`models/budget_<kb>kb`).
+4. **No finger weighting, distillation, soft labels or strict false-tap target.**
+
+**Expected level** (known people, fist ≈ 7/min):
+
+| model | normal | soft | double | fast | swipe | finger /min | wrist /min | band /min |
+|---|---|---|---|---|---|---|---|---|
+| 32 KB | 95.3% | 92.0% | 90.0% | 92.6% | 89.0% | 3.8 | 5.7 | 4.3 |
+| 64 KB | 96.0% | 92.5% | 91.3% | 93.7% | 90.0% | 3.6 | 4.9 | 4.0 |
+
+Compare the old default: fist 19/min, finger 10/min, for taps of about 98%.
+
 ## Limits
 
 - **These numbers describe people who are in the data.** File-split scores are optimistic for a new user. The

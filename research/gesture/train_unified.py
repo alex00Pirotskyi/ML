@@ -92,6 +92,18 @@ TAP_RECIPES["final14obs"] = dict(TAP_RECIPES["final14"], MUDRA_TAP_OBS_MS="60")
 # target is strict, and at 0.85 fires far less on finger motion and fists for about 1 point of tap recall.
 TAP_RECIPES["final14protect"] = dict(TAP_RECIPES["final14"], MUDRA_TAP_OBS_MS="40", MUDRA_TAP_DISTILL="0.5",
                                      MUDRA_TAP_FINGER_WEIGHT="2")
+# final: the clean pipeline (make train). final14obs's data recipe (press2 labels, observable 60 ms, diff + lite
+# inputs, mild placement augmentation, 4-15 leaves) with
+#   - the balanced objective: every tap kind (soft, mid, strong, double, fast, other taps, swipes) counts the same,
+#     and the worst movement kind (finger, fist, wrist / twist, arm, band) must stay under MUDRA_TAP_MOVEMENT_LIMIT
+#     false taps per minute (7: the balanced level, TAP_FILESPLIT_RESULTS.md, "Final pipeline");
+#   - one operating-point control: the logit shift 0..3 (positive weight fixed at 1);
+#   - the size ladder: every trial is scored at 8..100 KB and Optuna maximises score - 0.0001 per KB (a model must
+#     be 1 point better per 100 KB to be worth the bytes); the export is the best (trial, size).
+# No finger weighting, distillation or soft labels.
+TAP_RECIPES["final"] = dict(TAP_RECIPES["final14obs"], MUDRA_TAP_OBJECTIVE="balanced", MUDRA_TAP_MOVEMENT_LIMIT="7",
+                            MUDRA_SIZE_LADDER_KB="8,12,16,24,32,48,64,100", MUDRA_SIZE_PENALTY_PER_KB="0.0001",
+                            MUDRA_MODEL_BUDGET_KB="100", MUDRA_N_ESTIMATORS="80,2600")
 TAP_RECIPE = os.environ.get("MUDRA_TAP_RECIPE", "").strip().lower()
 if TAP_RECIPE:
     if TAP_RECIPE not in TAP_RECIPES:
@@ -197,9 +209,35 @@ if TAP_GENERALIZATION and _TARGET_ENV != "baseline":
 # 64 KB / 1.5 run picked s = 4.7 with weight 5.7: device 0.85 = 0.9984, and even device 0.20 = 0.964, so lowering
 # the device threshold could not bring taps back on the band. The setting MUDRA_TAP_LOGIT_SHIFT=lo,hi searches that
 # range, off never shifts. Own folder and study (-shift0-3-pw1).
+# TAP objective (replay.TAP_OBJECTIVE): "overall" (default) = recall x min(1, target / false taps per min);
+# "balanced" = mean recall over the tap kinds x min(1, MUDRA_TAP_MOVEMENT_LIMIT / worst movement kind's false taps
+# per min). Kinds: tap_kind(). Own folder and study (-balanced<limit>).
+TAP_OBJECTIVE = os.environ.get("MUDRA_TAP_OBJECTIVE", "overall").strip().lower()
+if TAP_OBJECTIVE not in ("overall", "balanced"):
+    raise ValueError("MUDRA_TAP_OBJECTIVE must be overall or balanced")
+TAP_MOVEMENT_LIMIT = float(os.environ.get("MUDRA_TAP_MOVEMENT_LIMIT", "7"))
+if TAP_MOVEMENT_LIMIT <= 0:
+    raise ValueError("MUDRA_TAP_MOVEMENT_LIMIT must be > 0 (false taps per minute)")
+if TAP_OBJECTIVE == "balanced":
+    TAP_TAG += f"-balanced{TAP_MOVEMENT_LIMIT:g}"
+# Size ladder (MUDRA_SIZE_LADDER_KB, e.g. 8,12,...,100): every TAP trial is fitted once at the largest size and
+# scored at each size (the first trees of a boosted model are the model a smaller budget fits: same trees). Optuna
+# maximises max over sizes of (score - MUDRA_SIZE_PENALTY_PER_KB x KB): a bigger model has to earn its bytes. The
+# exported header is the best (trial, size); the best raw score is exported beside it (models/budget_<kb>kb).
+_LADDER_ENV = os.environ.get("MUDRA_SIZE_LADDER_KB", "").strip()
+SIZE_LADDER_KB = tuple(sorted({float(v) for v in _LADDER_ENV.split(",") if v.strip()})) if _LADDER_ENV else ()
+SIZE_PENALTY_PER_KB = float(os.environ.get("MUDRA_SIZE_PENALTY_PER_KB", "0.0001"))
+if SIZE_LADDER_KB and SIZE_LADDER_KB[-1] != _TAP_KB:
+    # MUDRA_MODEL_BUDGET_KB (make train KB=...) is the largest size: the ladder keeps its sizes below it, plus it
+    SIZE_LADDER_KB = tuple(sorted({v for v in SIZE_LADDER_KB if v < _TAP_KB} | {_TAP_KB}))
+if SIZE_LADDER_KB:
+    if len(SIZE_LADDER_KB) < 2 or SIZE_LADDER_KB[0] <= 0 or SIZE_PENALTY_PER_KB < 0:
+        raise ValueError("MUDRA_SIZE_LADDER_KB needs >= 2 positive sizes; MUDRA_SIZE_PENALTY_PER_KB >= 0")
+    TAP_TAG += f"-ladder{SIZE_LADDER_KB[0]:g}-{SIZE_LADDER_KB[-1]:g}-pen{SIZE_PENALTY_PER_KB * 1e4:g}"
 _SHIFT_ENV = os.environ.get("MUDRA_TAP_LOGIT_SHIFT", "auto").strip().lower()
 if _SHIFT_ENV == "auto":
-    TAP_LOGIT_SHIFT = (0.0, 3.0) if _TARGET_ENV != "baseline" and float(_TARGET_ENV) < 4.0 else None
+    TAP_LOGIT_SHIFT = ((0.0, 3.0) if TAP_OBJECTIVE == "balanced" or (_TARGET_ENV != "baseline" and float(_TARGET_ENV) < 4.0)
+                       else None)
 elif _SHIFT_ENV in ("off", "none", ""):
     TAP_LOGIT_SHIFT = None
 else:
@@ -305,10 +343,13 @@ MAX_MODEL_SIZE_BYTES = 102400
 MODEL_BUDGET_KB = float(os.environ.get("MUDRA_MODEL_BUDGET_KB", 32))
 ALT_BUDGET_KB = (None if os.environ.get("MUDRA_ALT_BUDGET_KB", "24").lower() in ("", "none", "0")
                  else float(os.environ.get("MUDRA_ALT_BUDGET_KB", "24")))
-for _name, _kb in (("MUDRA_MODEL_BUDGET_KB", MODEL_BUDGET_KB), ("MUDRA_ALT_BUDGET_KB", ALT_BUDGET_KB)):
+for _name, _kb in (("MUDRA_MODEL_BUDGET_KB", MODEL_BUDGET_KB), ("MUDRA_ALT_BUDGET_KB", ALT_BUDGET_KB),
+                   *(("MUDRA_SIZE_LADDER_KB", _v) for _v in SIZE_LADDER_KB)):
     if _kb is not None and int(round(float(_kb) * 1024)) > MAX_MODEL_SIZE_BYTES:
         raise ValueError(f"{_name}={_kb:g} KB exceeds MAX_MODEL_SIZE_BYTES = {MAX_MODEL_SIZE_BYTES} "
                          f"({MAX_MODEL_SIZE_BYTES / 1024:g} KB), the device maximum")
+assert not SIZE_LADDER_KB or SIZE_LADDER_KB[-1] == MODEL_BUDGET_KB
+R.TAP_OBJECTIVE = TAP_OBJECTIVE; R.TAP_MOVEMENT_LIMIT = TAP_MOVEMENT_LIMIT
 NODE_BYTES = 6                      # export_plus packed LightGBM node: float threshold + 2 bytes
 
 # LightGBM search space (agreed ranges). Leaves are capped at 2**depth and at 127 (uint8 child index).
@@ -1233,6 +1274,30 @@ def recording_gesture(name: str) -> str:
     return "unknown"
 
 
+def tap_kind(name: str, folder: str):
+    """Kind of a recording for the balanced TAP objective (replay.TapCounts.balanced), or None.
+    TAP: double (DoubleTaps), fast (240 bpm), soft / mid / strong (SoftTap, MidTap, StrongTap), other (any other
+    tap recording: hand, slow pinch, tap on motion). SWIPE: swipe. FINGER: fist (Fist & Stretch) or finger.
+    WRIST (wrist moves, twist, tap on hand), ARM, BAND: their folder. Other folders (long press, nothing): None."""
+    g_ = recording_gesture(name); fname = Path(str(name)).name.lower()
+    if folder == "TAP":
+        if "double" in g_:
+            return "tap:double"
+        if re.search(r"_240bpm", fname):
+            return "tap:fast"
+        for k in ("soft", "mid", "strong"):
+            if g_.startswith(k) or f"{k}tap" in g_:
+                return f"tap:{k}"
+        return "tap:other"
+    if folder == "SWIPE":
+        return "tap:swipe"
+    if folder == "FINGER":
+        return "move:fist" if "fist" in g_ else "move:finger"
+    if folder in ("WRIST", "ARM", "BAND"):
+        return "move:" + folder.lower()
+    return None
+
+
 def recording_stratum(name: str, folder: str) -> str:
     """folder|gesture, plus |<bpm> for TAP and SWIPE recordings (60 / 120 / 240 bpm taps are different tasks)."""
     st = f"{folder}|{recording_gesture(name)}"
@@ -1266,9 +1331,10 @@ def file_strata(data, rows):
 
 def cv_splits(data, train_ids):
     """CV folds over train_ids (positions into train_ids). Gesture-aware file split: StratifiedKFold over the files
-    by stratum; otherwise GroupKFold by group (person or file)."""
-    if "stratum" not in data:
-        return list(GroupKFold(n_splits=CV_FOLDS).split(train_ids, data["y"][train_ids], data["group"][train_ids]))
+    by stratum (data["group"] = one group per file, group_by_file). The observable-label and distillation teachers
+    and the feature-ranking inner folds fold over the same file groups."""
+    if "stratum" not in data:                   # file split only
+        raise ValueError("cv_splits needs the file groups (group_by_file); a person split is not allowed")
     codes, groups, strata = file_strata(data, train_ids)
     out = []
     for _, b_g in StratifiedKFold(n_splits=CV_FOLDS, shuffle=True, random_state=SEED).split(groups, strata):
@@ -1299,9 +1365,9 @@ def _stratified_heldout(data, task):
 
 def split_heldout(data, task):
     g = data["group"]; y = data["y"]; c = data["category"]
-    splitter = (_stratified_heldout(data, task) if "stratum" in data else
-                GroupShuffleSplit(n_splits=200, test_size=TEST_FRACTION,
-                                  random_state=SEED + int(task == "lp")).split(data["X"], y, g))
+    if "stratum" not in data:                   # file split only: group_by_file() sets the file groups and strata
+        raise ValueError("split_heldout needs the file groups (group_by_file); a person split is not allowed")
+    splitter = _stratified_heldout(data, task)
     for tr, te in splitter:
         if set(y[tr]) != {0, 1} or set(y[te]) != {0, 1}:
             continue
@@ -1410,6 +1476,17 @@ ANCHOR_SHIFT_BY_TARGET = ((0.5, 5.0), (1.0, 3.9), (1.2, 3.6), (1.5, 3.0), (2.0, 
 def anchor_shift(target):
     t, sh = zip(*ANCHOR_SHIFT_BY_TARGET)
     v = float(np.interp(math.log(max(float(target), 1e-6)), np.log(t), sh))
+    return float(min(max(v, TAP_LOGIT_SHIFT[0]), TAP_LOGIT_SHIFT[1]))
+
+
+# Anchor logit shift for a movement limit (balanced objective): the researched 32 KB curve reaches fist 19/min at
+# ~0.815 (no shift), 12 at ~0.905, 7 at ~0.959, 4 at ~0.984, 2.6 at ~0.991 (TAP_FILESPLIT_RESULTS.md).
+ANCHOR_SHIFT_BY_MOVEMENT = ((2.6, 3.0), (4.0, 2.4), (7.0, 1.4), (12.0, 0.5), (19.0, 0.0))
+
+
+def anchor_shift_movement(limit):
+    lim, sh = zip(*ANCHOR_SHIFT_BY_MOVEMENT)
+    v = float(np.interp(math.log(max(float(limit), 1e-6)), np.log(lim), sh))
     return float(min(max(v, TAP_LOGIT_SHIFT[0]), TAP_LOGIT_SHIFT[1]))
 
 
@@ -1658,7 +1735,7 @@ def prepare_tap_replay(rpl, groups):
             lo, hi = per_rec.get(int(i), (np.zeros(0), np.zeros(0)))
             keep = lo >= t_a
             extra[name] = (lo[keep], hi[keep])
-        items.append((a, b, r.folder, ons, extra))
+        items.append((a, b, r.folder, ons, extra, tap_kind(r.file, r.folder)))
     return items
 
 
@@ -1680,12 +1757,12 @@ def replay_tap_items(prob_fn, rpl, items, selected):
     """prob_fn(X) -> dict name -> probability (or decision) arrays. Returns name -> TapCounts."""
     counts = {}
     preds = _ranges_predict([prob_fn], rpl["X"], [(it[0], it[1]) for it in items], selected)
-    for (a, b, folder, ons, extra), ((a_, b_), (outs,)) in zip(items, preds):
+    for (a, b, folder, ons, extra, kind), ((a_, b_), (outs,)) in zip(items, preds):
         with CLOCK("replay_score"):
             for name, p in outs.items():
                 d = p if p.dtype == bool else (p >= FIXED_THRESHOLD)
                 R.tap_replay_recording(d, rpl["t"][a:b], rpl["label"][a:b], ons,
-                                       folder, counts.setdefault(name, R.TapCounts()), extra=extra)
+                                       folder, counts.setdefault(name, R.TapCounts()), extra=extra, kind=kind)
     return counts
 
 
@@ -1976,9 +2053,8 @@ def objective(trial, data, rpl, train_ids, task, budgets):
                                           **{kk: vv for kk, vv in rep_.items() if kk != "per_folder"})
             folds.append(dict(fold=fold, people=len(pf["val_groups"]), fitted_trees=fitted, budgets=fold_rep))
             fold_timing.append({k: round(v, 3) for k, v in timing.items()})
-            running = [f["budgets"][str(primary)]["objective_score"] for f in folds if f["budgets"][str(primary)]["usable"]]
             with CLOCK("study_io"):
-                trial.report(float(np.mean(running)) if running else 0.0, fold)
+                trial.report(running_value(folds, budgets, primary), fold)
                 prune = trial.should_prune()
             if prune:
                 _log_timing(trial, task, t_start, fold_timing, pruned=True)
@@ -2007,7 +2083,33 @@ def objective(trial, data, rpl, train_ids, task, budgets):
         trial.set_user_attr(f"score_{bud}", reports[str(bud)]["objective_score"])
         trial.set_user_attr(f"max_bytes_{bud}", max(f["budgets"][str(bud)]["bytes"] for f in folds))
     _log_timing(trial, task, t_start, fold_timing, pruned=False)
-    return float(reports[str(primary)]["objective_score"])
+    if not (task == "tap" and SIZE_LADDER_KB):
+        return float(reports[str(primary)]["objective_score"])
+    best_b, value = ladder_choice(trial.user_attrs, budgets)
+    trial.set_user_attr("ladder_budget", best_b); trial.set_user_attr("ladder_value", value)
+    return value
+
+
+def size_value(score, nbytes):
+    """Size-aware TAP value: score - SIZE_PENALTY_PER_KB per KB of the exported model."""
+    return float(score) - SIZE_PENALTY_PER_KB * float(nbytes) / 1024.0
+
+
+def ladder_choice(attrs, budgets):
+    """(budget, value) of a trial's best size: max over the ladder of size_value(CV score, largest fold model)."""
+    vals = {b: size_value(attrs[f"score_{b}"], attrs[f"max_bytes_{b}"]) for b in budgets}
+    b = max(vals, key=lambda b_: (vals[b_], -b_))
+    return int(b), float(vals[b])
+
+
+def running_value(folds, budgets, primary):
+    """Pruning value after each fold: the mean fold score so far (TAP with a ladder: at its best size)."""
+    def mean_at(b):
+        v = [f["budgets"][str(b)]["objective_score"] for f in folds if f["budgets"][str(b)]["usable"]]
+        return float(np.mean(v)) if v else 0.0
+    if not (SIZE_LADDER_KB and len(budgets) > 2):
+        return mean_at(primary)
+    return max(size_value(mean_at(b), max(f["budgets"][str(b)]["bytes"] for f in folds)) for b in budgets)
 
 
 def _log_timing(trial, task, t_start, fold_timing, pruned):
@@ -2149,13 +2251,21 @@ def parity(hm: R.HeaderModel, model, rpl, groups, selected, task, k, header_cols
 
 
 # ============================================================================ selection, export, baselines
-def pick_trials(study, budgets):
+def pick_trials(study, budgets, task="tap"):
     """Performance first: candidates ordered by grouped-CV replay score inside the primary budget
-    (rank_01 = best), plus the best inside the smaller budget."""
+    (rank_01 = best), plus the best inside the smaller budget. TAP with a size ladder: rank_xx = the best trials by
+    their size-aware value, each at its own best size; budget_<kb>kb = the best raw CV score at any size."""
     done = [t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE and t.value is not None]
     if not done:
         raise RuntimeError("No completed trials")
     ranked = sorted(done, key=lambda t: t.value, reverse=True)
+    if task == "tap" and SIZE_LADDER_KB and len(budgets) > 2:
+        out = [(f"rank_{i + 1:02d}", ladder_choice(t.user_attrs, budgets)[0], t)
+               for i, t in enumerate(ranked[:max(1, TOP_K_PER_MODEL - 1)])]
+        raw = max(((t, b) for t in done for b in budgets), key=lambda tb: (tb[0].user_attrs[f"score_{tb[1]}"], -tb[1]))
+        if (raw[0].number, raw[1]) != (out[0][2].number, out[0][1]):
+            out.insert(1, (f"budget_{int(round(raw[1] / 1024))}kb", raw[1], raw[0]))
+        return out
     out = [("rank_01", budgets[0], ranked[0])]
     if len(budgets) > 1:
         alt = max(done, key=lambda t: t.user_attrs.get(f"score_{budgets[1]}", -1.0))
@@ -2707,6 +2817,8 @@ def train_task(task: str, tap_files, lp_files):
     budgets = [b for b in (budget_bytes(MODEL_BUDGET_KB), budget_bytes(ALT_BUDGET_KB)) if b]
     if len(budgets) == 2 and budgets[1] >= budgets[0]:
         budgets = budgets[:1]
+    if task == "tap" and SIZE_LADDER_KB:          # largest first: every trial is fitted at it (fit_cap)
+        budgets = [budget_bytes(kb) for kb in sorted(SIZE_LADDER_KB, reverse=True)]
     records, duplicates = dedupe_records(selected_sources(task, tap_files, lp_files))
     identity = record_identity(records)
     notice("UNIFIED_DATA_IDENTITY", task, identity["sha256"][:16], identity["recordings"], "recordings",
@@ -2812,7 +2924,9 @@ def train_task(task: str, tap_files, lp_files):
         # Both anchors are the all-feature control (K = every available field).
         fsel = dict(n_features=min(len(data["columns"]), EXPORT_MAX_FEATURES))
         if task == "tap" and TAP_LOGIT_SHIFT:
-            fsel["tap_logit_shift"] = anchor_shift(R.TAP_FALSE_PER_MIN_TARGET)
+            fsel["tap_logit_shift"] = (anchor_shift_movement(TAP_MOVEMENT_LIMIT) if TAP_OBJECTIVE == "balanced"
+                                       else anchor_shift(R.TAP_FALSE_PER_MIN_TARGET))
+        n_anchor = N_ESTIMATORS[1] if task == "tap" and SIZE_LADDER_KB else None   # fill the largest ladder size
         if NUM_LEAVES == (8, 127):
             study.enqueue_trial(dict(**fsel, positive_weight=pw0, max_depth=6, num_leaves=15,
                                      n_estimators=160, learning_rate=0.1, min_child_samples=100, reg_lambda=1.0,
@@ -2824,11 +2938,15 @@ def train_task(task: str, tap_files, lp_files):
             clip = lambda v: int(min(max(v, NUM_LEAVES[0]), NUM_LEAVES[1]))
             # the researched reference (TAP_FOCUS_RESULTS.md, 14 KB / 7 leaves: 400 trees fitted, trimmed to the budget)
             study.enqueue_trial(dict(**fsel, positive_weight=pw0, max_depth=8, num_leaves=clip(7),
-                                     n_estimators=400, learning_rate=0.1, min_child_samples=100, reg_lambda=1.0,
-                                     reg_alpha=1e-3, colsample_bytree=0.7, subsample=0.8))
+                                     n_estimators=n_anchor or 400, learning_rate=0.1, min_child_samples=100,
+                                     reg_lambda=1.0, reg_alpha=1e-3, colsample_bytree=0.7, subsample=0.8))
             study.enqueue_trial(dict(**fsel, positive_weight=pw0, max_depth=10, num_leaves=clip(15),
                                      n_estimators=200, learning_rate=0.2, min_child_samples=50, reg_lambda=1.0,
                                      reg_alpha=1e-3, colsample_bytree=0.7, subsample=0.8))
+            if n_anchor:                         # the researched 32-128 KB setting (TAP_FILESPLIT_RESULTS.md)
+                study.enqueue_trial(dict(**fsel, positive_weight=pw0, max_depth=8, num_leaves=clip(15),
+                                         n_estimators=n_anchor, learning_rate=0.1, min_child_samples=100,
+                                         reg_lambda=1.0, reg_alpha=1e-3, colsample_bytree=0.7, subsample=0.8))
     optuna.logging.set_verbosity(optuna.logging.WARNING)
     for t in study.trials:                      # trials run one at a time: a RUNNING trial here died with a crash
         if t.state == optuna.trial.TrialState.RUNNING:
@@ -2839,12 +2957,20 @@ def train_task(task: str, tap_files, lp_files):
     while finished() < TRIALS_PER_MODEL:
         def fn(trial):
             z = objective(trial, data, rpl, tr, task, budgets)
-            c = trial.user_attrs["cv"][str(budgets[0])]
+            b_ = trial.user_attrs.get("ladder_budget", budgets[0])     # TAP with a ladder: the trial's best size
+            c = trial.user_attrs["cv"][str(b_)]
+            bal = c.get("balanced") if task == "tap" and TAP_OBJECTIVE == "balanced" else None
             notice("UNIFIED_TRIAL", json.dumps({"task": task, "trial": trial.number, "score": round(z, 4),
                    **({"recall": round(c["recall"], 4), "false_per_min": round(c["false_per_min"], 3)} if task == "tap" else
                       {"hold_kept": round(c["hold_kept"], 4), "timely_release": round(c["timely_release"], 4),
                        "tap_released": c["tap_released"]}),
-                   "bytes": trial.user_attrs[f"max_bytes_{budgets[0]}"], "seconds": trial.user_attrs["seconds"],
+                   **({"mean_kind_recall": round(bal["mean_recall"], 4), "worst_movement": bal["worst_movement"],
+                       "worst_false_per_min": round(bal["worst_false_per_min"], 2),
+                       "recall_by_kind": bal["recall_by_kind"], "false_per_min_by_kind": bal["false_per_min_by_kind"]}
+                      if bal else {}),
+                   **({"kb": round(trial.user_attrs[f"max_bytes_{b_}"] / 1024, 1),
+                       "cv_score_at_kb": round(trial.user_attrs[f"score_{b_}"], 4)} if "ladder_budget" in trial.user_attrs else {}),
+                   "bytes": trial.user_attrs[f"max_bytes_{b_}"], "seconds": trial.user_attrs["seconds"],
                    "leaves": trial.user_attrs["training_params"]["num_leaves"],
                    "K": trial.user_attrs["n_features"],
                    "depth": trial.user_attrs["training_params"]["max_depth"],
@@ -2852,7 +2978,7 @@ def train_task(task: str, tap_files, lp_files):
                    **({"logit_shift": round(tap_shift(trial), 3)} if task == "tap" and TAP_LOGIT_SHIFT else {})}))
             return z
         study.optimize(fn, n_trials=1, n_jobs=1, show_progress_bar=False, catch=())
-    picks = pick_trials(study, budgets)
+    picks = pick_trials(study, budgets, task)
     candidates = export_candidates(data, rpl, task, stem, tr, te, picks, out)
     default, skipped = promote(out, stem, candidates, budgets)
     for c in candidates:

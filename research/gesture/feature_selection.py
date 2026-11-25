@@ -125,7 +125,8 @@ class InnerReplay:
                 extra = it[4] if len(it) > 4 else None
                 if extra and a:
                     extra = {k: (lo[lo >= t[a]], hi[lo >= t[a]]) for k, (lo, hi) in extra.items()}
-                R.tap_replay_recording(p[s + a:e] >= threshold, t[a:], lab[a:], ons, it[2], c, extra=extra)
+                R.tap_replay_recording(p[s + a:e] >= threshold, t[a:], lab[a:], ons, it[2], c, extra=extra,
+                                       kind=it[5] if len(it) > 5 else None)
             return c.report(target=self.target) if c.onsets else None
         c = R.LpCounts()
         q = R.q20(p)
