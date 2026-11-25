@@ -783,7 +783,11 @@ def real_source_smoke(keep_input=False):
         assert [c["features_development"] for c in held["candidates"]] == \
                [c["features_holdout_candidate"] for c in report["candidates"]]
         if task == "tap":
-            assert report["tap_target"]["source"].startswith("FALLBACK") and report["tap_target"]["value"] == 1.0
+            if os.environ.get("MUDRA_TAP_FALSE_PER_MIN_TARGET", "baseline").lower() == "baseline":
+                assert report["tap_target"]["source"].startswith("FALLBACK") and report["tap_target"]["value"] == 1.0
+            else:                                                        # a numeric target (strict-target arm)
+                assert report["tap_target"]["source"] == "configured" and \
+                    report["tap_target"]["value"] == float(os.environ["MUDRA_TAP_FALSE_PER_MIN_TARGET"])
             assert report["tap_soft_labels"] is None                     # soft labels are off by default
             # Labeller-independent reference: every real pointer press of the TAP/SWIPE recordings.
             hold = report["selected"]["holdout_c_header"]
