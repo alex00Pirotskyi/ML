@@ -11,7 +11,8 @@ Focus arms (2026-11-20): press2 (every press of DoubleTaps / 240 bpm recordings 
 (FINGER-folder negatives, finger motion and fist, weighted x k), fmine (hard negatives mined from FINGER
 recordings), litediff (gain-invariant Lean-lite context features in the log domain), pw<k> (positives of
 DoubleTaps / 240 bpm recordings weighted x k), posw<c> (positive-class weight c/100, as Optuna sets it), trees<n>,
-lr<k> (learning rate k/100), depth<k>, xgb (XGBoost, same byte accounting). "rule <arm> min2 ..." re-scores saved fold models
+lr<k> (learning rate k/100), depth<k>, xgb (XGBoost, same byte accounting), lrscore (stacked linear
+score input), accsum / emgsum (ACC / EMG total inputs). "rule <arm> min2 ..." re-scores saved fold models
 with another firmware decision rule. See TAP_FOCUS_RESULTS.md.
 
 File split (2026-11-24): MUDRA_GR_SPLIT=file uses the trainer's gesture-aware file split and folds (results in
@@ -86,6 +87,9 @@ COLS = list(g.RAW_126) + list(g.LEAN8_24)
 CI = {c: i for i, c in enumerate(COLS)}
 ACC = [CI[c] for c in g.RAW_126 if c.startswith(("p_core->acc_psd", "p_core->acc_rate"))]
 ACC_NOW = [CI[f"p_core->acc_psd[0][{a}][{z}]"] for a in "XYZ" for z in range(6)]
+ACC_NOW_ALL = ACC_NOW
+ACC_MEAN_ALL = [CI[f"p_core->acc_psd_mean[{a}][{z}]"] for a in "XYZ" for z in range(6)]
+ACC_RATE_ALL = [CI[f"p_core->acc_rate[{a}][{z}]"] for a in "XYZ" for z in range(6)]
 SLOTS = ("p_core->emg_psd[0]", "p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1]", "p_core->emg_psd_mean")
 EMG_PSD = [CI[f"{s}[CH{c}][{z}]"] for s in SLOTS for c in (1, 2, 3) for z in range(5)]
 WL = {k: [CI[f"p_core->{k}[CH{c}]"] for c in (1, 2, 3)] for k in ("wl", "wl_head", "wl_tail")}
@@ -152,6 +156,18 @@ def build(X, spec):
     if "accdiff" in spec:
         add(np.clip(X[:, AA] - X[:, AB], -32768, 32767), [f"p_core->diff({COLS[a]}, {COLS[b]})" for a, b in ACC_PAIRS],
             False)
+    if "accsum" in spec:                        # ACC impact totals (sums of codes over axes and zones)
+        now = X[:, ACC_NOW_ALL].astype(np.float32); mean = X[:, ACC_MEAN_ALL].astype(np.float32)
+        hi = np.array([z_ >= 3 for _a in "XYZ" for z_ in range(6)])
+        add(np.stack([now.sum(1), (now - mean).sum(1), (now - mean)[:, hi].sum(1),
+                      X[:, ACC_RATE_ALL].astype(np.float32).sum(1)], 1),
+            ["acc_now_total", "acc_rise_total", "acc_rise_hi_total", "acc_rate_total"], False)
+    if "emgsum" in spec:                        # EMG across channels, log domain (Lean-lite rise10 / xm)
+        assert X.shape[1] == len(COLS) + len(LITE_DIFF), "emgsum needs the Lean-lite columns appended (with_lite)"
+        li = {n_: len(COLS) + i for i, n_ in enumerate(LITE_DIFF)}
+        rise = X[:, [li[f"lite.rise10[CH{c}]"] for c in (1, 2, 3)]]; xm = X[:, [li[f"lite.xm[CH{c}]"] for c in (1, 2, 3)]]
+        add(np.stack([rise.sum(1), rise.min(1), rise.max(1), xm.sum(1)], 1),
+            ["lite.rise10_sum", "lite.rise10_min", "lite.rise10_max", "lite.xm_sum"], True)
     if "litediff" in spec or "litediff4" in spec:
         assert X.shape[1] == len(COLS) + len(LITE_DIFF), "litediff needs the Lean-lite columns appended (with_lite)"
         keep = [i for i, n in enumerate(LITE_DIFF) if "litediff" in spec or not n.startswith("lite.fall10")]
@@ -876,7 +892,7 @@ class Val:
             nz = np.flatnonzero(np.asarray(rpl["steady"][a:b], bool))
             self.steady_from.append(int(nz[0]) if len(nz) else None)
 
-    def predict(self, model, k, spec, stress=None, chunk=250_000, cols=None):
+    def predict(self, model, k, spec, stress=None, chunk=250_000, cols=None, post=None):
         """model: LGBMClassifier or Booster (then k is ignored: the saved model is already cut)."""
         booster = getattr(model, "booster_", model)
         lite = lite_rows(self.ridx, self.rec, stress) if ("litediff" in spec or "litediff4" in spec) else None
@@ -891,6 +907,8 @@ class Val:
             F, _, _ = build(Xb, spec)
             if cols is not None:
                 F = F[:, cols]
+            if post is not None:
+                F = post(F)
             p[s:s + chunk] = (booster.predict(F, num_iteration=k, num_threads=THREADS) if hasattr(model, "booster_")
                               else booster.predict(F, num_threads=THREADS))
         return p
@@ -1150,6 +1168,33 @@ def fit(F, y, w, budget, trees=None, extra_params=None):
     return lgb.LGBMClassifier(**params).fit(F, y, sample_weight=w)
 
 
+class LinearScore:
+    """Logistic regression on the standardized inputs (class-balanced weights as the trees); its logit is one more
+    tree input. Firmware: sum_i a_i * x_i + b over the same inputs (a_i = coef_i / sd_i)."""
+
+    def fit(self, F, y, w, C=0.1):
+        from sklearn.linear_model import LogisticRegression
+        t0 = time.perf_counter()
+        self.mu = F.mean(0, dtype=np.float64).astype(np.float32); self.sd = F.std(0, dtype=np.float64).astype(np.float32)
+        self.sd[self.sd < 1e-6] = 1.0
+        Z = (F - self.mu) / self.sd
+        lr = LogisticRegression(C=C, max_iter=300, tol=1e-4).fit(Z, y, sample_weight=w)
+        self.a = (lr.coef_[0] / self.sd).astype(np.float64); self.b = float(lr.intercept_[0] - (lr.coef_[0] * self.mu / self.sd).sum())
+        z = F.astype(np.float64) @ self.a + self.b
+        self.info = dict(iterations=int(lr.n_iter_[0]), seconds=round(time.perf_counter() - t0, 1),
+                         auc_train=round(float(_auc(z, y)), 4), nonzero=int((np.abs(lr.coef_[0]) > 1e-6).sum()))
+        return self
+
+    def append(self, F):
+        return np.hstack([F, (F.astype(np.float64) @ self.a + self.b).astype(np.float32)[:, None]])
+
+
+def _auc(score, y):
+    from sklearn.metrics import roc_auc_score
+    i = np.random.default_rng(0).choice(len(y), min(len(y), 200_000), replace=False)
+    return roc_auc_score(y[i], score[i])
+
+
 class XgbModel:
     """XGBoost model behind the LightGBM calls used here (Val.predict, importance, save). Size: the exporter's
     packed node (NODE_BYTES per split or leaf, as LightGBM) + 2 bytes per tree + 300 fixed: the same C format
@@ -1281,7 +1326,9 @@ def arm_from_name(name):
             base["distill"] = int(tok[7:]) / 100     # distill50: target = 0.5 label + 0.5 cross-fitted teacher score
         elif tok.startswith("pw"):
             base["pw"] = float(tok[2:])
-        elif tok in ("litediff", "accdiff", "litediff4"):
+        elif tok == "lrscore":                       # one extra input: a linear tap score fitted per fold
+            base["lrscore"] = True
+        elif tok in ("litediff", "accdiff", "litediff4", "accsum", "emgsum"):
             base["spec"] = tuple(base.get("spec", ("acc", "emgraw"))) + (tok,)
         else:
             raise ValueError(f"Unknown arm token {tok}")
@@ -1388,6 +1435,11 @@ def run_arm(name):
                         cons_inputs=[names[i] for i in cols],
                         cons_score_range=[float(cscore[cols].min()), float(cscore[cols].max())])
             names = [names[i] for i in cols]
+        post = None
+        if arm.get("lrscore"):                     # stacked linear tap score: one dot product in firmware
+            ls = LinearScore().fit(F, y, weights(y, files, w0))
+            F = ls.append(F); names = list(names) + ["lr_score"]; is_emg = np.r_[is_emg, True]; post = ls.append
+            info["lrscore"] = ls.info
         extra = {}
         if arm.get("penalty") is not None:
             extra["feature_contri"] = [arm["penalty"] if e else 1.0 for e in is_emg]
@@ -1427,7 +1479,7 @@ def run_arm(name):
         (OUT / "models").mkdir(parents=True, exist_ok=True)
         m.booster_.save_model(str(OUT / "models" / f"{name}_fold{f}.txt"), num_iteration=k)
         for cond in STRESS:
-            p = val.predict(m, k, spec, tables[cond], cols=cols)
+            p = val.predict(m, k, spec, tables[cond], cols=cols, post=post)
             if cond in ("nominal", "placement"):
                 focus_acc.add(val, p, cond)
             for thr in GRID:

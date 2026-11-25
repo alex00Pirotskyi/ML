@@ -205,6 +205,22 @@ Reproduce: same as above with `P=raw126_diff+augm+litediff+press2`:
 - `$P+kb32+obs60+xgb` (needs `pip install xgboost`);
 - `rule $P+kb32+leaves15+obs60 min2` (re-scores saved fold models with another decision rule).
 
+### Can 1–4 extra inputs replace the bigger model? (2026-11-25)
+
+No. Each candidate was added to the 32 KB model (the same tree bytes). Differences to 32 KB at the trainer's 1.5/min:
+
+| extra inputs | normal | soft | 2nd of double | fast | fist /min | under placement stress |
+|---|---|---|---|---|---|---|
+| `lrscore`: one stacked linear tap score (logistic regression on all inputs, ~1.1 KB of weights) | +0.2 | −0.8 | +1.5 | +3.3 | +0.44 | gains vanish |
+| `accsum`: ACC totals (now, now − mean, high zones, rate) | 0.0 | −0.9 | −0.2 | +0.3 | −0.06 | within noise |
+| `emgsum`: rise10 sum / min / max and xm sum across channels | −0.3 | −1.1 | −0.5 | +0.6 | +0.10 | within noise |
+| (for scale) 48 KB, no new inputs | +1.6 | +1.1 | +4.0 | +3.7 | +0.31 | about half |
+| (for scale) 64 KB, no new inputs | +2.2 | +1.4 | +5.6 | +4.4 | +0.11 | about half |
+
+The gain is capacity, not missing information. If flash is the limit, a 4-byte node instead of 6 bytes would hold
+1.5x the trees in the same flash: int16 thresholds per feature scale and int16 leaves, instead of float. The
+per-frame work would then be that of the bigger model.
+
 ## Limits
 
 - **These numbers describe people who are in the data.** File-split scores are optimistic for a new user. The
