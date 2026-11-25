@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -101,9 +102,26 @@ def inventory(limit):
     if not files:
         raise RuntimeError("No DATA/DATA_TAP recordings")
     h = hashlib.sha256()
-    for p in [Path(__file__), Path(lab.__file__), Path(TF.__file__), Path(g.__file__)] + sorted((ROOT / "claude_labeling/models").glob("*")):
+    h.update(sha(Path(__file__)).encode())
+    # The original release crashed on positive events because use_weak was None.
+    # Completed checkpoints are equivalent to explicit False defaults. Reconstruct
+    # its exact fingerprint, with the same data and dependencies, to resume them.
+    legacy = None
+    try:
+        old_source = subprocess.check_output(
+            ["git", "-C", str(ROOT), "show",
+             "c5d6541f5ae4b0859b7fe2a72eed44095b05b569:research/labeling_v3/analyze.py"],
+            stderr=subprocess.DEVNULL)
+        legacy = hashlib.sha256()
+        legacy.update(hashlib.sha256(old_source).hexdigest().encode())
+    except (OSError, subprocess.CalledProcessError):
+        pass
+    for p in [Path(lab.__file__), Path(TF.__file__), Path(g.__file__)] + sorted((ROOT / "claude_labeling/models").glob("*")):
         if p.is_file():
-            h.update(sha(p).encode())
+            value = sha(p).encode()
+            h.update(value)
+            if legacy is not None:
+                legacy.update(value)
     seen = {}
     unique = []
     for i, p in enumerate(files):
@@ -113,15 +131,23 @@ def inventory(limit):
                 raise RuntimeError("Identical recording in conflicting folders: " + str(p))
             continue
         seen[digest] = p.parent.name
-        h.update((str(p.relative_to(ROOT)) + "|" + digest).encode())
+        identity = (str(p.relative_to(ROOT)) + "|" + digest).encode()
+        h.update(identity)
+        if legacy is not None:
+            legacy.update(identity)
         unique.append((p, digest))
         if (i+1) % 500 == 0:
             log("LABELING_V3_HASH", i+1, "/", len(files))
     log("LABELING_V3_INVENTORY", len(files), "unique", len(unique))
-    return unique, h.hexdigest()
+    return unique, h.hexdigest(), legacy.hexdigest() if legacy is not None else None
 
-def prepare(files, fingerprint, out):
+def prepare(files, fingerprint, out, legacy_fingerprint=None):
     cache = out / ("cache_" + fingerprint[:20])
+    if legacy_fingerprint and legacy_fingerprint != fingerprint and not cache.exists():
+        previous = out / ("cache_" + legacy_fingerprint[:20])
+        if previous.is_dir():
+            previous.rename(cache)
+            log("LABELING_V3_CACHE_MIGRATED", len(list(cache.glob("*.json"))), "checkpoints")
     cache.mkdir(parents=True, exist_ok=True)
     manifest = cache / "manifest.json"
     if manifest.is_file():
@@ -141,7 +167,9 @@ def prepare(files, fingerprint, out):
         if mpath.is_file() and xpath.is_file() and zpath.is_file():
             recs.append(json.loads(mpath.read_text()))
             continue
-        labels, ev, _ = lab.label_recording(str(path), tm, cm)
+        labels, ev, _ = lab.label_recording(
+            str(path), tm, cm, opt=dict(use_weak=False, promote_double=False,
+                                         trust_pointer=False, disconnect_rule="all"))
         df = pd.read_csv(path, usecols=lambda c: c in set(cols) | {"Timestamp", "User"}, low_memory=False)
         ts = df.Timestamp.to_numpy(np.int64)
         if not np.array_equal(ts, labels.Timestamp.to_numpy(np.int64)):
@@ -469,9 +497,9 @@ def main(a):
     weights = [float(w) for w in a.weights.split(",")]
     if not set(variants) <= set(VARIANTS) or "baseline80" not in variants or min(weights) <= 0:
         raise ValueError("Invalid variants/weights; include baseline80")
-    files, fp = inventory(a.limit_per_folder)
+    files, fp, legacy_fp = inventory(a.limit_per_folder)
     a.output.mkdir(parents=True, exist_ok=True)
-    cache, recs = prepare(files, fp, a.output)
+    cache, recs = prepare(files, fp, a.output, legacy_fp)
     meta = load_meta(cache, recs)
     dev, test, cv = split_records(recs, a.folds)
     settings = dict(fingerprint=fp, folds=a.folds, variants=variants, weights=weights,
