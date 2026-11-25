@@ -221,6 +221,27 @@ The gain is capacity, not missing information. If flash is the limit, a 4-byte n
 1.5x the trees in the same flash: int16 thresholds per feature scale and int16 leaves, instead of float. The
 per-frame work would then be that of the bigger model.
 
+### Follow-up tap rule for the strict model (2026-11-25)
+
+`firmware/tap_gestures.h` (immediate + chain) clicks a second time when the score dips below `dip` and comes back
+above `second`, 150-400 ms after a tap. Both thresholds are on the device scale, so the logit shift makes them
+stricter as well: at s = 3, device 0.60 means 0.968 of the fitted model. Tested with `tap_followup_rule.py` at the
+trainer's 1.5/min, using the same models:
+
+| model | second / dip (device) | 2nd tap of double | 240 bpm taps | single tap + extra click | movement clicks /min |
+|---|---|---|---|---|---|
+| 32 KB | no rule | 76.3% | 81.6% | 1.41% | 1.17 |
+| 32 KB | 0.60 / 0.20 (today) | 87.6% | 87.9% | 1.73% | 1.32 |
+| 32 KB | **0.40 / 0.10** | **91.6%** | **90.7%** | 2.28% | 1.42 |
+| 32 KB | 0.25 / 0.05 | 92.7% | 91.8% | 3.33% | 1.60 |
+| 64 KB | 0.60 / 0.20 (today) | 88.9% | 90.6% | 1.72% | 1.21 |
+| 64 KB | **0.40 / 0.10** | **92.0%** | **92.5%** | 2.31% | 1.25 |
+| 64 KB | 0.25 / 0.05 | 92.9% | 93.5% | 3.03% | 1.39 |
+
+The rule only acts within 400 ms of a tap, so single taps and movement far from taps keep their protection.
+`TG_SECOND_Q20 = 8, TG_DIP_Q20 = 2` (0.40 / 0.10) wins back most of the second taps and fast taps for about half a
+point more extra clicks.
+
 ## Limits
 
 - **These numbers describe people who are in the data.** File-split scores are optimistic for a new user. The
