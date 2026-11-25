@@ -242,6 +242,46 @@ The rule only acts within 400 ms of a tap, so single taps and movement far from 
 `TG_SECOND_Q20 = 8, TG_DIP_Q20 = 2` (0.40 / 0.10) wins back most of the second taps and fast taps for about half a
 point more extra clicks.
 
+## Band test of 64 KB / 1.5: taps lost, trainer changed (2026-11-25)
+
+**On the band:** protection worked, but even mid taps were missed. It was the worst tap model so far.
+
+**What the trainer picked** (`logs/tap_final14obs_splitfile_20261125_155615.log`):
+- Trial 29: positive weight **5.7** plus logit shift **4.7**.
+- Device 0.85 therefore meant **0.9984** of the fitted model.
+- Lowering the device threshold could not help: device 0.50 = 0.991, and 0.20 = 0.964.
+- The other top trials used shifts of 3.3–5.0, with weights from 0.2 to 5.7.
+- Offline everything looked fine: cross-validation 91.8% at 1.52/min, held-out files 93.1%, parity exact.
+
+**On held-out people** (person split, the research cache), the same weight / threshold pair keeps 86.4% of
+normal taps. That is within 1–2 points of weight 1 at the same movement false taps. So the offline data does not
+show the collapse. The band does: live scores sit lower than in the recordings, and an operating point this deep
+in the score's tail has no margin for that.
+
+**Trainer changes:**
+1. With the shift searched, the TAP positive weight is fixed at 1. The two moved the same thing, and Optuna paired
+   them.
+2. The shift range is 0..3. At s = 3, device 0.20 is 0.83 of the model, so the device threshold can always return
+   to the old operating point.
+3. The study and folder tag is `-shift0-3-pw1`, so the old trials are not reused.
+
+**Strictness on known vs new people**, at the threshold of each trainer target (file split = known people,
+person split = new people; same model threshold):
+
+| model | target | known: normal / soft / 2nd / fast | known: finger / fist | new: normal / soft / 2nd / fast | new: finger / fist |
+|---|---|---|---|---|---|
+| 32 KB | 6.2 (default) | 98.1 / 95.4 / 95.7 / 96.8 | 10.3 / 19.1 | 98.1 / 94.6 / 93.3 / 95.2 | 14.5 / 31.0 |
+| 32 KB | **3** | **95.6 / 92.2 / 90.3 / 92.9** | **3.9 / 7.4** | **95.1 / 90.5 / 87.2 / 86.8** | **6.2 / 14.2** |
+| 32 KB | 1.5 | 88.2 / 84.7 / 74.7 / 80.8 | 1.1 / 2.6 | 86.4 / 81.5 / 71.5 / 70.0 | 2.3 / 4.8 |
+
+**Recommendation:**
+1. Roll back to the last good header.
+2. Next, `make train KB=32 ALT_KB=14 TARGET=3`: about 40% of the default's false taps, for 2.5–5 points of taps (normal −2.5, second taps −5).
+3. Go stricter only in steps, checked on the band, and with more recordings from more people.
+
+**Model size limit:** `MAX_MODEL_SIZE_BYTES = 102400` (100 KB) is fixed in the trainer. Larger budgets are refused
+at start (and by `make train`), and every export is checked against it.
+
 ## Limits
 
 - **These numbers describe people who are in the data.** File-split scores are optimistic for a new user. The

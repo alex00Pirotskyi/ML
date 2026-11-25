@@ -190,21 +190,29 @@ if TAP_GENERALIZATION and _TARGET_ENV != "baseline":
 # Strict TAP targets need a moved decision point, and the firmware threshold stays 0.85 (Q20 17). A lower
 # positive-class weight cannot do it: at 32 KB weight 1 -> 5.5 false taps/min at 0.85, 0.05 -> 2.4, 0.01 -> 2.25
 # (it saturates, and costs taps). Moving the threshold reaches any rate on the best curve (TAP_FILESPLIT_RESULTS.md,
-# "Maximum protection"). So with a numeric target below 4/min Optuna also searches a logit shift s in 0..5: s is
+# "Maximum protection"). So with a numeric target below 4/min Optuna also searches a logit shift s in 0..3: s is
 # subtracted from every leaf of the first tree (exact, also in the C export, which keeps float leaves), so 0.85 in
-# the firmware means probability sigmoid(logit(0.85) + s) of the fitted model (s = 3: 0.991). The setting
-# MUDRA_TAP_LOGIT_SHIFT=lo,hi searches that range, off never shifts. Own folder and study (-shift0-5).
+# the firmware means probability sigmoid(logit(0.85) + s) of the fitted model (s = 3: 0.991). The cap 3 keeps the
+# device threshold able to return to the unshifted operating point (device 0.20 = 0.83 of the model at s = 3). The
+# 64 KB / 1.5 run picked s = 4.7 with weight 5.7: device 0.85 = 0.9984, and even device 0.20 = 0.964, so lowering
+# the device threshold could not bring taps back on the band. The setting MUDRA_TAP_LOGIT_SHIFT=lo,hi searches that
+# range, off never shifts. Own folder and study (-shift0-3-pw1).
 _SHIFT_ENV = os.environ.get("MUDRA_TAP_LOGIT_SHIFT", "auto").strip().lower()
 if _SHIFT_ENV == "auto":
-    TAP_LOGIT_SHIFT = (0.0, 5.0) if _TARGET_ENV != "baseline" and float(_TARGET_ENV) < 4.0 else None
+    TAP_LOGIT_SHIFT = (0.0, 3.0) if _TARGET_ENV != "baseline" and float(_TARGET_ENV) < 4.0 else None
 elif _SHIFT_ENV in ("off", "none", ""):
     TAP_LOGIT_SHIFT = None
 else:
     TAP_LOGIT_SHIFT = tuple(float(v) for v in _SHIFT_ENV.split(","))
     if len(TAP_LOGIT_SHIFT) != 2 or not 0.0 <= TAP_LOGIT_SHIFT[0] < TAP_LOGIT_SHIFT[1] <= 8.0:
         raise ValueError("MUDRA_TAP_LOGIT_SHIFT must be auto, off, or lo,hi with 0 <= lo < hi <= 8")
+# With the shift searched, the TAP positive-class weight is fixed at 1. Both move the operating point, so searching
+# both lets Optuna pair a large weight with a large shift (trial 29 of the 64 KB / 1.5 run: weight 5.7 + shift 4.7,
+# i.e. 0.85 on the device = 0.9984 of the fitted model). That fits the cross-validated people but sits in the
+# score's extreme tail, which new people and new sessions do not reach: on the band even mid taps were missed.
+# With weight 1 the shift is the threshold move the research measured (s ~ 3 for 1.5/min).
 if TAP_LOGIT_SHIFT is not None:
-    TAP_TAG += f"-shift{TAP_LOGIT_SHIFT[0]:g}-{TAP_LOGIT_SHIFT[1]:g}"
+    TAP_TAG += f"-shift{TAP_LOGIT_SHIFT[0]:g}-{TAP_LOGIT_SHIFT[1]:g}-pw1"
 # Soft labels on: own results folder too, so a run with and without them can be compared side by side.
 _SOFT_ENV = os.environ.get("MUDRA_TAP_SOFT_LABELS", "off").strip().lower()
 if TAP_GENERALIZATION and _SOFT_ENV not in ("off", "0", "none", ""):
@@ -292,9 +300,16 @@ VERIFIED_HASHES = True
 FILE_LIMIT_PER_FOLDER = None        # testing aid: use at most this many recordings per folder
 
 # Model-data budget: exact static C model bytes (export_plus), the same number the header reports.
+# MAX_MODEL_SIZE_BYTES is the device's hard maximum for any exported model (TAP or LP). It is deliberately not a
+# setting: budgets above it are refused at start, and every export is checked against it.
+MAX_MODEL_SIZE_BYTES = 102400
 MODEL_BUDGET_KB = float(os.environ.get("MUDRA_MODEL_BUDGET_KB", 32))
 ALT_BUDGET_KB = (None if os.environ.get("MUDRA_ALT_BUDGET_KB", "24").lower() in ("", "none", "0")
                  else float(os.environ.get("MUDRA_ALT_BUDGET_KB", "24")))
+for _name, _kb in (("MUDRA_MODEL_BUDGET_KB", MODEL_BUDGET_KB), ("MUDRA_ALT_BUDGET_KB", ALT_BUDGET_KB)):
+    if _kb is not None and int(round(float(_kb) * 1024)) > MAX_MODEL_SIZE_BYTES:
+        raise ValueError(f"{_name}={_kb:g} KB exceeds MAX_MODEL_SIZE_BYTES = {MAX_MODEL_SIZE_BYTES} "
+                         f"({MAX_MODEL_SIZE_BYTES / 1024:g} KB), the device maximum")
 NODE_BYTES = 6                      # export_plus packed LightGBM node: float threshold + 2 bytes
 
 # LightGBM search space (agreed ranges). Leaves are capped at 2**depth and at 127 (uint8 child index).
@@ -311,7 +326,7 @@ if len(NUM_LEAVES) != 2 or not 2 <= NUM_LEAVES[0] <= NUM_LEAVES[1] <= 127:
 # 38 trees collapses): the final recipe searches 4..15 (the TAP results folder names a non-default range).
 LEARNING_RATE = (0.02, 0.3)
 MIN_CHILD_SAMPLES = (10, 300)
-POSITIVE_WEIGHT = dict(tap=(0.2, 10.0), lp=(0.2, 20.0))
+POSITIVE_WEIGHT = dict(tap=(1.0, 1.0) if TAP_LOGIT_SHIFT else (0.2, 10.0), lp=(0.2, 20.0))
 if LP_RELEASE_THRESHOLD != 0.85:
     # Measured: the LP replay optimum moves from threshold 1.0 (weight 6) to 0.85 (0.2) to 0.7 (0.05);
     # a 0.5 release threshold needs release weights around 0.01, so the LP range must reach that low.
@@ -2091,6 +2106,9 @@ def write_header(model, subset, stem, folder: Path, task, outdir: Path):
     size = int(saved["total_static_data_bytes"])
     if size != static_bytes(model):
         raise ValueError(f"Exported size differs from estimate: {size} != {static_bytes(model)}")
+    if size > MAX_MODEL_SIZE_BYTES:
+        header.unlink(missing_ok=True)
+        raise ValueError(f"{header.name}: {size} bytes exceeds MAX_MODEL_SIZE_BYTES = {MAX_MODEL_SIZE_BYTES}")
     return header, size, checked
 
 

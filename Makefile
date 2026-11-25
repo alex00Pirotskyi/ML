@@ -12,8 +12,9 @@
 #   make train SPLIT=person
 #   make train KB=32 ALT_KB=14   (32 KB TAP model, plus a 14 KB candidate from the same search)
 #   make train TARGET=4      (stricter taps: at most 4 false taps/min in training, instead of the old header's ~6)
-#   make train KB=64 ALT_KB=32 TARGET=1.5   (maximum protection: same protection as 32 KB, more taps;
-#                                            KB=128 ALT_KB=64 for a little more, see TAP_FILESPLIT_RESULTS.md)
+#   make train KB=32 ALT_KB=14 TARGET=3     (about half the false taps of the default, taps kept; stricter
+#                                            targets lost taps on the band, see TAP_FILESPLIT_RESULTS.md)
+#   Model size: at most 100 KB (MAX_MODEL_SIZE_BYTES = 102400, fixed in the trainer)
 
 RECIPE ?= final14obs
 SPLIT  ?= file
@@ -38,6 +39,8 @@ TRAIN_RE := ^[^ ]*python[0-9.]* .*train_unified\.py
 .PHONY: train status stop
 
 train:
+	@for kb in $(KB) $(ALT_KB); do if awk -v k="$$kb" 'BEGIN{exit !(k * 1024 > 102400)}'; then \
+	  echo "$$kb KB exceeds the device maximum MAX_MODEL_SIZE_BYTES = 102400 (100 KB)"; exit 1; fi; done
 	@running=$$(pgrep -af '$(TRAIN_RE)'); \
 	if [ -n "$$running" ] && [ "$(FORCE)" != "1" ]; then \
 	  echo "A training is already running:"; echo "$$running"; \
