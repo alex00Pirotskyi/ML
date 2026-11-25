@@ -280,7 +280,11 @@ ALT_BUDGET_KB = (None if os.environ.get("MUDRA_ALT_BUDGET_KB", "24").lower() in 
 NODE_BYTES = 6                      # export_plus packed LightGBM node: float threshold + 2 bytes
 
 # LightGBM search space (agreed ranges). Leaves are capped at 2**depth and at 127 (uint8 child index).
-N_ESTIMATORS = (80, 400)
+# Tree-count range of the search. MUDRA_N_ESTIMATORS=lo,hi widens it for bigger budgets: 400 trees of 4 leaves fill only
+# about 18 KB (make train KB=32 passes 80,800).
+N_ESTIMATORS = tuple(int(v) for v in os.environ.get("MUDRA_N_ESTIMATORS", "80,400").split(","))
+if len(N_ESTIMATORS) != 2 or not 20 <= N_ESTIMATORS[0] < N_ESTIMATORS[1]:
+    raise ValueError("MUDRA_N_ESTIMATORS must be lo,hi with 20 <= lo < hi")
 MAX_DEPTH = (3, 10)
 NUM_LEAVES = tuple(int(v) for v in os.environ.get("MUDRA_NUM_LEAVES", "8,127").split(","))
 if len(NUM_LEAVES) != 2 or not 2 <= NUM_LEAVES[0] <= NUM_LEAVES[1] <= 127:
