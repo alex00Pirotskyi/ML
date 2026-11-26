@@ -66,21 +66,24 @@ def hand_cases():
     T, D = TG.TAP, TG.DOUBLE_TAP
     # one tap, score back to 0: a single TAP once the window closes
     assert kinds(*stream([(20, 0), (10, 20), (200, 0)])) == [T]
-    # two taps 250 ms apart, second only 0.65 (Q20 13) after a dip: double
-    assert kinds(*stream([(20, 0), (10, 20), (40, 0), (10, 13), (200, 0)])) == [D]
-    # same but the second bump is 0.55 (Q20 11 < 12): one TAP (the 2nd is below 0.85, so not a tap on its own)
-    assert kinds(*stream([(20, 0), (10, 20), (40, 0), (10, 11), (200, 0)])) == [T]
+    # a bump that only reaches 0.85 (Q20 17 < 18): no tap with the strict default, a TAP at the old 0.85
+    assert kinds(*stream([(20, 0), (10, 17), (200, 0)])) == []
+    assert kinds(*stream([(20, 0), (10, 17), (200, 0)]), TG.Config(fire=17, second=12)) == [T]
+    # two taps 250 ms apart, second only 0.80 (Q20 16) after a dip: double
+    assert kinds(*stream([(20, 0), (10, 20), (40, 0), (10, 16), (200, 0)])) == [D]
+    # same but the second bump is 0.70 (Q20 14 < 15): one TAP (the 2nd is below 0.90, so not a tap on its own)
+    assert kinds(*stream([(20, 0), (10, 20), (40, 0), (10, 14), (200, 0)])) == [T]
     # second bump without a dip below 0.20 (score stays at 0.30): not a double
-    assert kinds(*stream([(20, 0), (10, 20), (40, 6), (10, 13), (200, 0)])) == [T]
+    assert kinds(*stream([(20, 0), (10, 20), (40, 6), (10, 16), (200, 0)])) == [T]
     # second tap too late (window 400 ms): two single TAPs
     assert kinds(*stream([(20, 0), (10, 20), (100, 0), (10, 20), (200, 0)])) == [T, T]
     # triple tap 250 ms apart: one DOUBLE, the third is inside the 300 ms lockout
     assert kinds(*stream([(20, 0), (10, 20), (40, 0), (10, 20), (40, 0), (10, 20), (200, 0)])) == [D]
     # immediate mode: TAP at once, DOUBLE follows
-    q, t = stream([(20, 0), (10, 20), (40, 0), (10, 13), (200, 0)])
+    q, t = stream([(20, 0), (10, 20), (40, 0), (10, 16), (200, 0)])
     assert [e for _, e in TG.step_all(q, t.astype(float), TG.Config(immediate=True))] == [T, D]
-    # fast series, 5 taps 250 ms apart (the 3rd and 5th only 0.65): lockout loses taps, chain keeps all
-    q, t = stream([(20, 0)] + [x for k in range(5) for x in ((10, 20 if k % 2 == 0 else 13), (40, 0))] + [(200, 0)])
+    # fast series, 5 taps 250 ms apart (the 2nd and 4th only 0.80): lockout loses taps, chain keeps all
+    q, t = stream([(20, 0)] + [x for k in range(5) for x in ((10, 20 if k % 2 == 0 else 16), (40, 0))] + [(200, 0)])
     assert [e for _, e in TG.step_all(q, t.astype(float), TG.Config(immediate=True))] == [T, D, T]
     assert [e for _, e in TG.step_all(q, t.astype(float), TG.Config(immediate=True, chain=True))] == [T, D, D, D, D]
 

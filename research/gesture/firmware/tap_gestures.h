@@ -4,19 +4,24 @@
  * Call tg_update() once per model run with the Q20 TAP_SWIPE score (0..20) and a millisecond clock.
  * It returns TG_TAP, TG_DOUBLE_TAP or TG_NONE.
  *
- *   - A tap starts on a rising edge of the score to >= TG_FIRE_Q20 (0.85, the trained threshold).
- *   - The 2nd tap of a double needs only TG_SECOND_Q20 (0.60), but only inside the double-tap window
+ *   - A tap starts on a rising edge of the score to >= TG_FIRE_Q20 (0.90; the model is trained at 0.85).
+ *   - The 2nd tap of a double needs TG_SECOND_Q20 (0.75), but only inside the double-tap window
  *     (TG_MIN_GAP_MS..TG_WINDOW_MS after the 1st) and only after the score fell below TG_DIP_Q20 (0.20)
- *     since the 1st tap, so the release of one tap cannot count as a 2nd tap. Second taps score lower than
- *     first taps (device logs: 0.55-0.80 when missed at 0.85); single taps showed no bump after the dip.
- *     Nothing changes outside the window, so single-tap false events stay as they are.
+ *     since the 1st tap, so the release of one tap cannot count as a 2nd tap.
+ *   - Strict defaults (2026-11-26): 0.90 / 0.75 instead of 0.85 / 0.60. Held-out replay, top-label model:
+ *     24% fewer false taps and 40% fewer false double taps during finger / fist / wrist / band movement, and
+ *     single taps read as a double tap 5.7% -> 3.6% (a 0.60-0.70 bump after a tap no longer completes a
+ *     double), for about 1 point of double taps and of swipes; single taps unchanged. HID chain: extra clicks
+ *     after a single tap 5.5% -> 3.4%, fast taps clicked 95.9% -> 93.6%. Previous (less strict) values:
+ *     TG_FIRE_Q20 17, TG_SECOND_Q20 12. Strictest tested: TG_FIRE_Q20 19 (53% fewer movement false taps,
+ *     but 3-7 points of taps; test it on the band first).
  *   - TG_REPORT_TAP_IMMEDIATELY 0 (default): TAP and DOUBLE_TAP are exclusive. A single tap is reported
  *     when the window closes (TG_WINDOW_MS after its onset); a double tap is reported at the 2nd tap.
  *     TG_REPORT_TAP_IMMEDIATELY 1: TAP at once on every 1st tap, DOUBLE_TAP follows (the app undoes the TAP).
  *   - After a double tap, onsets are ignored for TG_LOCKOUT_MS, so a triple tap is not double + single.
  *   - TG_CHAIN_TAPS 1 (needs TG_REPORT_TAP_IMMEDIATELY 1; HID clicks): no lockout, every accepted tap re-arms
  *     the window, so in a fast series (4-5 taps/s) every tap after the first is TG_DOUBLE_TAP with the
- *     relaxed threshold. Send one click per TG_TAP and per TG_DOUBLE_TAP; the host forms double clicks.
+ *     2nd-tap threshold TG_SECOND_Q20. Send one click per TG_TAP and per TG_DOUBLE_TAP; the host forms double clicks.
  *   - tg_cancel() drops a pending (not yet reported) tap, e.g. when a swipe or long press is recognised.
  *
  * Integer only, 12 bytes of state, about 67 Cortex-M4 instructions, no calls. The thresholds and windows were chosen on
@@ -29,10 +34,10 @@
 #include <stdint.h>
 
 #ifndef TG_FIRE_Q20
-    #define TG_FIRE_Q20 (17u)              /* 0.85: tap onset (rising edge), unchanged */
+    #define TG_FIRE_Q20 (18u)              /* 0.90: tap onset (rising edge); 17 = 0.85, the trained threshold */
 #endif
 #ifndef TG_SECOND_Q20
-    #define TG_SECOND_Q20 (12u)            /* 0.60: 2nd tap of a double, inside the window, after a dip */
+    #define TG_SECOND_Q20 (15u)            /* 0.75: 2nd tap of a double, inside the window, after a dip (was 12) */
 #endif
 #ifndef TG_DIP_Q20
     #define TG_DIP_Q20 (4u)                /* 0.20: the score must fall below this between the two taps */

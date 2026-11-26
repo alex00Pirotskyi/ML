@@ -16,8 +16,8 @@ IDLE, PENDING, LOCKOUT = 0, 1, 2
 
 @dataclass(frozen=True)
 class Config:
-    fire: float = 17            # TG_FIRE_Q20
-    second: float = 12          # TG_SECOND_Q20
+    fire: float = 18            # TG_FIRE_Q20 (0.90; 17 = 0.85 before 2026-11-26)
+    second: float = 15          # TG_SECOND_Q20 (0.75; 12 = 0.60 before 2026-11-26)
     dip: float = 4              # TG_DIP_Q20
     min_gap_ms: float = 150     # TG_MIN_GAP_MS
     window_ms: float = 400      # TG_WINDOW_MS
