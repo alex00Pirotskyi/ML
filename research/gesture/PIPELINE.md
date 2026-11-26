@@ -29,7 +29,7 @@ TAP generalization (TAP_GENERALIZATION_RESULTS.md): EMG diffs + placement augmen
 With `MUDRA_USE_LEAN8=0` the TAP `COMPARISON.md` also replays every model and baseline under a simulated band move /
 contact change on the held-out people.
 
-**Final pipeline** (`make train`, TAP_FILESPLIT_RESULTS.md, "Final pipeline"): the final14obs data recipe, the
+**Balanced pipeline** (`make train RECIPE=final`, research only; it lost mid and strong taps on the band, TAP_FILESPLIT_RESULTS.md): the final14obs data recipe, the
 balanced objective (every tap kind counts the same; no movement kind above 7 false taps per minute), one operating
 control (the logit shift 0..3, weight 1), and the size ladder (8-100 KB; a model must be 1 point better per 100 KB):
 

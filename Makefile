@@ -6,18 +6,15 @@
 #   make status     is it running, how many trials, last trial lines
 #   make stop       stop every running training (also ones started by hand)
 #
-# Default: the final pipeline (RECIPE=final), one clean recipe:
-#   - every tap kind counts the same (soft, mid, strong, double, fast, swipe, other taps);
-#   - no movement kind (finger, fist, wrist / twist, arm, band) may cause more than LIMIT false taps per minute;
-#   - Optuna also prefers small models: every trial is scored from 8 KB up to 100 KB, and a bigger model must be
-#     1 point better per 100 KB to be chosen.
+# Default: RECIPE=final14obs, the recipe of the model that worked on the band (2026-11-24): file split, 14 KB,
+# the old header's false-tap level as the target, no threshold shift. Stricter models (TARGET below 4, RECIPE=final)
+# kept their protection offline but lost mid and strong taps on the band (2026-11-25 / 26).
 # Settings, for example:
-#   make train LIMIT=5       (stricter protection: at most 5 false taps per minute from any movement; default 7)
-#   make train KB=48         (largest model size considered; default 100 KB, the device maximum)
-#   make train RECIPE=final14obs [KB=32 ALT_KB=14 TARGET=3]   (the earlier recipe and its options)
+#   make train RECIPE=final [LIMIT=7]   (balanced objective + size ladder; lost taps on the band, research only)
+#   make train KB=32 ALT_KB=14          (bigger model, same false-tap level)
 #   Model size: at most 100 KB (MAX_MODEL_SIZE_BYTES = 102400, fixed in the trainer)
 
-RECIPE ?= final
+RECIPE ?= final14obs
 LIMIT  ?=
 override SPLIT := file# fixed: splits and folds by recording file only (a person split is not allowed)
 ALT_KB ?= 10

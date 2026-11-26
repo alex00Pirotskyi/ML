@@ -282,7 +282,13 @@ person split = new people; same model threshold):
 **Model size limit:** `MAX_MODEL_SIZE_BYTES = 102400` (100 KB) is fixed in the trainer. Larger budgets are refused
 at start (and by `make train`), and every export is checked against it.
 
-## Final pipeline (2026-11-25): `make train`
+## Final pipeline (2026-11-25): `make train RECIPE=final`, research only
+
+**Band test (2026-11-26):** 43 s of mid and strong taps (about one per second), and the tap score never reached the
+threshold (highest 16 of 20; 17 = 0.85). A second test of 29 s gave 2 taps. Like the strict 1.5 targets, it holds
+protection offline but not taps on the band. `make train` is back to `final14obs`, the recipe of the model that
+worked on the band.
+
 
 The goal: every tap kind works, no movement makes taps, and Optuna keeps the model as small as it can. No extra
 tricks.
