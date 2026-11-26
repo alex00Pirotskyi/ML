@@ -83,3 +83,21 @@ TapWristband examined how finger tapping transmits vibrations to wrist sensors. 
 The wrist-sEMG neuromotor interface study used multi-participant data and evaluated closed-loop input. It motivates independent wearer splits and testing real device emissions. [Nature 2025](https://www.nature.com/articles/s41586-025-09255-w)
 
 The repository's own ablations found worse tap recall for accelerometer-only re-anchoring, and the feature-selection study measured extra false events from promoting weak teacher scores. Those experiments used joint tap/swipe targets. This release preserves the existing timing teacher and adds confidence masking and independent review. [Generalization experiments](../research/gesture/TAP_GENERALIZATION_RESULTS.md) · [Feature-selection experiments](../research/gesture/FEATURE_SELECTION_RESULTS.md)
+
+## How much does the teacher depend on the gesture shape?
+
+The sensor-only audit scans all 3,072 distinct recordings before consulting any pointer-linked labels. At each candidate time it scores three versions of the same window. The first is the recorded window. The second repeats each center feature value across all offsets. The third preserves the history and holds future values at the center. After the same five-frame score smoothing, a candidate loses support if every modified score within 150 ms falls below the original acceptance threshold. This is a sensitivity check on a fixed teacher. Artificially modified inputs cannot determine physical contact or measure firmware accuracy.
+
+| Candidate group | Original high peaks | Lost support with constant features | Lost support with future features held constant |
+| --- | ---: | ---: | ---: |
+| Previously accepted taps and swipes | 18,487 | 18,475 | 11,279 |
+| Accepted SoftTap subset | 2,457 | 2,457 | 1,306 |
+| Peaks in finger-motion recordings | 99 | 99 | 87 |
+
+The sensor scan also found 397 candidates in drag-and-drop and 915 across the four long-press folders. Use these timestamped candidates to review gesture confusion, including onset versus release in sustained gestures. Preserve unresolved cases for independent annotation. Requiring a fixed rebound or a minimum impact could discard quiet contacts. The audit supplies evidence for review and makes no changes to training targets.
+
+Run from the repository root, with the events from the label export:
+
+```bash
+OMP_NUM_THREADS=1 python -m claude_labeling.audit_tap_patterns DATA claude_labeling/tap_recordings.txt.gz pattern-audit --teacher-events labels-tap-swipe/teacher_events.csv.gz
+```
