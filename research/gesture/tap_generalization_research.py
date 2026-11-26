@@ -20,6 +20,9 @@ results_tap_filesplit/); MUDRA_GR_STRESS=nominal,placement scores only those con
 labeller's soft taps of every TAP / SWIPE recording as positives) and distill<a> (soft targets a*label +
 (1-a)*cross-fitted full-size teacher, fitted as two weighted binary rows per frame). See TAP_FILESPLIT_RESULTS.md.
 
+Fist study (2026-11-26): lpneg (long-press starts and releases, unknown in the labels, as negatives), fistw<k> (fist
+negatives only x k). See TAP_FIST.md.
+
 Data: an existing full TAP cache (MUDRA_GR_CACHE, default /tmp/v3soft/tap/cache: RAW_126 + Lean-8 24 columns,
 built by train_unified.build_task_data). Development people only (the trainer's 22% person holdout is never
 touched), 3 person folds (GroupKFold, as the trainer and fs_research). Soft-label rows are not used.
@@ -860,6 +863,20 @@ def background_rows(groups, min_ms, stride=6):
     return np.sort(np.concatenate(out)) if out else np.zeros(0, np.int64)
 
 
+LP_FOLDERS = ["SOFT_LONG_PRESS", "MID_LONG_PRESS", "STRONG_LONG_PRESS", "LONG_PRESS", "DRAG_AND_DROP"]
+
+
+def lp_unknown_rows(groups, stride=6):
+    """Replay rows of long-press recordings (training groups) that the labeller left unknown: -300..+500 ms around
+    every pointer-down and release (a press that turns into a hold, and its release). Every stride-th row, frame >= 50."""
+    D = load(); rpl = D["rpl"]; recs = rpl["recs"]
+    lab = np.asarray(rpl["label"]); fr = np.asarray(rpl["frames"]); out = []
+    for r in np.flatnonzero(recs.folder.isin(LP_FOLDERS).to_numpy() & recs.group.isin(groups).to_numpy()):
+        a, b = int(recs.start.iloc[r]), int(recs.end.iloc[r])
+        out.append(np.arange(a, b)[(lab[a:b] == -1) & (fr[a:b] >= 50)][::stride])
+    return np.sort(np.concatenate(out)) if out else np.zeros(0, np.int64)
+
+
 def mine_finger(people, fold, thr=0.3, stride_ms=20, cap=40000, base="raw126_diff+augm"):
     """Hard negatives: FINGER-folder replay rows (finger motion and fist, frame >= 50) of these training people that
     the baseline fold model (trained on these people) still scores >= thr, one per stride_ms, at most cap."""
@@ -1447,6 +1464,10 @@ def arm_from_name(name):
         elif tok in ("relneg", "preneg", "pressneg", "relnegs"):   # the tap's own press: release / lead-in / both;
             base["pressneg"] = {"relneg": ("rel",), "preneg": ("pre",), "pressneg": ("rel", "pre"),
                                 "relnegs": ("rel", "single")}[tok]   # relnegs: release, single-tap recordings only
+        elif tok == "lpneg":                          # long-press starts / releases (unknown today) trained as negative
+            base["lpneg"] = True
+        elif tok.startswith("fistw"):                 # fist (Fist & Stretch) negatives only, weighted x k
+            base["fistw"] = float(tok[5:])
         elif tok.startswith("bgneg") and tok[5:].isdigit():   # bgneg500: TAP / SWIPE rest time > 500 ms from any
             base["bgneg"] = int(tok[5:])                       # press or tap (unknown today) trained as negative
         elif tok == "softall":                       # soft labels in every TAP / SWIPE recording (trainer soft 0.5)
@@ -1489,6 +1510,13 @@ def run_arm(name):
             files = np.r_[files, D["rpl"]["recs"].file.to_numpy(object)[rec_m]]
             w0 = np.r_[w0, np.ones(len(mined), np.float32)]; rec = np.r_[rec, rec_m]; ridx = np.r_[ridx, mined]
             info["mined_finger_rows"] = int(len(mined))
+        if arm.get("lpneg"):                       # long-press starts and releases: not a tap
+            mined = lp_unknown_rows(set(data["group"][trn]))
+            rec_m = np.searchsorted(D["rpl"]["recs"].end.to_numpy(), mined, side="right")
+            X150 = np.concatenate([X150, np.asarray(D["rpl"]["X"][mined])]); y = np.r_[y, np.zeros(len(mined), int)]
+            files = np.r_[files, D["rpl"]["recs"].file.to_numpy(object)[rec_m]]
+            w0 = np.r_[w0, np.ones(len(mined), np.float32)]; rec = np.r_[rec, rec_m]; ridx = np.r_[ridx, mined]
+            info["lp_start_negative_rows"] = int(len(mined))
         if arm.get("bgneg"):                       # rest time far from every press / tap in TAP and SWIPE files
             mined = background_rows(set(data["group"][trn]), arm["bgneg"])
             rec_m = np.searchsorted(D["rpl"]["recs"].end.to_numpy(), mined, side="right")
@@ -1530,6 +1558,11 @@ def run_arm(name):
             fing = (D["rpl"]["recs"].folder.to_numpy(object)[rec] == "FINGER") & (y == 0)
             w0 = np.asarray(w0, np.float32).copy(); w0[fing] *= arm["fingerw"]
             info["finger_rows_weighted"] = int(fing.sum())
+        if arm.get("fistw"):                       # fist (Fist & Stretch) negatives only x k
+            fn = D["rpl"]["recs"].file.to_numpy(object)[rec]
+            fist = np.array(["fist" in str(x).lower() for x in fn]) & (y == 0)
+            w0 = np.asarray(w0, np.float32).copy(); w0[fist] *= arm["fistw"]
+            info["fist_rows_weighted"] = int(fist.sum())
         if arm.get("movew"):                       # all movement negatives (finger, fist, wrist, arm, band) x k
             mv = np.isin(D["rpl"]["recs"].folder.to_numpy(object)[rec], ["FINGER", "WRIST", "ARM", "BAND"]) & (y == 0)
             w0 = np.asarray(w0, np.float32).copy(); w0[mv] *= arm["movew"]

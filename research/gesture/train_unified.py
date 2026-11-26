@@ -227,6 +227,15 @@ if TAP_FINGER_WEIGHT <= 0:
     raise ValueError("MUDRA_TAP_FINGER_WEIGHT must be > 0")
 if TAP_GENERALIZATION and TAP_FINGER_WEIGHT != 1.0:
     TAP_TAG += f"-fingerw{TAP_FINGER_WEIGHT:g}"
+# Fist negatives only (FINGER-folder recordings with "fist" in the file name: Fist & Stretch) weighted x k
+# (MUDRA_TAP_FIST_WEIGHT, default 1; make train FIST=k), on top of MUDRA_TAP_FINGER_WEIGHT. At 14 KB it moves false
+# taps from fists to wrist motion; with a bigger model (KB=64) it adds to the bigger model's protection
+# (TAP_FIST.md). Teachers keep plain weights.
+TAP_FIST_WEIGHT = float(os.environ.get("MUDRA_TAP_FIST_WEIGHT", "1"))
+if TAP_FIST_WEIGHT <= 0:
+    raise ValueError("MUDRA_TAP_FIST_WEIGHT must be > 0")
+if TAP_GENERALIZATION and TAP_FIST_WEIGHT != 1.0:
+    TAP_TAG += f"-fistw{TAP_FIST_WEIGHT:g}"
 # A fixed false-tap target (MUDRA_TAP_FALSE_PER_MIN_TARGET=<number>): own results folder and study, so runs with
 # different targets never share trials and can be compared side by side.
 _TARGET_ENV = os.environ.get("MUDRA_TAP_FALSE_PER_MIN_TARGET", "baseline").strip().lower()
@@ -1576,6 +1585,13 @@ def split_heldout(data, task):
     raise RuntimeError(f"No usable {SPLIT_BY}-grouped {task} split, inspect category coverage")
 
 
+def fist_rows(data):
+    """Training rows from fist recordings: FINGER folder, "fist" in the file name (Fist & Stretch)."""
+    files = pd.Series(data["file"], dtype=object)
+    fist_file = {f: "fist" in str(f).lower() for f in files.unique()}
+    return (np.asarray(data["category"]) == "FINGER") & files.map(fist_file).to_numpy(bool)
+
+
 def weights_for_task(data, indices, task, positive_weight, finger=True):
     """File-normalized class balancing, then the tunable positive-class weight (see v1 notes). TAP: FINGER-folder
     negatives first weighted x MUDRA_TAP_FINGER_WEIGHT (finger=False: plain, for the teachers)."""
@@ -1583,6 +1599,10 @@ def weights_for_task(data, indices, task, positive_weight, finger=True):
     w = data["w"][indices].astype(np.float32).copy()
     if task == "tap" and finger and TAP_FINGER_WEIGHT != 1.0:
         w[(y == 0) & (data["category"][indices] == "FINGER")] *= np.float32(TAP_FINGER_WEIGHT)
+    if task == "tap" and finger and TAP_FIST_WEIGHT != 1.0:
+        if "is_fist" not in data:
+            data["is_fist"] = fist_rows(data)
+        w[(y == 0) & data["is_fist"][indices]] *= np.float32(TAP_FIST_WEIGHT)
     file_counts = Counter(data["file"][indices])
     w /= np.asarray([math.sqrt(file_counts[f]) for f in data["file"][indices]], dtype=np.float32)
     for cls in (0, 1):
@@ -3065,6 +3085,9 @@ def train_task(task: str, tap_files, lp_files):
         OBS_CACHE_DIR = out / "cache" / "obs"
     if task == "tap" and TAP_FINGER_WEIGHT != 1.0:           # rankings and studies are fitted with these weights
         data["content_sha256"] = hashlib.sha256((data["content_sha256"] + f"|tap_finger_weight={TAP_FINGER_WEIGHT}").encode()).hexdigest()
+    if task == "tap" and TAP_FIST_WEIGHT != 1.0:
+        data["is_fist"] = fist_rows(data)
+        data["content_sha256"] = hashlib.sha256((data["content_sha256"] + f"|tap_fist_weight={TAP_FIST_WEIGHT}").encode()).hexdigest()
     if task == "tap" and TAP_DISTILL is not None:
         import inspect
         data["distill_content_sha256"] = data["content_sha256"]
