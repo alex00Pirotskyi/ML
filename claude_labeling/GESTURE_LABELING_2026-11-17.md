@@ -2,6 +2,13 @@
 
 2026-11-17 · script: `claude_labeling/label_gestures.py` · data: `DATA/DATA_TAP`, `DATA/DATA_LONG_PRESS`
 
+> **Update 2026-11-26.** Two things below changed. (1) The tap teacher is now cross-fitted on gesture-aware **file**
+> folds and picked by the recording's content hash, never by person (`teacher/README.md`). Against the person-fold
+> teacher it confirms 88.8% instead of 81.4% of TAP presses and 87.8% instead of 79.5% of swipes (21,497 instead of
+> 19,619 taps in DATA_TAP; 99.8% of the old confirmed taps stay confirmed, 98.8% with the same onset within 10 ms). The
+> contact model is the mean of its five folds. (2) Where a tap is taught is now the trainer's choice: `make train`
+> moves every tap to the top of its contact jolt (`tap_top.py`, `research/gesture/TAP_TOP_LABELS.md`).
+
 ## Bottom line
 
 `label_gestures.py` writes `y_true` for every recording in one pass: tap and swipe onsets, long-press holds, and per-channel REST / ACTIVE / OFF.
@@ -59,8 +66,8 @@ Suggested targets:
 | Per-channel contact / activity | `ch<c>_label` | `ch<c>_label >= 0` |
 
 Options: `--disconnect-rule all|taps|off`, `--tap-win A B`, `--use-weak`, `--promote-double-partners`, `--trust-pointer`, `--kind` for a file
-outside the standard folders. Keep files under their original names: the person, read from the name and the `User` column, picks the fold
-model that never saw them, and new people get the average of the five folds.
+outside the standard folders. Every recording is scored by the teacher fold that never saw it (found by content); recordings none of the
+five folds saw get their mean.
 
 ## What each label means and why
 
@@ -173,7 +180,8 @@ the 80 ms onset window is positive. Per-folder numbers are in `results/label_sta
 | Path | What |
 | --- | --- |
 | `label_gestures.py` | the labeler |
-| `models/tap_teacher_fold*.txt`, `tap_teacher.json` | tap teacher, five person-grouped folds, thresholds, calibration, person-to-fold map |
+| `models/tap_teacher_file_fold*.txt`, `tap_teacher_file.json` | tap teacher, five gesture-aware file folds, thresholds, calibration, content-to-fold map (used) |
+| `models/tap_teacher_fold*.txt`, `tap_teacher.json` | the earlier person-fold tap teacher (kept for reference, not used) |
 | `models/contact_fold*.txt`, `contact_folds.json` | contact model, five folds |
 | `figures/labels_by_recording_type.png` | the figure above |
 | `results/label_stats_by_folder.csv` | label totals per folder for both data roots |

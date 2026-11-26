@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Fold-local, person-grouped feature ranking for the unified TAP / LONG_PRESS trainer (v3).
+"""Fold-local, group-wise feature ranking for the unified TAP / LONG_PRESS trainer (v3).
+
+The groups are the trainer's: one group per recording FILE (MUDRA_SPLIT=file; a person split is not allowed), and
+"people" below means those groups. The inner folds are gesture-aware like the trainer's CV folds: StratifiedKFold over
+the files by recording type (folder | gesture | bpm, rare types pooled), so every inner validation part holds its
+share of every gesture (inner_splits).
 
 Implements FEATURE_SELECTION_RESEARCH_AND_EXECUTION_PLAN.md:
 
@@ -28,6 +33,7 @@ from __future__ import annotations
 import hashlib
 import json
 import time
+from collections import Counter
 from pathlib import Path
 
 import numpy as np
@@ -35,10 +41,11 @@ from scipy.cluster.hierarchy import fcluster, linkage
 from scipy.spatial.distance import squareform
 from scipy.stats import rankdata
 from sklearn.metrics import silhouette_score
-from sklearn.model_selection import GroupKFold
+from sklearn.model_selection import GroupKFold, StratifiedKFold
 
-RANKER_VERSION = "fs-2"
+RANKER_VERSION = "fs-3"          # fs-3: gesture-aware file inner folds (fs-2: GroupKFold over the groups)
 INNER_FOLDS = 3
+INNER_STRATUM_MIN_FILES = 5      # as the trainer's STRATUM_MIN_FILES: rarer recording types are pooled one level up
 REPEATS_FEATURE = 1
 REPEATS_GROUP = 2
 CLUSTER_SAMPLE_ROWS = 60_000
@@ -165,12 +172,49 @@ def ranking_key(data, task, outer_train_ids, columns, gate, tap_target, seed):
     h = hashlib.sha256()
     h.update(json.dumps(dict(v=RANKER_VERSION, task=task, columns=list(columns), gate=gate, target=tap_target,
                              seed=seed, inner=INNER_FOLDS, rf=REPEATS_FEATURE, rg=REPEATS_GROUP,
+                             inner_split="file-gesture" if "stratum" in data else "group",
+                             inner_min=INNER_STRATUM_MIN_FILES,
                              screen=SCREEN_PARAMS, spw=SCREEN_POSITIVE_WEIGHT, cuts=list(CLUSTER_CUTS),
                              sample=CLUSTER_SAMPLE_ROWS, link=CLUSTER_LINKAGE, tg=TAP_GRID, lg=LP_GRID),
                              sort_keys=True).encode())
     h.update(str(data.get("content_sha256")).encode())
     h.update(np.ascontiguousarray(np.sort(np.unique(data["group"][outer_train_ids]).astype(str))).tobytes())
     return h.hexdigest()
+
+
+def merge_rare(labels, min_count: int):
+    """Pool strata with fewer than min_count members one level up (folder|gesture|bpm -> folder|gesture -> folder
+    -> other); a stratum still below 2 members joins the largest one. Same rule as the trainer's merge_rare."""
+    lab = np.asarray(labels, object).copy()
+    for level in (2, 1, 0):
+        counts = Counter(lab.tolist())
+        rare = np.array([counts[x] < min_count for x in lab], bool)
+        if not rare.any():
+            break
+        lab[rare] = ["|".join(str(x).split("|")[:level]) or "other" for x in lab[rare]]
+    counts = Counter(lab.tolist())
+    if counts and min(counts.values()) < 2:
+        big = counts.most_common(1)[0][0]
+        lab = np.array([big if counts[x] < 2 else x for x in lab], object)
+    return lab
+
+
+def inner_splits(data, ids, seed=0):
+    """Inner folds over the outer fold's training rows `ids` (positions into ids), by recording file: no group is on
+    both sides. Gesture-aware when the trainer gives every row its recording type (data["stratum"], file split):
+    StratifiedKFold over the files by type, as the trainer's CV folds. GroupKFold over the groups otherwise."""
+    ids = np.asarray(ids)
+    groups = np.asarray(data["group"][ids]).astype(str)
+    if "stratum" not in data:
+        return list(GroupKFold(n_splits=INNER_FOLDS).split(ids, data["y"][ids], groups))
+    uniq, codes = np.unique(groups, return_inverse=True)
+    _, first = np.unique(codes, return_index=True)
+    strata = merge_rare(np.asarray(data["stratum"][ids])[first], INNER_STRATUM_MIN_FILES)
+    out = []
+    for _, b_g in StratifiedKFold(n_splits=INNER_FOLDS, shuffle=True, random_state=7919 + int(seed)).split(uniq, strata):
+        val = np.zeros(len(uniq), bool); val[b_g] = True
+        out.append((np.flatnonzero(~val[codes]), np.flatnonzero(val[codes])))
+    return out
 
 
 def fit_fold_ranker(g, R, data, rpl, outer_train_ids, task, *, seed=0, cache_dir: Path | None = None,
@@ -194,8 +238,7 @@ def fit_fold_ranker(g, R, data, rpl, outer_train_ids, task, *, seed=0, cache_dir
     member_of = {j: ci for ci, c in enumerate(clusters) for j in c}
     rpl_eval = dict(rpl, ready=rpl[gate["eval_mask"]])
     inner = []
-    for i, (a, b) in enumerate(GroupKFold(n_splits=INNER_FOLDS).split(
-            outer_train_ids, data["y"][outer_train_ids], groups[outer_train_ids])):
+    for i, (a, b) in enumerate(inner_splits(data, outer_train_ids, seed)):
         tr = outer_train_ids[a]; val_people = set(groups[outer_train_ids[b]])
         assert not (val_people & set(groups[tr])), "inner split shares people"
         params = dict(SCREEN_PARAMS, n_jobs=threads or g.CPU_THREADS, random_state=g.SEED + i)

@@ -20,7 +20,23 @@ About 3 minutes per data folder. One `<recording>.labels.csv.gz` per recording (
 
 **−1 means "leave the row out of the loss".** Full column list, rules, evidence and limits: `GESTURE_LABELING_2026-11-17.md`.
 
-`models/` must stay next to the script. Keep recordings under their original file names (they select the held-out fold model per person).
+`models/` must stay next to the script. The tap teacher is cross-fitted on gesture-aware **file** folds (never person folds):
+every recording is scored by the fold model that never saw it, found by the recording's content hash, so renamed or copied
+recordings are matched too; recordings none of the five saw get their mean. The contact model is always the mean of its
+five folds. Retrain the teacher: `claude_labeling/teacher/README.md`.
+
+## Top labels (what `make train` teaches)
+
+`tap_top.py` moves every tap of the training target from the labeller's onset window to the **top of its contact jolt**
+(the ACC impulse at >= 80 % of its height around the peak), never its start. The trainer does it in memory
+(`MUDRA_TAP_WINDOW=top`, the default recipe `final14top`); to look at it:
+
+```bash
+python claude_labeling/plot_tap_top.py top_labels.png          # one recording per tap kind
+python claude_labeling/tap_top.py DATA/DATA_TAP DATA/LABELS/DATA_TAP DATA/LABELS_TOP/DATA_TAP   # sidecars + _top_events.csv.gz
+```
+
+Method and evidence: `research/gesture/TAP_TOP_LABELS.md`.
 
 This replaces running `claude_research_tap/pipeline/export_labels.py` and `claude_research_lp/label_long_press.py` separately;
 their tap, hold and channel labels are reproduced exactly, with the disconnection and cross-gesture rules added.

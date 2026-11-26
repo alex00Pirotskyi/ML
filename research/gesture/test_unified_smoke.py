@@ -485,6 +485,42 @@ def tap_certain_checks():
     print("TAP_CERTAIN_CHECKS_PASSED", flush=True)
 
 
+def tap_top_checks():
+    """MUDRA_TAP_WINDOW=top (claude_labeling/tap_top.py): every tap of the training target moves to the top of its
+    contact jolt, never its start; old rows outside become unknown, negatives stay, the recipe and the study name
+    carry the setting. Synthetic jolts on the ACC axis a tap would hit."""
+    import tap_top as TT
+    t = np.arange(0, 6000, 5.5); acc = np.ones((len(t), 18))
+    peaks = (1040.0, 3040.0, 3240.0)                     # a single tap and a double tap 200 ms apart
+    for pk in peaks:
+        a = np.clip(1 - np.abs(t - pk) / np.where(t < pk, 50.0, 90.0), 0, None)
+        acc[:, 1:6] += 400.0 * a[:, None]                # X axis, zones 1-5
+    y = np.zeros(len(t), np.int8)
+    for o in (1000, 3000, 3200):
+        y[(t >= o - 150) & (t <= o + 230)] = -1
+    for o in (1000, 3000, 3200):
+        y[(t >= o) & (t <= o + 80)] = 1                  # the labeller's onset windows (onset 40 ms before the peak)
+    y2, _, wins, info = TT.relabel(t, acc, y, "top", anchors=[1000.0, 3000.0, 3200.0])
+    assert info["taps"] == 3 and info["jolt"] == 3, info
+    env = TT.jolt_envelope(acc)[:, 0]; rest = np.percentile(env[t < 800], 25)
+    for pk, w in zip(peaks, wins):
+        assert w["start_ms"] <= pk <= w["end_ms"] and abs(w["t_top"] - pk) <= 6, w
+        top = env[np.argmin(np.abs(t - w["t_top"]))] - rest
+        rows = (y2 == 1) & (t >= pk - 100) & (t <= pk + 100)
+        assert (env[rows] - rest >= 0.8 * top - 1e-6).all(), w      # every positive row is on the top (>= 80 %)
+        assert not (y2[(t >= pk - 60) & (t < w["start_ms"])] == 1).any()
+    assert ((y == 0) == (y2 == 0)).all(), "negatives changed"
+    assert (y2[(y == 1) & (y2 != 1)] == -1).all(), "old rows must become unknown"
+    # anchors: only the onsets windows were written from (confirmed taps; press2 presses in press2 recordings)
+    ev = pd.DataFrame(dict(type=["tap_press"] * 4 + ["tap_sensor_only"], tier=["PRESS", "PRESS", "PRESS", "EDGE", "ORPHAN"],
+                           labeled=[1, -1, 0, -1, -1], t_on=[1000, 2000, 3000, np.nan, 4000.0],
+                           t_ptr=[1010, 2020, 3010, 3500, np.nan]))
+    assert g.top_anchors(ev, False) == [1000.0] and g.top_anchors(ev, True) == [1000.0, 2000.0]
+    assert g.TAP_RECIPES["final14top"]["MUDRA_TAP_WINDOW"] == "top"
+    assert {k: v for k, v in g.TAP_RECIPES["final14top"].items() if k != "MUDRA_TAP_WINDOW"} == g.TAP_RECIPES["final14"]
+    print("TAP_TOP_CHECKS_PASSED", flush=True)
+
+
 def unit_checks():
     # TAP: onsets 1000/3000/5000; hits at 1020 and 3010 (+ a second edge at 3060 inside the refractory),
     # one false event on a negative row, one event on an unknown row (not counted), onset 5000 missed.
@@ -1006,6 +1042,7 @@ if __name__ == "__main__":
     tap_generalization_checks()
     tap_final_recipe_checks()
     tap_certain_checks()
+    tap_top_checks()
     unit_checks()
     validate_events_checks()
     if "--unit-only" not in sys.argv:
@@ -1017,6 +1054,8 @@ if __name__ == "__main__":
                                 ("TAP final recipe", dict(MUDRA_TAP_RECIPE="final14", MUDRA_TASKS="tap,lp")),
                                 ("TAP final recipe + observable labels",
                                  dict(MUDRA_TAP_RECIPE="final14obs", MUDRA_TASKS="tap,lp")),
+                                ("TAP top labels (make train default: final14top)",
+                                 dict(MUDRA_TAP_RECIPE="final14top", MUDRA_TASKS="tap,lp")),
                                 ("TAP baseline recipe, no unknown labels (MUDRA_TAP_CERTAIN)",
                                  dict(MUDRA_TAP_RECIPE="final14", MUDRA_TASKS="tap,lp", MUDRA_TAP_CERTAIN="1")),
                                 ("TAP failed balanced recipe (code path kept tested; refused without opt-in)",

@@ -476,6 +476,54 @@ def shift_positives(X, y, files, w0, rec, ridx, d_ms):
     return X, y, files, w0, rec, ridx, info
 
 
+def top_positives(X, y, files, w0, rec, ridx, mode, overrides=None):
+    """Top labels (claude_labeling/tap_top.py, the trainer's MUDRA_TAP_WINDOW): every tap's positive rows move to the
+    top of its contact jolt (mode 'top': >= 80 % of the jolt around its peak; 'mid': from 50 % on the rise), never its
+    start. The taps are the same (their anchors: labelled / soft onsets, presses); the new rows come from the replay
+    (10 ms stride, frame >= 50, as the trainer samples), the old positive rows of every tap are dropped (unknown), and
+    negatives stay negatives."""
+    sys.path.insert(0, str(HERE.parents[1] / "claude_labeling"))
+    import tap_top as TT
+    D = load(); rpl = D["rpl"]; recs = rpl["recs"]; on = D["onsets"]
+    # the onsets the windows were written from: labelled / soft taps, and the presses press2 made taps (press2
+    # recordings, no labelled onset within 60 ms, as press2_rows); presses that wrote no window are not anchors
+    p2 = press2_recordings()
+    lab = {int(r): np.sort(v.t_on.to_numpy(float)) for r, v in on[on.kind.isin(["strong", "soft"])].groupby("rec")}
+    anchors = {r: v.copy() for r, v in lab.items()}
+    for r, v in on[(on.kind == "press") & on.rec.isin(list(p2))].groupby("rec"):
+        lb = lab.get(int(r), np.zeros(0)); pr = v.t_on.to_numpy(float)
+        pr = pr[[not (len(lb) and np.min(np.abs(lb - o)) < 60) for o in pr]]
+        anchors[int(r)] = np.r_[anchors.get(int(r), np.zeros(0)), pr]
+    anchors = {r: np.unique(np.round(v)) for r, v in anchors.items()}
+    acc_cols = [CI[c] for c in TT.ACC_NOW]
+    keep = np.ones(len(y), bool); new = []; info = Counter()
+    for r_ in np.unique(rec[y == 1]):
+        row = recs.iloc[int(r_)]; a, b = int(row.start), int(row.end)
+        sel = np.flatnonzero(rec == r_); loc = ridx[sel] - a
+        t_r = np.asarray(rpl["t"][a:b], np.float64)
+        yy = np.full(b - a, -1, np.int8)
+        yy[loc[y[sel] == 0]] = 0; yy[loc[y[sel] == 1]] = 1
+        acc = np.asarray(rpl["X"][a:b][:, acc_cols])
+        y2, _, wins, inf = TT.relabel(t_r, acc, yy, mode, anchors=anchors.get(int(r_)),
+                                      prm=TT.params(mode, **(overrides or {})))
+        info.update(inf)
+        keep[sel[y[sel] == 1]] = False
+        fr = np.asarray(rpl["frames"][a:b])
+        pick = g.stride_pick(t_r, (y2 == 1) & (fr >= g.TRAIN_MIN_FRAMES), g.TAP_POSITIVE_STRIDE_MS)
+        new.append(a + pick)
+    extra = np.unique(np.concatenate(new)) if new else np.zeros(0, np.int64)
+    rec_e = np.searchsorted(recs.end.to_numpy(), extra, side="right")
+    n_old = int((y == 1).sum())
+    X = np.concatenate([X[keep], np.asarray(rpl["X"][extra])]); y = np.r_[y[keep], np.ones(len(extra), int)]
+    files = np.r_[files[keep], recs.file.to_numpy(object)[rec_e]]
+    w0 = np.r_[np.asarray(w0)[keep], np.ones(len(extra), np.float32)]
+    rec = np.r_[rec[keep], rec_e]; ridx = np.r_[ridx[keep], extra]
+    out = dict(top_mode=mode, top_params=TT.params(mode, **(overrides or {})), top_positive_rows_old=n_old,
+               top_positive_rows_new=int(len(extra)),
+               **{f"top_{k}": int(v) for k, v in info.items()})
+    return X, y, files, w0, rec, ridx, out
+
+
 def emg_rise_table():
     """EMG confirmation of every tap anchor (confirmed / soft onset or pointer press) in TAP and SWIPE recordings:
     the largest WL of any channel in [a - 20, a + 120] ms divided by that channel's resting floor, the floor being the
@@ -1345,6 +1393,16 @@ def arm_from_name(name):
             base["movew"] = float(tok[5:])
         elif tok.startswith("shift"):
             base["shift"] = float(tok[5:])
+        elif tok in ("top", "midtop"):                # top labels: every tap at the top of its contact jolt
+            base["top"] = "mid" if tok == "midtop" else "top"
+        elif tok.startswith("topf") and tok[4:].isdigit():   # topf90: the top is >= 90 % of the jolt (default 80)
+            base.setdefault("top_prm", {})["frac"] = int(tok[4:]) / 100
+        elif tok.startswith("topb") and tok[4:].isdigit():   # topb10: start at most 10 ms before the peak
+            base.setdefault("top_prm", {})["before"] = float(tok[4:])
+        elif tok.startswith("topa") and tok[4:].isdigit():   # topa70: end at most 70 ms after the peak
+            base.setdefault("top_prm", {})["after"] = float(tok[4:])
+        elif tok == "topend50":                       # end where the jolt falls below 50 % (default: the top fraction)
+            base.setdefault("top_prm", {})["end50"] = True
         elif tok.startswith("emg") and tok[3:4].isdigit():
             base["emg_min"] = float(tok[3:])          # emg1.2: TAP positives need an EMG rise of >= 1.2x
         elif tok == "notapneg":                       # GPT E2: no negatives from TAP / SWIPE recordings in training
@@ -1463,6 +1521,10 @@ def run_arm(name):
             info.update(inf)
         if arm.get("shift"):                       # positive windows d ms later (decide after the contact)
             X150, y, files, w0, rec, ridx, inf = shift_positives(X150, y, files, w0, rec, ridx, arm["shift"])
+            info.update(inf)
+        if arm.get("top"):                         # top labels (claude_labeling/tap_top.py): top (+ middle), never start
+            X150, y, files, w0, rec, ridx, inf = top_positives(X150, y, files, w0, rec, ridx, arm["top"],
+                                                               arm.get("top_prm"))
             info.update(inf)
         if arm.get("fingerw"):                     # finger motion + fist negatives weighted x k
             fing = (D["rpl"]["recs"].folder.to_numpy(object)[rec] == "FINGER") & (y == 0)

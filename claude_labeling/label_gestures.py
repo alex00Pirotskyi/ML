@@ -30,13 +30,16 @@ RULES (each one is measured in the report)
   Recording type   from the folder: TAP, SWIPE -> taps; SOFT_/MID_/STRONG_LONG_PRESS, LONG_PRESS, DRAG_AND_DROP -> long presses;
                    FINGER, WRIST, ARM, BAND, NOTHING, CONNECTED, DISCONNECTED, LOOSE, TABLE -> no gestures. --kind overrides.
   Taps             a pointer press is a tap only where a tap teacher (LightGBM on ACC + EMG + WL, scored by the fold that
-                   never saw that person) has a peak at the 1-false-per-minute level within 150 ms (second pass 400 ms);
-                   the label starts at that sensor peak. Weaker, unsupported and edge presses, and strong sensor events
-                   without a press, are unknown.
+                   never saw that RECORDING: gesture-aware file folds, matched by content; never person folds) has a peak at
+                   the 1-false-per-minute level within 150 ms (second pass 400 ms); the label starts at that sensor peak.
+                   Weaker, unsupported and edge presses, and strong sensor events without a press, are unknown.
+                   (Where each tap is TAUGHT is the trainer's choice: MUDRA_TAP_WINDOW=top moves it to the top of the
+                   contact jolt, claude_labeling/tap_top.py.)
   Long presses     a press of >= 400 ms in a long-press recording is held from its muscle-activity onset (>= 30 ms of
                    activity in [-300, +500] ms around pointer-down) to 250 ms before release. Unconfirmed: unknown.
   Channel state    OFF = contact score >= 0.5 or dead-quiet WL, held >= 1 s. REST / ACTIVE = within 3 dB / >= 6 dB above
-                   the recording's resting floor.
+                   the recording's resting floor. The contact score is the mean of the five contact models (no person
+                   dispatch).
   Disconnection    where 2 or more channels are confidently OFF there is no tap and no long press: tap_label,
                    tap_active and hold_label are 0 there (--disconnect-rule).
   Cross-gesture    in long-press recordings there are no taps: tap_label is 0, except from 300 ms before to 500 ms after each
@@ -45,7 +48,7 @@ RULES (each one is measured in the report)
 
 This is an OFFLINE labeler (it looks at whole recordings). It is meant for y_true, not as the firmware model.
 """
-import sys, os, re, json, glob, argparse
+import sys, os, re, io, gzip, json, glob, hashlib, argparse
 import numpy as np, pandas as pd
 from scipy.ndimage import minimum_filter1d, maximum_filter1d, uniform_filter1d
 from scipy.signal import find_peaks
@@ -90,13 +93,6 @@ def drop_short_runs(a, k):
         if y - x < k: a[x:y] = False
     return a
 
-def person_from_name(path):
-    m = re.match(r'[a-z]+', os.path.basename(path).lower()); return m.group(0)[:4] if m else ''
-
-def person_from_user(df):
-    if 'User' not in df or not len(df): return ''
-    return re.sub(r'[^a-z]', '', str(df['User'].iloc[0]).lower())[:4]
-
 def recording_kind(path, forced='auto'):
     if forced != 'auto': return forced
     parts = {p.upper() for p in os.path.normpath(os.path.abspath(path)).split(os.sep)}
@@ -108,14 +104,27 @@ def recording_kind(path, forced='auto'):
 
 # ------------------------------------------------------------------------------------------------ models
 class FoldModels:
+    """Five cross-fitted models. key: the spec's map from a recording key to the fold whose model never saw it
+    (file_fold: decompressed-content SHA-256); None: always the mean of the five (no dispatch)."""
     def __init__(self, prefix, spec_file, key):
         import lightgbm as lgb
         self.spec = json.load(open(os.path.join(HERE, 'models', spec_file)))
-        self.fold_of = self.spec[key]
+        self.fold_of = self.spec[key] if key else {}
         self.m = [lgb.Booster(model_file=os.path.join(HERE, 'models', f'{prefix}{k}.txt')) for k in range(5)]
     def predict(self, X, group):
         k = self.fold_of.get(group)
         return (self.m[k].predict(X), k) if k is not None else (np.mean([m.predict(X) for m in self.m], 0), -1)
+
+TEACHER = 'file_fold_v1'     # recorded in _summary.json: the trainer rebuilds labels made by another teacher
+def tap_teacher():
+    return FoldModels('tap_teacher_file_fold', 'tap_teacher_file.json', 'file_fold')
+def contact_models():
+    return FoldModels('contact_fold', 'contact_folds.json', None)
+
+def read_recording(path):
+    """(dataframe, SHA-256 of the decompressed CSV bytes): the content key of the file folds."""
+    raw = gzip.open(path, 'rb').read() if str(path).endswith('.gz') else open(path, 'rb').read()
+    return pd.read_csv(io.BytesIO(raw), low_memory=False), hashlib.sha256(raw).hexdigest()
 
 # ------------------------------------------------------------------------------------------------ tap teacher (exact port)
 TAP_COLS = ([f'p_core->acc_psd[0][{a}][{z}]' for a in 'XYZ' for z in range(6)] +
@@ -269,10 +278,10 @@ def label_recording(path, tm, cm, kind='auto', opt=None):
     opt = opt or {}
     kind = recording_kind(path, kind)
     if kind is None: raise ValueError('cannot tell the recording type from its folder; pass --kind tap|swipe|hold|none')
-    df = pd.read_csv(path, low_memory=False)
+    df, sha = read_recording(path)
     ts = df['Timestamp'].to_numpy(np.int64); t = (ts - ts[0]).astype(float); nrow = len(t)
     # channel state on its 10 ms grid
-    F, g, _ = channel_features(df); lab, sc = channel_labels(F, cm, person_from_name(path)); row = np.clip(np.searchsorted(g, t, side='right') - 1, 0, len(g) - 1)
+    F, g, _ = channel_features(df); lab, sc = channel_labels(F, cm, None); row = np.clip(np.searchsorted(g, t, side='right') - 1, 0, len(g) - 1)
     n_off = (lab == 2).sum(1).astype(np.int8)
     out = pd.DataFrame({'Timestamp': ts}); out['gesture_kind'] = np.int8(KIND_CODE[kind])
     tap = np.zeros(nrow, np.int8); tact = np.zeros(nrow, np.int8); teid = np.full(nrow, -1, np.int32)
@@ -280,7 +289,7 @@ def label_recording(path, tm, cm, kind='auto', opt=None):
     m_ = lambda lo, hi: (t >= lo) & (t <= hi)
     # --- taps
     if kind in ('tap', 'swipe'):
-        score, tfold = tap_score(df, tm, person_from_user(df))
+        score, tfold = tap_score(df, tm, sha)          # the fold model that never saw this recording
         if score is None:
             tap[:] = -1; tact[:] = -1
         else:
@@ -352,8 +361,8 @@ def main():
     ap.add_argument('--promote-double-partners', action='store_true', help='label unpressed second taps in DoubleTaps recordings')
     ap.add_argument('--trust-pointer', action='store_true', help='label long presses as held even when the sensors do not confirm them')
     a = ap.parse_args(); P['TAP_WIN'] = tuple(a.tap_win)
-    tm = FoldModels('tap_teacher_fold', 'tap_teacher.json', 'person_group_fold')
-    cm = FoldModels('contact_fold', 'contact_folds.json', 'person_group_fold')
+    tm = tap_teacher()
+    cm = contact_models()
     opt = dict(disconnect_rule=a.disconnect_rule, use_weak=a.use_weak, promote_double=a.promote_double_partners, trust_pointer=a.trust_pointer)
     if os.path.isdir(a.input):
         files = sorted(set(glob.glob(os.path.join(a.input, '**', '*.csv.gz'), recursive=True) + glob.glob(os.path.join(a.input, '**', '*.csv'), recursive=True)))
@@ -375,7 +384,7 @@ def main():
                taps_labeled=sum(s['taps_labeled'] for s in summary.values()), holds_labeled=sum(s['holds_labeled'] for s in summary.values()),
                events_disconnect_rule=sum(s['disconnect_rule_events'] for s in summary.values()),
                rows_disconnected=sum(s['rows_disconnected'] for s in summary.values()),
-               args={k: v for k, v in vars(a).items() if k not in ('input', 'out')})
+               args={k: v for k, v in vars(a).items() if k not in ('input', 'out')}, teacher=TEACHER)
     json.dump(dict(totals=tot, failed=failed, recordings=summary), open(os.path.join(a.out, '_summary.json'), 'w'), indent=1)
     print(json.dumps(tot))
     if failed: print('FAILED:', json.dumps(failed, indent=1)); sys.exit(1)

@@ -60,6 +60,21 @@ so edits made after `git add` do not silently affect the compressed commit.
 If you update the hook while a commit is already running, that running commit
 still uses the old hook; the replacement takes effect on the next attempt.
 
+## TAP model: `make train`
+
+```bash
+make train      # labels, top windows, Optuna search, C header (TAP_SWIPE.h) in the background
+make status     # trials done, last lines, errors
+make stop
+```
+
+Default recipe `final14top`: every tap is taught at the **top of its contact jolt, never at its start**
+(`claude_labeling/tap_top.py`), 14 KB, the old header's false-tap level as the target. Splits and folds are by
+recording file, stratified by gesture, everywhere: the trainer's held-out part and CV folds, and the labeller's tap
+teacher (`claude_labeling/teacher/`). No person split or fold. Evidence and options:
+[research/gesture/TAP_TOP_LABELS.md](research/gesture/TAP_TOP_LABELS.md); the pipeline on one page:
+[research/gesture/PIPELINE.md](research/gesture/PIPELINE.md).
+
 ## Long-press sEMG pseudo-labeling
 
 Generate firmware-aware, causal and non-destructive per-sample pseudo-labels for each sEMG
