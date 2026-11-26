@@ -8,7 +8,7 @@ python claude_labeling/label_gestures.py DATA/DATA_TAP        DATA/LABELS/DATA_T
 python claude_labeling/label_gestures.py DATA/DATA_LONG_PRESS DATA/LABELS/DATA_LONG_PRESS
 ```
 
-About 3 minutes per data folder. One `<recording>.labels.csv.gz` per recording (rows in source order), plus `_events.csv.gz` and `_summary.json`.
+Recordings are labelled in parallel processes (one per CPU, at most 16; `--workers N` or `MUDRA_LABEL_WORKERS=N`; `--workers 1` = one process). The labels do not depend on it. One `<recording>.labels.csv.gz` per recording (rows in source order), plus `_events.csv.gz` and `_summary.json`.
 
 | Column | Use |
 | --- | --- |

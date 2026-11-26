@@ -550,6 +550,16 @@ def notice(*values):
     print(*values, flush=True)
 
 
+_STAGE = {"start": time.monotonic(), "last": time.monotonic()}
+
+
+def stage(name: str):
+    """UNIFIED_STAGE <name> <seconds of this stage> <seconds since the start>: where a run spends its time."""
+    now = time.monotonic()
+    notice("UNIFIED_STAGE", name, round(now - _STAGE["last"], 1), "s", "total", round(now - _STAGE["start"], 1), "s")
+    _STAGE["last"] = now
+
+
 def sha256(path: Path) -> str:
     h = hashlib.sha256()
     with path.open("rb") as fp:
@@ -3024,6 +3034,7 @@ def train_task(task: str, tap_files, lp_files):
                          "TAP target or soft labels changed); move it away to start a new experiment: " + str(out))
     out.mkdir(parents=True, exist_ok=True)
     data, rpl, info = build_task_data(task, records, out)
+    stage(f"{task}_data")
     info["duplicate_recordings_left_out"] = len(duplicates)
     if SPLIT_BY == "file":
         group_by_file(data, rpl)
@@ -3158,12 +3169,15 @@ def train_task(task: str, tap_files, lp_files):
                    **({"logit_shift": round(tap_shift(trial), 3)} if task == "tap" and TAP_LOGIT_SHIFT else {})}))
             return z
         study.optimize(fn, n_trials=1, n_jobs=1, show_progress_bar=False, catch=())
+    stage(f"{task}_search")
     picks = pick_trials(study, budgets, task)
     candidates = export_candidates(data, rpl, task, stem, tr, te, picks, out)
+    stage(f"{task}_heldout_and_final_export")
     default, skipped = promote(out, stem, candidates, budgets)
     for c in candidates:
         c["default"] = c is default
     baselines = replay_baselines(task, data, rpl, te, out)
+    stage(f"{task}_baselines")
     fs_report = write_fs_reports(out, task, data, study, candidates, default)
     table = comparison_table(task, candidates, baselines)
     (out / "COMPARISON.md").write_text(f"# {task}: held-out people, replayed through the C headers\n\n" + table)
@@ -3213,8 +3227,10 @@ def main():
     generator = lite if USE_LITE else lean8      # also when no Lean inputs are used: the frame gates need it
     lean8_manifest = generator.ensure_datasets([(RAW_SOURCE_TAP, SOURCE_TAP), (RAW_SOURCE_LP, SOURCE_LP)],
                                                workers=CPU_THREADS)
+    stage("lean_features")
     files_t = ensure_labels(RAW_SOURCE_TAP, LABEL_TAP)
     files_l = ensure_labels(RAW_SOURCE_LP, LABEL_LP)
+    stage("labels")
     done_ = {task: train_task(task, files_t, files_l) for task in ("tap", "lp") if task in TASKS_TO_RUN}
     a, b = done_.get("tap"), done_.get("lp")
     write_json(OUTPUT / "UNIFIED_SUMMARY.json",

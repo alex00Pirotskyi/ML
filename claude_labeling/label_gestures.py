@@ -349,6 +349,21 @@ def label_recording(path, tm, cm, kind='auto', opt=None):
     return out, ev, st
 
 # ------------------------------------------------------------------------------------------------ main
+_WORKER = {}
+def _init_worker(tap_win):
+    """A labelling process: its own copy of the models, one thread each (the outputs do not depend on it)."""
+    P['TAP_WIN'] = tuple(tap_win)
+    _WORKER['tm'] = tap_teacher(); _WORKER['cm'] = contact_models()
+
+def _label_job(job):
+    """One recording in a worker: (rel, summary, events, error), the sidecar written as in the serial loop."""
+    f, rel, dst, kind, opt = job
+    try:
+        out, ev, st = label_recording(f, _WORKER['tm'], _WORKER['cm'], kind, opt); out.to_csv(dst, index=False)
+        return rel, st, ev, None
+    except Exception as e:
+        return rel, None, None, repr(e)
+
 def main():
     ap = argparse.ArgumentParser(description='Offline y_true for taps, swipes, long presses and per-channel EMG state.')
     ap.add_argument('input', help='a .csv/.csv.gz recording, or a folder searched recursively')
@@ -360,9 +375,9 @@ def main():
     ap.add_argument('--use-weak', action='store_true', help='also label weaker taps (p_real >= 0.5)')
     ap.add_argument('--promote-double-partners', action='store_true', help='label unpressed second taps in DoubleTaps recordings')
     ap.add_argument('--trust-pointer', action='store_true', help='label long presses as held even when the sensors do not confirm them')
+    ap.add_argument('--workers', type=int, default=int(os.environ.get('MUDRA_LABEL_WORKERS', '0') or 0),
+                    help='labelling processes (0 = one per CPU, at most 16); the labels do not depend on it')
     a = ap.parse_args(); P['TAP_WIN'] = tuple(a.tap_win)
-    tm = tap_teacher()
-    cm = contact_models()
     opt = dict(disconnect_rule=a.disconnect_rule, use_weak=a.use_weak, promote_double=a.promote_double_partners, trust_pointer=a.trust_pointer)
     if os.path.isdir(a.input):
         files = sorted(set(glob.glob(os.path.join(a.input, '**', '*.csv.gz'), recursive=True) + glob.glob(os.path.join(a.input, '**', '*.csv'), recursive=True)))
@@ -370,21 +385,36 @@ def main():
     else:
         files = [a.input]; root = os.path.dirname(a.input) or '.'
     os.makedirs(a.out, exist_ok=True); summary = {}; failed = {}; evs = []
-    for k, f in enumerate(files):
+    jobs = []
+    for f in files:
         rel = os.path.relpath(f, root); dst = os.path.join(a.out, re.sub(r'\.csv(\.gz)?$', '', rel) + '.labels.csv.gz')
         os.makedirs(os.path.dirname(dst), exist_ok=True)
-        try:
-            out, ev, st = label_recording(f, tm, cm, a.kind, opt); out.to_csv(dst, index=False); summary[rel] = st
+        jobs.append((f, rel, dst, a.kind, opt))
+    workers = min(a.workers if a.workers > 0 else min(16, os.cpu_count() or 1), len(jobs))
+    if workers <= 1:                                  # one process, as before
+        _init_worker(P['TAP_WIN']); results = map(_label_job, jobs); pool = None
+    else:                                             # recordings are independent: same labels, in file order
+        for k in ('OMP_NUM_THREADS', 'OPENBLAS_NUM_THREADS', 'MKL_NUM_THREADS'): os.environ[k] = '1'
+        import multiprocessing as mp
+        from concurrent.futures import ProcessPoolExecutor
+        pool = ProcessPoolExecutor(workers, mp_context=mp.get_context('spawn'), initializer=_init_worker,
+                                   initargs=(list(P['TAP_WIN']),))
+        results = pool.map(_label_job, jobs, chunksize=4)
+        print(f'labelling {len(jobs)} recordings with {workers} processes', flush=True)
+    for k, (rel, st, ev, err) in enumerate(results):
+        if err is None:
+            summary[rel] = st
             if len(ev): ev.insert(0, 'recording', rel); evs.append(ev)
-        except Exception as e:
-            failed[rel] = repr(e)
+        else:
+            failed[rel] = err
         if (k + 1) % 200 == 0: print(f'{k + 1}/{len(files)}', flush=True)
+    if pool is not None: pool.shutdown()
     if evs: pd.concat(evs, ignore_index=True).round(4).to_csv(os.path.join(a.out, '_events.csv.gz'), index=False)
     tot = dict(files=len(summary), failed=len(failed), rows=sum(s['rows'] for s in summary.values()),
                taps_labeled=sum(s['taps_labeled'] for s in summary.values()), holds_labeled=sum(s['holds_labeled'] for s in summary.values()),
                events_disconnect_rule=sum(s['disconnect_rule_events'] for s in summary.values()),
                rows_disconnected=sum(s['rows_disconnected'] for s in summary.values()),
-               args={k: v for k, v in vars(a).items() if k not in ('input', 'out')}, teacher=TEACHER)
+               args={k: v for k, v in vars(a).items() if k not in ('input', 'out', 'workers')}, teacher=TEACHER)
     json.dump(dict(totals=tot, failed=failed, recordings=summary), open(os.path.join(a.out, '_summary.json'), 'w'), indent=1)
     print(json.dumps(tot))
     if failed: print('FAILED:', json.dumps(failed, indent=1)); sys.exit(1)

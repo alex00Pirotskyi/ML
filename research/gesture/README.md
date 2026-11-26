@@ -49,6 +49,15 @@ The ranking method:
 This is block-permutation importance, not conditional sampling. The ordering is only a search path: K,
 retraining and replay decide.
 
+**Speed (TAP, exact).** Step 3 used to re-predict the whole screening model on every row for every shift (about
+90 % of the ranking time). It now computes the same scores without that (`FastTapShift`): only the trees that
+split on a shifted column can move a score, by at most their leaf range, so rows farther from the threshold keep
+their decision; the rows in reach are re-predicted with a sub-model of just those trees on just their columns;
+only recordings whose decisions changed are counted again. Shifts that put more than 30 % of the rows in reach use
+the full model as before. The random shifts, scores and rankings are bit-for-bit the original ones (checked when it
+starts, with the original path as the fallback; `tests/test_fs_fast_shift.py`). Measured on 251 recordings with the
+real ranker settings: 459 s -> 54 s per ranking, identical ranking. `MUDRA_FS_FAST=0` turns it off.
+
 Outputs (`results_unified_v3_feature_selection/<task>/`):
 
 - `feature_selection/fold_*_ranking.csv`, `development_ranking.csv`, `final_ranking.csv`: every field with its

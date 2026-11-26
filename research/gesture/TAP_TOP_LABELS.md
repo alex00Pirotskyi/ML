@@ -26,7 +26,7 @@ dashed: the peak of the jolt. Grey: the pointer. Coloured lines: the contact jol
     make train KB=32 ALT_KB=14        # bigger model, same false-tap level
 
 `make status` / `make stop` as before. On the first run the labels are rebuilt (they record the teacher; labels from
-the person-fold teacher are moved aside by `prepare_run.py`), about 3 minutes per data folder on the server.
+the person-fold teacher are moved aside by `prepare_run.py`); the labeller runs one process per CPU (at most 16).
 
 Look at the labels:
 
