@@ -235,7 +235,7 @@ def recover_partners(base, ev, t, ch, bad, recording, policy, audit):
             candidates.append((i, on, score))
     # Resolve competing peaks by confidence then timestamp; deterministic.
     candidates.sort(key=lambda z: (-z[2], z[1], z[0]))
-    used_ids = [int(x) for x in ids if np.isfinite(x) and x >= 0]
+    used_ids = [int(x) for x in np.unique(ids) if x >= 0]
     used_ids += [int(x) for x in pd.to_numeric(ev["k"], errors="coerce").dropna() if x >= 0]
     next_id = max(used_ids, default=-1) + 1
     rejected = {}
@@ -293,9 +293,10 @@ def recover_partners(base, ev, t, ch, bad, recording, policy, audit):
         if policy.require_emg_active and not emg:
             skip(i, "no_extra_emg_activity")
             continue
-        if np.any(np.isin(ids[q], list(used_ids)) & (ids[q] >= 0)) or np.any(a[q] == 1):
-            skip(i, "existing_event_extent")
-            continue
+        # A merged/stuck pointer cycle can already mark this region active
+        # and give it the FIRST tap's extent ID. Do not treat that extent
+        # as a second positive: assign the recovered block its own ID.
+        # The y[q] == -1 guard above protects every original known label.
         y[q], a[q], ids[q] = 1, 1, next_id
         # Do not invent a release or claim a whole hold. Only the short
         # positive onset is known; active outside that window is unchanged.
@@ -367,11 +368,24 @@ def restore_background(raw, base, ev, t, ch, bad, policy, audit):
             guards |= spans(t, [(u-policy.guard_ms, d+policy.guard_ms)])
     guards |= near(t, t[y == 1], policy.guard_ms)
     guards |= (t < 1000) | (t > t[-1]-policy.guard_ms)
+    dt = np.diff(t)
+    positive_dt = dt[dt > 0]
+    if not len(positive_dt):
+        audit["background_skipped"] = "no_positive_timestamp_intervals"
+        return
+    gaps = np.flatnonzero(dt > max(50.0, 3.0*np.median(positive_dt)))
+    guards |= near(t, np.r_[t[gaps], t[gaps+1]], policy.guard_ms)
     contact = good_contact(ch, bad)
     allowed = contact & ~active & ~guards & (a != 1) & (ids < 0)
     allowed &= ternary(base, "hold_label") != 1
     rest = ((ch == 0).sum(axis=1) >= 2) & ~(ch == 1).any(axis=1)
     reference = allowed & rest & (y == 0)
+    if reference.sum() < 20:
+        # Contact-confirmed quiet rows outside all candidate/edge guards
+        # can supply a reference when positive-bag background is all -1.
+        # Never include a known positive or a candidate neighborhood.
+        reference = allowed & rest & (y != 1)
+    audit["quiet_reference_rows"] = int(reference.sum())
     quiet = quiet_acc(raw, reference)
     if quiet is None:
         audit["background_skipped"] = "insufficient_trusted_quiet_reference_or_ACC"
@@ -582,12 +596,14 @@ def main():
     p.add_argument("--motion-background", action="store_true")
     a = p.parse_args()
     spec = read_spec(a.teacher_spec)
+    if a.motion_background and "low_score" not in spec:
+        p.error("--motion-background requires low_score in the calibrated teacher spec")
     policy = Policy(strong_score=float(spec["strong_score"]), mode=a.mode,
                     window_ms=a.window_ms, min_partner_ms=a.min_partner_ms,
                     max_partner_ms=a.max_partner_ms, fast_bpm=a.fast_bpm,
                     guard_ms=a.guard_ms, require_emg_active=a.require_emg_active,
                     motion_background=a.motion_background,
-                    low_score=(float(spec["low_score"]) if "low_score" in spec else None))
+                    low_score=(float(spec["low_score"]) if a.motion_background else None))
     policy.validate()
     run(a.raw, a.base, a.out, spec, policy)
 
