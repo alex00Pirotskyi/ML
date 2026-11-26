@@ -350,6 +350,48 @@ threshold do the same or better. Setting the current labels to the same finger r
 
 Every rate except second taps is as good or better (second taps: −1.9, within noise). Not adopted.
 
+**The rest of the unknown time** in TAP recordings (2026-11-26):
+
+| part | share of the unknown time | what it is |
+|---|---|---|
+| the pointer press, 150 ms either side | 32% | |
+| after the onset | 29% | contraction and release |
+| far rest, > 500 ms from any tap | 18.5% | tested above |
+| lead-in | 18% | finger coming in |
+| unconfirmed presses | 2.3% | |
+
+**New measure: extra clicks on the tap's own press** (`tap_press_clicks.py`). These are kept events that are not
+the tap's own hit: an earlier event of the same tap exists, or the event is later than the 250 ms hit window. The
+trainer never counts them, because they land on unknown rows.
+
+The current labels at fist 7/min give:
+- 5.0 release clicks per 100 taps in single-tap recordings;
+- 7.8 per 100 taps over all tap and swipe recordings. This includes double and 240 bpm recordings, where unlabeled
+  real second taps count as clicks;
+- 2.0 early clicks per 100 taps.
+
+**Arms**, compared at fist 7/min unless noted:
+- `relneg`: release part (onset + 150 ms to the end of the press) as negative. Second taps drop 10.6 points, because
+  in double and 240 bpm recordings the pointer misses some second taps, and those got trained as negatives.
+- `relnegs`: the same, in single-tap recordings only.
+- `preneg`: lead-in up to onset − 40 ms as negative.
+
+| labels | normal | soft | 2nd of double | fast | swipe | finger | wrist | band | fist | release clicks / 100 single taps |
+|---|---|---|---|---|---|---|---|---|---|---|
+| current, fist 7 | 95.3 | 92.0 | 89.9 | 92.6 | 89.0 | 3.76 | 5.67 | 4.26 | 7.0 | 5.01 |
+| current, stricter (fist 5.5) | 94.1 | 90.5 | 87.2 | 90.8 | 87.0 | 2.91 | 4.40 | 3.07 | 5.5 | 4.61 |
+| `relnegs` | 94.3 | 89.5 | 87.8 | 89.2 | 86.1 | 3.04 | 4.60 | 4.09 | 7.0 | 3.91 |
+| `relneg` | 94.3 | 89.6 | 79.4 | 86.3 | 85.8 | 3.14 | 4.28 | 4.05 | 7.0 | — |
+| `preneg` | 95.2 | 90.7 | 88.5 | 90.4 | 87.4 | 3.37 | 5.67 | 5.34 | 7.0 | — |
+
+`relnegs` cuts release clicks by 0.7 per 100 taps. Against the current labels at the same finger rate, it costs
+1.5/min of fist and 1/min of band false taps, plus a little on soft, fast and swipe. `preneg` and `relneg` are worse
+than a stricter threshold. None is adopted.
+
+The unknown press around each tap is not where protection is lost: making it negative trades taps for protection, as
+a threshold does, and no better. Protection comes from the movement recordings, the model size and the operating
+point.
+
 ## Limits
 
 - **These numbers describe people who are in the data.** File-split scores are optimistic for a new user. The

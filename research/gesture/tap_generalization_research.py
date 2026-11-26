@@ -747,6 +747,53 @@ def consistent_features(F, y, person, lookalike, k):
 MINE_FROM = HERE / "results_tap_generalization" / "models"
 
 
+REL_AFTER_ONSET_MS = 150      # release part: from onset + 150 ms (past the firmware's refractory) ...
+PRE_BEFORE_ONSET_MS = 40      # lead-in part: ... up to onset - 40 ms (margin for onset timing)
+NEXT_EVENT_GUARD_MS = 100     # never within 100 ms before another press / tap, or 250 ms after one (lead-in)
+
+
+def press_regions(rec, parts):
+    """Replay row indices of the unknown press around each labelled tap of one TAP / SWIPE recording: "rel" = the
+    unknown run after the tap's positive window, from onset + 150 ms; "pre" = the unknown run before the onset, up to
+    onset - 40 ms. Guards keep other presses / taps (and the 250 ms after them) out."""
+    D = load(); rpl = D["rpl"]; recs = rpl["recs"]; on = D["onsets"]
+    a, b = int(recs.start.iloc[rec]), int(recs.end.iloc[rec])
+    lab = np.asarray(rpl["label"][a:b]); tt = np.asarray(rpl["t"][a:b])
+    o = on[on.rec == rec]; conf = np.sort(o[o.kind != "press"].t_on.to_numpy(float))
+    ev = np.sort(o.t_on.to_numpy(float)); out = []
+    for t0 in conf:
+        i = np.searchsorted(tt, t0)
+        if "rel" in parts:                       # walk past the positive window, then along the unknown run
+            j = i
+            while j < len(tt) and lab[j] == 1: j += 1
+            k = j
+            while k < len(tt) and lab[k] == -1: k += 1
+            seg = np.arange(j, k)[tt[j:k] >= t0 + REL_AFTER_ONSET_MS]
+            nxt = ev[ev > t0 + 1.0]
+            if len(nxt): seg = seg[tt[seg] < nxt[0] - NEXT_EVENT_GUARD_MS]
+            out.append(seg)
+        if "pre" in parts:
+            k = i
+            while k > 0 and lab[k - 1] == -1: k -= 1
+            seg = np.arange(k, i)[tt[k:i] <= t0 - PRE_BEFORE_ONSET_MS]
+            prv = ev[ev < t0 - 1.0]
+            if len(prv): seg = seg[tt[seg] > prv[-1] + 250]
+            out.append(seg)
+    return (np.unique(np.concatenate(out)) + a) if out else np.zeros(0, np.int64)
+
+
+def press_rows(groups, parts, stride=6):
+    """press_regions of every TAP / SWIPE recording of the training groups, every stride-th row, frame >= 50."""
+    D = load(); rpl = D["rpl"]; recs = rpl["recs"]; fr = np.asarray(rpl["frames"]); out = []
+    skip = press2_recordings() if "single" in parts else set()   # double / 240 bpm: second taps can be unlabelled
+    for r in np.flatnonzero(recs.folder.isin(["TAP", "SWIPE"]).to_numpy() & recs.group.isin(groups).to_numpy()):
+        if int(r) in skip:
+            continue
+        idx = press_regions(int(r), parts); idx = idx[fr[idx] >= 50]
+        out.append(idx[::stride])
+    return np.sort(np.concatenate(out)) if out else np.zeros(0, np.int64)
+
+
 def background_rows(groups, min_ms, stride=6):
     """Replay rows of TAP / SWIPE recordings (training groups) labelled unknown and > min_ms from every pointer press
     and labelled tap onset: rest time between taps. Every stride-th row (the training cache's density), frame >= 50."""
@@ -1339,6 +1386,9 @@ def arm_from_name(name):
             base.setdefault("drop", []).append(tok[4:])
         elif tok == "fmine":
             base["fmine"] = True
+        elif tok in ("relneg", "preneg", "pressneg", "relnegs"):   # the tap's own press: release / lead-in / both;
+            base["pressneg"] = {"relneg": ("rel",), "preneg": ("pre",), "pressneg": ("rel", "pre"),
+                                "relnegs": ("rel", "single")}[tok]   # relnegs: release, single-tap recordings only
         elif tok.startswith("bgneg") and tok[5:].isdigit():   # bgneg500: TAP / SWIPE rest time > 500 ms from any
             base["bgneg"] = int(tok[5:])                       # press or tap (unknown today) trained as negative
         elif tok == "softall":                       # soft labels in every TAP / SWIPE recording (trainer soft 0.5)
@@ -1388,6 +1438,13 @@ def run_arm(name):
             files = np.r_[files, D["rpl"]["recs"].file.to_numpy(object)[rec_m]]
             w0 = np.r_[w0, np.ones(len(mined), np.float32)]; rec = np.r_[rec, rec_m]; ridx = np.r_[ridx, mined]
             info["background_negative_rows"] = int(len(mined))
+        if arm.get("pressneg"):                    # the press around a tap (release / lead-in) trained as negative
+            mined = press_rows(set(data["group"][trn]), arm["pressneg"])
+            rec_m = np.searchsorted(D["rpl"]["recs"].end.to_numpy(), mined, side="right")
+            X150 = np.concatenate([X150, np.asarray(D["rpl"]["X"][mined])]); y = np.r_[y, np.zeros(len(mined), int)]
+            files = np.r_[files, D["rpl"]["recs"].file.to_numpy(object)[rec_m]]
+            w0 = np.r_[w0, np.ones(len(mined), np.float32)]; rec = np.r_[rec, rec_m]; ridx = np.r_[ridx, mined]
+            info["press_negative_rows"] = int(len(mined))
         if arm.get("notapneg"):                    # only authoritative negatives (movement, nothing, LP) remain
             fold_of = D["rpl"]["recs"].folder.to_numpy(object)[rec]
             keep = ~((y == 0) & np.isin(fold_of, ["TAP", "SWIPE"]))
