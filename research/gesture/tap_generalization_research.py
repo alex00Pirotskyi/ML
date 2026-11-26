@@ -747,6 +747,24 @@ def consistent_features(F, y, person, lookalike, k):
 MINE_FROM = HERE / "results_tap_generalization" / "models"
 
 
+def background_rows(groups, min_ms, stride=6):
+    """Replay rows of TAP / SWIPE recordings (training groups) labelled unknown and > min_ms from every pointer press
+    and labelled tap onset: rest time between taps. Every stride-th row (the training cache's density), frame >= 50."""
+    D = load(); rpl = D["rpl"]; recs = rpl["recs"]; on = D["onsets"]
+    ev = {int(r): np.sort(v.t_on.to_numpy(float)) for r, v in on.groupby("rec")}
+    lab = np.asarray(rpl["label"]); tt = np.asarray(rpl["t"]); fr = np.asarray(rpl["frames"]); out = []
+    for r in np.flatnonzero(recs.folder.isin(["TAP", "SWIPE"]).to_numpy() & recs.group.isin(groups).to_numpy()):
+        a, b = int(recs.start.iloc[r]), int(recs.end.iloc[r])
+        idx = np.arange(a, b)[(lab[a:b] == -1) & (fr[a:b] >= 50)]
+        e = ev.get(int(r), np.zeros(0))
+        if len(e) and len(idx):
+            j = np.searchsorted(e, tt[idx]); d = np.minimum(np.abs(tt[idx] - e[np.clip(j - 1, 0, len(e) - 1)]),
+                                                         np.abs(tt[idx] - e[np.clip(j, 0, len(e) - 1)]))
+            idx = idx[d > min_ms]
+        out.append(idx[::stride])
+    return np.sort(np.concatenate(out)) if out else np.zeros(0, np.int64)
+
+
 def mine_finger(people, fold, thr=0.3, stride_ms=20, cap=40000, base="raw126_diff+augm"):
     """Hard negatives: FINGER-folder replay rows (finger motion and fist, frame >= 50) of these training people that
     the baseline fold model (trained on these people) still scores >= thr, one per stride_ms, at most cap."""
@@ -1321,6 +1339,8 @@ def arm_from_name(name):
             base.setdefault("drop", []).append(tok[4:])
         elif tok == "fmine":
             base["fmine"] = True
+        elif tok.startswith("bgneg") and tok[5:].isdigit():   # bgneg500: TAP / SWIPE rest time > 500 ms from any
+            base["bgneg"] = int(tok[5:])                       # press or tap (unknown today) trained as negative
         elif tok == "softall":                       # soft labels in every TAP / SWIPE recording (trainer soft 0.5)
             base["softall"] = True
         elif tok.startswith("distill") and tok[7:].isdigit():
@@ -1361,6 +1381,13 @@ def run_arm(name):
             files = np.r_[files, D["rpl"]["recs"].file.to_numpy(object)[rec_m]]
             w0 = np.r_[w0, np.ones(len(mined), np.float32)]; rec = np.r_[rec, rec_m]; ridx = np.r_[ridx, mined]
             info["mined_finger_rows"] = int(len(mined))
+        if arm.get("bgneg"):                       # rest time far from every press / tap in TAP and SWIPE files
+            mined = background_rows(set(data["group"][trn]), arm["bgneg"])
+            rec_m = np.searchsorted(D["rpl"]["recs"].end.to_numpy(), mined, side="right")
+            X150 = np.concatenate([X150, np.asarray(D["rpl"]["X"][mined])]); y = np.r_[y, np.zeros(len(mined), int)]
+            files = np.r_[files, D["rpl"]["recs"].file.to_numpy(object)[rec_m]]
+            w0 = np.r_[w0, np.ones(len(mined), np.float32)]; rec = np.r_[rec, rec_m]; ridx = np.r_[ridx, mined]
+            info["background_negative_rows"] = int(len(mined))
         if arm.get("notapneg"):                    # only authoritative negatives (movement, nothing, LP) remain
             fold_of = D["rpl"]["recs"].folder.to_numpy(object)[rec]
             keep = ~((y == 0) & np.isin(fold_of, ["TAP", "SWIPE"]))

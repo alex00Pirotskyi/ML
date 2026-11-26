@@ -320,6 +320,28 @@ tricks.
 
 Compare the old default: fist 19/min, finger 10/min, for taps of about 98%.
 
+### Rest time in tap recordings as negatives (2026-11-26)
+
+In TAP recordings, the time is 43% negative, 50% unknown and 6% tap. The unknown part sits mostly around taps: the
+median is 180 ms from a press or tap, covering the lead-in, contraction and release. But 18% of it is more than
+500 ms from any tap.
+
+`bgneg<ms>` trains the unknown rows of TAP and SWIPE recordings farther than `<ms>` from every press and tap as
+negatives. That is the old labeler's choice, restricted to rest time. Results at 32 KB, fist at 7/min:
+
+| labels | normal | soft | 2nd of double | fast | swipe | finger /min | wrist /min | band /min |
+|---|---|---|---|---|---|---|---|---|
+| current | 95.3 | 92.0 | 90.0 | 92.6 | 89.0 | 3.77 | 5.68 | 4.26 |
+| + rest > 300 ms negative | 93.9 | 88.5 | 86.9 | 91.0 | 85.8 | 3.15 | 5.92 | 3.86 |
+| + rest > 500 ms negative | 93.6 | 89.0 | 89.2 | 91.4 | 85.8 | 2.93 | 4.53 | 3.39 |
+
+The extra negatives buy finger protection with taps, which is the old trade. The current labels with a stricter
+threshold do the same or better. Setting the current labels to the same finger rate (2.93/min) gives:
+- fist 5.50, wrist 4.39, band 3.09;
+- normal 94.1%, soft 90.5%, second taps 87.3%, swipe 87.0%.
+
+Every rate except second taps is as good or better (second taps: −1.9, within noise). Not adopted.
+
 ## Limits
 
 - **These numbers describe people who are in the data.** File-split scores are optimistic for a new user. The
