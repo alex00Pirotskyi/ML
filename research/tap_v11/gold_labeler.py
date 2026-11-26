@@ -443,6 +443,11 @@ def correct_recording(raw, base, events, recording, policy):
     if not np.isfinite(event_ids).all() or (event_ids < -1).any() or not np.all(event_ids == np.floor(event_ids)):
         raise ValueError("invalid tap_event_id")
     base["tap_event_id"] = event_ids.astype(np.int64)
+    # Initialize optional report columns before scalar assignment (pandas 4+).
+    if "rule_disconnect" not in ev:
+        ev["rule_disconnect"] = False
+    if "t_off" not in ev:
+        ev["t_off"] = np.nan
     ev["gold_reason"] = ""
     ev["gold_emg_active"] = np.nan
     ev["gold_window_start_ms"] = np.nan
