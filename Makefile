@@ -10,7 +10,7 @@
 # the old header's false-tap level as the target, no threshold shift. Stricter models (TARGET below 4, RECIPE=final)
 # kept their protection offline but lost mid and strong taps on the band (2026-11-25 / 26).
 # Settings, for example:
-#   make train RECIPE=final [LIMIT=7]   (balanced objective + size ladder; lost taps on the band, research only)
+#   RECIPE=final is a FAILED experiment (no mid / strong taps on the band, 2026-11-26): the trainer refuses it
 #   make train KB=32 ALT_KB=14          (bigger model, same false-tap level)
 #   Model size: at most 100 KB (MAX_MODEL_SIZE_BYTES = 102400, fixed in the trainer)
 
@@ -38,6 +38,7 @@ TRAIN_RE := ^[^ ]*python[0-9.]* .*train_unified\.py
 .PHONY: train status stop
 
 train:
+	@if [ "$(RECIPE)" = "final" ]; then echo "RECIPE=final is a FAILED experiment (no mid / strong taps on the band, 2026-11-26). Use the default."; exit 1; fi
 	@for kb in $(KB) $(ALT_KB); do if awk -v k="$$kb" 'BEGIN{exit !(k * 1024 > 102400)}'; then \
 	  echo "$$kb KB exceeds the device maximum MAX_MODEL_SIZE_BYTES = 102400 (100 KB)"; exit 1; fi; done
 	@running=$$(pgrep -af '$(TRAIN_RE)'); \

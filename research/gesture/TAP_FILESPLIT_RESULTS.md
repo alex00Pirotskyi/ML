@@ -282,7 +282,9 @@ person split = new people; same model threshold):
 **Model size limit:** `MAX_MODEL_SIZE_BYTES = 102400` (100 KB) is fixed in the trainer. Larger budgets are refused
 at start (and by `make train`), and every export is checked against it.
 
-## Final pipeline (2026-11-25): `make train RECIPE=final`, research only
+## FAILED EXPERIMENT: balanced "final" pipeline (2026-11-25), `RECIPE=final`
+
+**Status: failed on the band. Do not use.** The trainer refuses `RECIPE=final` unless `MUDRA_ALLOW_FAILED_RECIPE=1` (research and smoke tests only).
 
 **Band test (2026-11-26):** 43 s of mid and strong taps (about one per second), and the tap score never reached the
 threshold (highest 16 of 20; 17 = 0.85). A second test of 29 s gave 2 taps. Like the strict 1.5 targets, it holds

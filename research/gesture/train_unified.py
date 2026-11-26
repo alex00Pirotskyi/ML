@@ -92,7 +92,7 @@ TAP_RECIPES["final14obs"] = dict(TAP_RECIPES["final14"], MUDRA_TAP_OBS_MS="60")
 # target is strict, and at 0.85 fires far less on finger motion and fists for about 1 point of tap recall.
 TAP_RECIPES["final14protect"] = dict(TAP_RECIPES["final14"], MUDRA_TAP_OBS_MS="40", MUDRA_TAP_DISTILL="0.5",
                                      MUDRA_TAP_FINGER_WEIGHT="2")
-# final: the clean pipeline (make train). final14obs's data recipe (press2 labels, observable 60 ms, diff + lite
+# final: FAILED EXPERIMENT on the band (see FAILED_RECIPES below). final14obs's data recipe (press2 labels, observable 60 ms, diff + lite
 # inputs, mild placement augmentation, 4-15 leaves) with
 #   - the balanced objective: every tap kind (soft, mid, strong, double, fast, other taps, swipes) counts the same,
 #     and the worst movement kind (finger, fist, wrist / twist, arm, band) must stay under MUDRA_TAP_MOVEMENT_LIMIT
@@ -104,7 +104,14 @@ TAP_RECIPES["final14protect"] = dict(TAP_RECIPES["final14"], MUDRA_TAP_OBS_MS="4
 TAP_RECIPES["final"] = dict(TAP_RECIPES["final14obs"], MUDRA_TAP_OBJECTIVE="balanced", MUDRA_TAP_MOVEMENT_LIMIT="7",
                             MUDRA_SIZE_LADDER_KB="8,12,16,24,32,48,64,100", MUDRA_SIZE_PENALTY_PER_KB="0.0001",
                             MUDRA_MODEL_BUDGET_KB="100", MUDRA_N_ESTIMATORS="80,2600")
+# FAILED EXPERIMENT (2026-11-26): on the band the "final" recipe never reached the tap threshold on mid and strong
+# taps (43 s test: highest score 16 of 20, threshold 17; no tap). It is refused unless MUDRA_ALLOW_FAILED_RECIPE=1
+# (research / smoke tests only). TAP_FILESPLIT_RESULTS.md, "FAILED EXPERIMENT".
+FAILED_RECIPES = {"final"}
 TAP_RECIPE = os.environ.get("MUDRA_TAP_RECIPE", "").strip().lower()
+if TAP_RECIPE in FAILED_RECIPES and os.environ.get("MUDRA_ALLOW_FAILED_RECIPE", "") != "1":
+    raise ValueError(f"MUDRA_TAP_RECIPE={TAP_RECIPE} is a FAILED experiment (no mid / strong taps on the band, "
+                     "2026-11-26). Use the default final14obs. MUDRA_ALLOW_FAILED_RECIPE=1 runs it for research only.")
 if TAP_RECIPE:
     if TAP_RECIPE not in TAP_RECIPES:
         raise ValueError(f"MUDRA_TAP_RECIPE must be one of {sorted(TAP_RECIPES)}")

@@ -961,8 +961,8 @@ if __name__ == "__main__":
                                 ("TAP final recipe", dict(MUDRA_TAP_RECIPE="final14", MUDRA_TASKS="tap,lp")),
                                 ("TAP final recipe + observable labels",
                                  dict(MUDRA_TAP_RECIPE="final14obs", MUDRA_TASKS="tap,lp")),
-                                ("TAP final pipeline (balanced objective, size ladder, logit shift)",
-                                 dict(MUDRA_TAP_RECIPE="final", MUDRA_TASKS="tap,lp")),
+                                ("TAP failed balanced recipe (code path kept tested; refused without opt-in)",
+                                 dict(MUDRA_TAP_RECIPE="final", MUDRA_TASKS="tap,lp", MUDRA_ALLOW_FAILED_RECIPE="1")),
                                 ("TAP maximum-protection recipe (obs40 + distillation + finger x2), split by file, "
                                  "strict target 1.5 (logit shift search)",
                                  dict(MUDRA_TAP_RECIPE="final14protect", MUDRA_TASKS="tap,lp", MUDRA_SPLIT="file",
