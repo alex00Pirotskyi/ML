@@ -6,15 +6,17 @@
 #   make status     is it running, how many trials, last trial lines
 #   make stop       stop every running training (also ones started by hand)
 #
-# Default: RECIPE=final14obs, the recipe of the model that worked on the band (2026-11-24): file split, 14 KB,
-# the old header's false-tap level as the target, no threshold shift. Stricter models (TARGET below 4, RECIPE=final)
-# kept their protection offline but lost mid and strong taps on the band (2026-11-25 / 26).
+# Default: RECIPE=final14, the BASELINE: the model that worked on the band (2026-11-24, folder
+# ..._tap-diff-mild-litediff-press2-kb14-leaves4-15_splitfile): file split, 14 KB, the old header's false-tap level
+# (~6.2/min) as the target, no threshold shift, no observable-window labels.
 # Settings, for example:
+#   make train KB=64 ALT_KB=14          (bigger model, same false-tap level as the baseline)
+#   make train RECIPE=final14obs        (+ observable 60 ms labels)
 #   RECIPE=final is a FAILED experiment (no mid / strong taps on the band, 2026-11-26): the trainer refuses it
 #   make train KB=32 ALT_KB=14          (bigger model, same false-tap level)
 #   Model size: at most 100 KB (MAX_MODEL_SIZE_BYTES = 102400, fixed in the trainer)
 
-RECIPE ?= final14obs
+RECIPE ?= final14
 LIMIT  ?=
 override SPLIT := file# fixed: splits and folds by recording file only (a person split is not allowed)
 ALT_KB ?= 10
