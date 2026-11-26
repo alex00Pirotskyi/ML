@@ -20,8 +20,12 @@ class TapReviewTest(unittest.TestCase):
                             columns=COLUMNS)
 
     def test_swipe_and_disconnect(self):
-        self.assertEqual(label_rows(self.base, "SWIPE", None).tap_label[:3].tolist(), [-1, 0, -1])
+        self.assertEqual(label_rows(self.base, "SWIPE", None).tap_label[:3].tolist(), [-1, 1, -1])
         self.assertEqual(label_rows(self.base, "FINGER", None).finger.unique().tolist(), ["unknown"])
+
+    def test_swipe_without_confirmed_contact(self):
+        self.base["tap_label"] = 0
+        self.assertTrue((label_rows(self.base, "SWIPE", None).tap_label == -1).all())
 
     def test_silent_soft_contact(self):
         self.base["tap_label"] = 0

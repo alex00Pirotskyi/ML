@@ -1,4 +1,4 @@
-"""Build row-aligned tap-only supervision using the repository teacher and optional independent reviews."""
+"""Build row-aligned tap and swipe supervision using the repository teacher and optional independent reviews."""
 import argparse
 import json
 import tempfile
@@ -62,11 +62,9 @@ def label_rows(base, folder, reviews):
         raise ValueError("Expected ordered recording timestamps")
     t = ts - ts[0]
     y = base.tap_label.to_numpy(copy=True)
-    if folder == "SWIPE":
-        y[y == 1] = 0
     y[base.n_ch_off.to_numpy() >= 2] = -1
     # The absence of a teacher peak in a prompted tap trial cannot certify rest.
-    if folder == "TAP" and not (y == 1).any():
+    if folder in {"TAP", "SWIPE"} and not (y == 1).any():
         y[:] = -1
     out = pd.DataFrame(dict(Timestamp=ts, tap_label=y, provenance=np.where(
         y == -1, "unknown", "silver"), finger="unknown", strength="unknown"))
