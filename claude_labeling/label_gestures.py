@@ -308,8 +308,8 @@ def label_recording(path, tm, cm, kind='auto', opt=None):
     hu, hd = hold_presses(df, t) if kind == 'hold' else merge_bounces(up, dn)
     hold_g, hms_g, hpid_g, H = hold_labels(hu, hd, lab, g, kind, opt.get('trust_pointer', False))
     hold = hold_g[row]; hms = np.where(hold == 1, hms_g[row] + (t - g[row]).astype(np.int32), -1).astype(np.int32); hpid = hpid_g[row]
-    if kind == 'none' and len(hu):                                    # a stray press in a no-gesture recording: unknown
-        for u, d in zip(hu, hd): q = m_(u - 300, d + 300); hold[q] = -1; tap[q] = -1; tact[q] = -1
+    if kind == 'none':                                                # negative folders: every row is 0, no exception
+        tap[:] = 0; tact[:] = 0; teid[:] = -1; hold[:] = 0; hms[:] = -1; hpid[:] = -1   # a pointer press changes nothing
     if kind == 'hold' and len(H):
         H['type'] = 'hold_press'; H['labeled'] = np.where(H.held, 1, -1); events.append(H)
         lo, hi = P['HOLD_TAP_MASK']; rlo, rhi = P['HOLD_TAP_MASK_REL']   # press starts (and some releases) look like taps
