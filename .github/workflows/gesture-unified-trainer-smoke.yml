@@ -26,6 +26,8 @@ on:
       - 'tests/test_label_file_folds.py'
       - 'tests/test_fs_fast_shift.py'
       - 'tests/test_fist_weight.py'
+      - 'tests/test_tap_signal.py'
+      - 'research/gesture/tap_signal_research.py'
       - 'Makefile'
       - 'org.py'
       - 'tests/test_org_mapping.py'
@@ -78,10 +80,10 @@ jobs:
       - name: org.py routing regressions
         run: python -m pytest -q tests/test_org_mapping.py
       - name: Top labels and file-fold labeller (no person folds)
-        run: python -m pytest -q tests/test_tap_top.py tests/test_label_file_folds.py tests/test_fs_fast_shift.py tests/test_fist_weight.py
+        run: python -m pytest -q tests/test_tap_top.py tests/test_label_file_folds.py tests/test_fs_fast_shift.py tests/test_fist_weight.py tests/test_tap_signal.py
       - name: Compile and execute real-source two-model smoke
         run: |
-          python -m py_compile research/gesture/train_unified.py research/gesture/replay.py research/gesture/generate_lean8_features.py research/gesture/generate_lean_lite_features.py research/gesture/tap_features.py research/gesture/tap_generalization_research.py research/gesture/bench_unified.py research/gesture/ablate_lean8.py research/gesture/feature_selection.py research/gesture/fs_research.py research/gesture/validate_events.py research/gesture/test_unified_smoke.py research/gesture/tap_gestures.py research/gesture/tap_gestures_research.py research/gesture/tap_gestures_strict.py research/gesture/tap_fist_research.py research/gesture/test_tap_gestures.py research/gesture/tap_focus_fw_rule.py research/gesture/tap_extra_cache.py research/gesture/tap_observable_research.py research/gesture/prepare_run.py research/gesture/tap_top_research.py claude_labeling/tap_top.py claude_labeling/plot_tap_top.py claude_labeling/teacher/make_file_folds.py claude_labeling/teacher/export_teacher.py
+          python -m py_compile research/gesture/train_unified.py research/gesture/replay.py research/gesture/generate_lean8_features.py research/gesture/generate_lean_lite_features.py research/gesture/tap_features.py research/gesture/tap_generalization_research.py research/gesture/bench_unified.py research/gesture/ablate_lean8.py research/gesture/feature_selection.py research/gesture/fs_research.py research/gesture/validate_events.py research/gesture/test_unified_smoke.py research/gesture/tap_gestures.py research/gesture/tap_gestures_research.py research/gesture/tap_gestures_strict.py research/gesture/tap_fist_research.py research/gesture/test_tap_gestures.py research/gesture/tap_focus_fw_rule.py research/gesture/tap_extra_cache.py research/gesture/tap_observable_research.py research/gesture/prepare_run.py research/gesture/tap_top_research.py research/gesture/tap_signal_research.py claude_labeling/tap_top.py claude_labeling/tap_signal.py claude_labeling/label_signal.py claude_labeling/plot_tap_top.py claude_labeling/teacher/make_file_folds.py claude_labeling/teacher/export_teacher.py
           python -u research/gesture/test_unified_smoke.py
       - uses: actions/upload-artifact@v4
         if: always()

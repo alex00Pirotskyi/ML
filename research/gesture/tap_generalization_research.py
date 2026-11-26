@@ -1236,6 +1236,70 @@ def train_set(rows, labels):
     return X, yy, files, w0, rec, ridx, info
 
 
+# ============================================================================ signal labels
+SIG_DIR = Path(os.environ.get("MUDRA_GR_SIG_DIR", "/tmp/work/siglab"))
+SIG_EVENT_ROLES = ("contact", "weak", "second", "recovered", "release", "inpress")
+_SIGS = {}
+
+
+def sig_store(name):
+    """Signal labels (claude_labeling/label_signal.py output) aligned with the replay rows, and the times of every
+    jolt with a role (hard negatives are sampled around them, as the trainer samples around presses)."""
+    if name in _SIGS:
+        return _SIGS[name]
+    d = SIG_DIR if name == "default" else Path(f"{SIG_DIR}_{name}")
+    D = load(); rpl = D["rpl"]; recs = rpl["recs"]
+    L = np.load(d / "labels.npz")
+    key = lambda f: "/".join([f.split("/")[-3].replace("_LEAN8", "")] + f.split("/")[-2:])
+    y = np.full(rpl["X"].shape[0], -1, np.int8)
+    for i, r in enumerate(recs.itertuples()):
+        a, b = int(r.start), int(r.end)
+        if b <= a:
+            continue
+        v = L[key(r.file)]
+        if len(v) != b - a:
+            raise ValueError(f"signal labels of {r.file}: {len(v)} rows, replay {b - a}")
+        y[a:b] = v
+    E = pd.read_csv(d / "events.csv.gz", usecols=["file", "t", "role"], low_memory=False)
+    E = E[E.role.isin(SIG_EVENT_ROLES)]
+    idx = {key(f): i for i, f in enumerate(recs.file)}
+    ev = {idx[k]: np.sort(v.t.to_numpy(float)) for k, v in E.groupby("file") if k in idx}
+    _SIGS[name] = (y, ev, str(d))
+    return _SIGS[name]
+
+
+def signal_train_set(rows, name):
+    """The fold's training rows under the signal labels: the cache's rows relabelled (rows of left-out recordings
+    dropped), plus every tap row (10 ms stride) and the not-a-tap rows within 500 ms of any jolt with a role (20 ms
+    stride) that the old labels had as unknown, from the replay of the same training recordings (trainer sampling)."""
+    D = load(); data = D["data"]; rpl = D["rpl"]; recs = rpl["recs"]
+    ysig, ev, d = sig_store(name)
+    rb = data_ridx(rows); yb = ysig[rb]; keep = yb >= 0
+    new = []
+    for r_ in np.unique(data["rec"][rows]):
+        row = recs.iloc[int(r_)]
+        if row.folder not in ("TAP", "SWIPE") and row.folder not in g.HOLD_FOLDERS:
+            continue
+        a, b = int(row.start), int(row.end); yy = ysig[a:b]
+        if not (yy >= 0).any():
+            continue
+        t_ = np.asarray(rpl["t"][a:b], np.float64); fr = np.asarray(rpl["frames"][a:b]) >= g.TRAIN_MIN_FRAMES
+        pos = g.stride_pick(t_, (yy == 1) & fr, g.TAP_POSITIVE_STRIDE_MS)
+        hard = g.stride_pick(t_, (yy == 0) & fr & g.near(t_, ev.get(int(r_), []), g.TAP_HARD_WINDOW_MS), g.TAP_HARD_STRIDE_MS)
+        new.append(a + np.r_[pos, hard])
+    extra = np.setdiff1d(np.unique(np.concatenate(new)) if new else np.zeros(0, np.int64), rb[keep])
+    ridx = np.r_[rb[keep], extra]
+    order = np.argsort(ridx, kind="stable"); ridx = ridx[order]
+    rec = np.searchsorted(recs.end.to_numpy(), ridx, side="right")
+    X = np.asarray(rpl["X"][ridx]); y = ysig[ridx].astype(int)
+    files = recs.file.to_numpy(object)[rec]
+    w0 = np.r_[np.asarray(data["w"][rows][keep], np.float32), np.ones(len(extra), np.float32)][order]
+    info = dict(sig_dir=d, sig_rows_relabelled=int(keep.sum()), sig_rows_dropped=int((~keep).sum()),
+                sig_rows_added=int(len(extra)), train_rows=int(len(y)), positives=int((y == 1).sum()),
+                sig_old_pos_now_neg=int(((data["y"][rows][keep] == 1) & (yb[keep] == 0)).sum()))
+    return X, y, files, w0, rec, ridx, info
+
+
 # ============================================================================ distillation
 def distill_scores(X150, y, rec, ridx, fold, spec):
     """Cross-fitted teacher probability for EVERY training row of this fold: a full-size model (OBS_TEACHER, no
@@ -1466,6 +1530,8 @@ def arm_from_name(name):
                                 "relnegs": ("rel", "single")}[tok]   # relnegs: release, single-tap recordings only
         elif tok == "lpneg":                          # long-press starts / releases (unknown today) trained as negative
             base["lpneg"] = True
+        elif tok.startswith("sig") and (tok == "sig" or tok[3:].isalnum()):   # signal labels (claude_labeling/
+            base["sig"] = tok[3:] or "default"       # tap_signal.py): sig = MUDRA_GR_SIG_DIR, sig<name> = <dir>_<name>
         elif tok.startswith("fistw"):                 # fist (Fist & Stretch) negatives only, weighted x k
             base["fistw"] = float(tok[5:])
         elif tok.startswith("bgneg") and tok[5:].isdigit():   # bgneg500: TAP / SWIPE rest time > 500 ms from any
@@ -1503,6 +1569,8 @@ def run_arm(name):
         if arm.get("drop"):
             trn = trn[~np.isin(data["group"][trn], arm["drop"])]
         X150, y, files, w0, rec, ridx, info = train_set(trn, labels)
+        if arm.get("sig"):                         # signal labels replace the training labels (validation unchanged)
+            X150, y, files, w0, rec, ridx, info = signal_train_set(trn, arm["sig"])
         if arm.get("fmine"):                       # hard negatives from finger-motion / fist recordings
             mined = mine_finger(set(data["group"][trn]), f)
             rec_m = np.searchsorted(D["rpl"]["recs"].end.to_numpy(), mined, side="right")

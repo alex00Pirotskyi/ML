@@ -73,6 +73,8 @@ import tap_features as TF
 import feature_selection as FS
 sys.path.insert(0, str(ROOT / "claude_labeling"))
 import tap_top as TT
+import tap_signal as TSIG
+TSIG_ROLES = ("contact", "weak", "second", "recovered", "release", "inpress")   # jolts the hard negatives sit around
 
 v6 = previous_tap.v6
 export_plus = v6.export_plus
@@ -99,6 +101,15 @@ TAP_RECIPES["final14protect"] = dict(TAP_RECIPES["final14"], MUDRA_TAP_OBS_MS="4
 # middle of the rise (from 50 %). The tap set, the inputs, the split and the evaluation are final14's.
 TAP_RECIPES["final14top"] = dict(TAP_RECIPES["final14"], MUDRA_TAP_WINDOW="top")
 TAP_RECIPES["final14mid"] = dict(TAP_RECIPES["final14"], MUDRA_TAP_WINDOW="mid")
+# SIGNAL labels (claude_labeling/tap_signal.py, TAP_SIGNAL_LABELS.md): final14's inputs, size and evaluation, but the TAP
+# training labels come from per-axis / per-zone ACC signal conditions with a repaired pointer: the top of every tap's
+# contact jolt is a tap (merged double taps split, taps the pointer missed recovered on the beat), every other row of the
+# recording is "not a tap" (releases included). No unknown rows; recordings the checks cannot trust are left out.
+TAP_RECIPES["final14sig"] = dict(TAP_RECIPES["final14"], MUDRA_TAP_WINDOW="signal", MUDRA_TAP_LABELS="confirmed",
+                                 MUDRA_TAP_SIGNAL_PRESET="hybrid")
+# the deterministic labeller's rule (only the tap block is 1, every other row 0, no unknown rows): measured WORSE
+# (TAP_SIGNAL_LABELS.md: -2.9 points of taps, +2.3 fist false taps/min at the same false rate, +25 ms latency)
+TAP_RECIPES["final14legacy"] = dict(TAP_RECIPES["final14sig"], MUDRA_TAP_SIGNAL_PRESET="legacy")
 # final: FAILED EXPERIMENT on the band (see FAILED_RECIPES below). final14obs's data recipe (press2 labels, observable 60 ms, diff + lite
 # inputs, mild placement augmentation, 4-15 leaves) with
 #   - the balanced objective: every tap kind (soft, mid, strong, double, fast, other taps, swipes) counts the same,
@@ -169,9 +180,14 @@ TAP_CERTAIN = os.environ.get("MUDRA_TAP_CERTAIN", "0").strip() == "1"
 #                            contact jolt (>= 80 % of its height around the peak); "mid" = from the middle of the rise
 #                            (50 %) to the end of the top. Never the start. The tap set is unchanged, the rows of the old
 #                            window outside the new one are left out (unknown), evaluation and replay are unchanged.
+#                            "signal" = the signal labeller (claude_labeling/tap_signal.py): per-axis / per-zone ACC
+#                            conditions + repaired pointer; the top of each contact jolt is a tap, every other row not
+#                            a tap; replay and evaluation unchanged (TAP_SIGNAL_LABELS.md).
 TAP_WINDOW = os.environ.get("MUDRA_TAP_WINDOW", "onset").strip().lower()
-if TAP_WINDOW not in ("onset", "top", "mid"):
-    raise ValueError("MUDRA_TAP_WINDOW must be onset, top or mid")
+if TAP_WINDOW not in ("onset", "top", "mid", "signal"):
+    raise ValueError("MUDRA_TAP_WINDOW must be onset, top, mid or signal")
+TAP_SIGNAL = TAP_WINDOW == "signal"         # labels from claude_labeling/tap_signal.py (training target only)
+TAP_SIGNAL_PRESET = os.environ.get("MUDRA_TAP_SIGNAL_PRESET", "hybrid").strip().lower()
 _obs = os.environ.get("MUDRA_TAP_OBS_MS", "off").strip().lower()
 TAP_OBS_MS = None if _obs in ("off", "0", "none", "") else float(_obs)
 if TAP_FEATURES not in ("raw", "diff") or TAP_AUG not in ("none", "mild"):
@@ -293,6 +309,10 @@ else:
 # With weight 1 the shift is the threshold move the research measured (s ~ 3 for 1.5/min).
 if TAP_CERTAIN:
     TAP_TAG += "-certain"
+if TAP_SIGNAL and TAP_SIGNAL_PRESET not in TSIG.PRESETS:
+    raise ValueError(f"MUDRA_TAP_SIGNAL_PRESET must be one of {sorted(TSIG.PRESETS)}")
+if TAP_SIGNAL and TAP_SIGNAL_PRESET != "hybrid":
+    TAP_TAG += f"-{TAP_SIGNAL_PRESET}"
 if TAP_WINDOW != "onset" and TAP_CERTAIN:
     raise ValueError("MUDRA_TAP_WINDOW=top/mid and MUDRA_TAP_CERTAIN=1 are not combined: certain turns the start of "
                      "every tap (left out by the top labels) into 'not a tap'")
@@ -1117,7 +1137,10 @@ def build_task_data(task: str, records, out: Path):
                                  code=hashlib.sha256((inspect.getsource(press2_labels) +
                                                       inspect.getsource(press2_recording)).encode()).hexdigest()))
         fp = hashlib.sha256((fp + "|tap_labels=press2|" + policy).encode()).hexdigest()
-    if task == "tap" and TAP_WINDOW != "onset":  # the top-label policy (claude_labeling/tap_top.py, code and constants)
+    if task == "tap" and TAP_SIGNAL:              # the signal labeller (code and constants)
+        fp = hashlib.sha256((fp + "|tap_window=signal|" + TSIG.VERSION + "|" + TAP_SIGNAL_PRESET + "|"
+                             + sha256(Path(TSIG.__file__))).encode()).hexdigest()
+    if task == "tap" and TAP_WINDOW in ("top", "mid"):  # the top-label policy (claude_labeling/tap_top.py, code and constants)
         import inspect
         fp = hashlib.sha256((fp + f"|tap_window={TAP_WINDOW}|" + TT.VERSION + "|" + sha256(Path(TT.__file__)) + "|"
                              + hashlib.sha256(inspect.getsource(top_anchors).encode()).hexdigest()).encode()).hexdigest()
@@ -1207,7 +1230,22 @@ def build_task_data(task: str, records, out: Path):
             X = np.hstack([X, TF.derived(X, raw_columns)])
         if lite_cols:                            # from the recording's first row, as the firmware state after a reset
             X = np.hstack([X, TF.lite_rows(X, raw_columns + derived, frames)])
-        if task == "tap" and TAP_WINDOW != "onset" and (y_train == 1).any():
+        sig_ev = None
+        if task == "tap" and TAP_SIGNAL:               # signal labels: the whole TAP target of this recording
+            raw_src = (RAW_SOURCE_TAP if root in (SOURCE_TAP, RAW_SOURCE_TAP) else RAW_SOURCE_LP) / source.relative_to(root)
+            s_sig, _ = TSIG.read(raw_src)
+            if len(s_sig["t"]) != len(t) or not np.array_equal(s_sig["ts"], ts):
+                raise ValueError(f"Signal labels: rows of {raw_src} differ from {source}")
+            y_sig, j_sig, q_sig = TSIG.label(s_sig, folder, source.name, TAP_SIGNAL_PRESET)
+            y_train, soft_rows = y_sig.astype(np.int8), None    # -1 everywhere: the recording is left out of training
+            info["signal_" + str(q_sig.get("tier"))] += 1
+            info["signal_taps"] += int(q_sig.get("taps", 0))
+            for r_ in ("second", "recovered", "release", "weak"):
+                info[f"signal_{r_}"] += int(q_sig.get(f"n_{r_}", 0))
+            sig_ev = pd.DataFrame(dict(t_on=j_sig.t[j_sig.role.isin(TSIG_ROLES)].to_numpy(float)))
+            if ev is not None and len(ev):
+                sig_ev = pd.concat([sig_ev, ev[[c for c in ("t_ptr", "t_rel") if c in ev]]], ignore_index=True)
+        if task == "tap" and TAP_WINDOW in ("top", "mid") and (y_train == 1).any():
             # top labels: every tap moves to the top of its contact jolt (training target only; replay keeps y)
             anchors = top_anchors(ev, press2 and press2_recording(source))
             acc_idx = [raw_columns.index(c) for c in TT.ACC_NOW]
@@ -1216,7 +1254,7 @@ def build_task_data(task: str, records, out: Path):
             info.update({f"top_{k}": v for k, v in top_info.items()})
             top_windows.extend(dict(rec=len(recs), **w) for w in wins)
         if task == "tap":
-            rows, kinds = sample_tap(t, y_train, lab["any_active"].to_numpy(np.int8), ev, soft_rows)
+            rows, kinds = sample_tap(t, y_train, lab["any_active"].to_numpy(np.int8), sig_ev if TAP_SIGNAL else ev, soft_rows)
         else:
             rows, kinds = sample_lp(t, y, lab["hold_ms"].to_numpy(np.int32), folder, ev)
         user = str(df["User"].iloc[0]) if "User" in df.columns else ""
@@ -3220,7 +3258,9 @@ def train_task(task: str, tap_files, lp_files):
                                             if TAP_FEATURES == "diff" else 0, lean_lite_diff=TAP_LITE,
                                             lean_lite_inputs=len(TF.LITE_COLUMNS) if TAP_LITE == "diff" else 0,
                                             labels=TAP_LABELS, observable_ms=TAP_OBS_MS, distill_label_weight=TAP_DISTILL,
-                                            tap_window=TAP_WINDOW, tap_top_version=TT.VERSION if TAP_WINDOW != "onset" else None,
+                                            tap_window=TAP_WINDOW, tap_top_version=TT.VERSION if TAP_WINDOW in ("top", "mid") else None,
+                                            tap_signal_version=TSIG.VERSION if TAP_SIGNAL else None,
+                                            tap_signal_preset=TAP_SIGNAL_PRESET if TAP_SIGNAL else None,
                                             label_teacher=LABEL_TEACHER,
                                             finger_weight=TAP_FINGER_WEIGHT, recipe=TAP_RECIPE or None,
                                             num_leaves=list(NUM_LEAVES)) if task == "tap" else None),

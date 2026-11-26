@@ -31,6 +31,7 @@ import replay as R
 import generate_lean8_features as L8
 import generate_lean_lite_features as LL
 import tap_features as TF
+sys.path.insert(0, str(ROOT / "claude_labeling"))
 
 
 def lean8_handler_reference(wl_frames, psd_mean_frames):
@@ -519,6 +520,32 @@ def tap_top_checks():
     assert g.TAP_RECIPES["final14top"]["MUDRA_TAP_WINDOW"] == "top"
     assert {k: v for k, v in g.TAP_RECIPES["final14top"].items() if k != "MUDRA_TAP_WINDOW"} == g.TAP_RECIPES["final14"]
     print("TAP_TOP_CHECKS_PASSED", flush=True)
+
+
+def tap_signal_checks():
+    """MUDRA_TAP_WINDOW=signal (claude_labeling/tap_signal.py, TAP_SIGNAL_LABELS.md): the recipes, the presets and the
+    training target on a synthetic recording (a tap at the top of its contact jolt, the pointer 60 ms late)."""
+    import tap_signal as TS
+    assert g.TAP_RECIPES["final14sig"]["MUDRA_TAP_WINDOW"] == "signal"
+    assert g.TAP_RECIPES["final14sig"]["MUDRA_TAP_SIGNAL_PRESET"] == "hybrid"
+    assert g.TAP_RECIPES["final14legacy"]["MUDRA_TAP_SIGNAL_PRESET"] == "legacy"
+    assert set(TS.PRESETS) == {"hybrid", "legacy"} and TS.OPTIONS == TS.PRESETS["hybrid"]
+    t = np.arange(0.0, 9000.0, 8.0); n = len(t); rng = np.random.default_rng(1)
+    acc = rng.uniform(2, 6, (n, 3, 6)); taps = np.arange(1000.0, 8001.0, 1000.0)
+    for x in taps:
+        for a, k in enumerate((1.0, 0.5, 0.3)):
+            acc[:, a, 1:] += 5000.0 * k * np.exp(-0.5 * ((t - x) / 25.0) ** 2)[:, None]
+    ptr = np.zeros(n, np.int8)
+    for x in taps:
+        ptr[(t >= x + 60) & (t <= x + 180)] = 1
+    s = dict(ts=(t + 1e12).astype(np.int64), t=t, acc=acc, emg=np.full((n, 3, 5), 500.0), wl=np.zeros((n, 3)),
+             ptr=ptr, met=np.zeros(n, np.int8), n=n)
+    for preset in TS.PRESETS:
+        y, J, q = TS.label(s, "TAP", "x_MidTap_Horizontal_Default_60bpm_y.csv.gz", preset)
+        got = np.sort(J.t[J.y == 1].to_numpy())
+        assert len(got) == len(taps) and np.all(np.abs(got - taps) <= 10), (preset, got)
+        assert (y[(t > 300) & (t < 700)] == 0).all()                   # rest is "not a tap" in both presets
+    print("TAP_SIGNAL_CHECKS_PASSED", flush=True)
 
 
 def unit_checks():
@@ -1043,6 +1070,7 @@ if __name__ == "__main__":
     tap_final_recipe_checks()
     tap_certain_checks()
     tap_top_checks()
+    tap_signal_checks()
     unit_checks()
     validate_events_checks()
     if "--unit-only" not in sys.argv:

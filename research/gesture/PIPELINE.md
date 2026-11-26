@@ -49,6 +49,8 @@ top of its contact jolt (the ACC impulse at >= 80 % of its height around its pea
 never at its start. Same taps, inputs, split and evaluation; only where each tap is taught moves. `final14mid` also
 teaches the middle of the rise: measured worse than onset labels, kept for comparison.
 
+**Signal labels** (`final14sig`, `MUDRA_TAP_WINDOW=signal`; TAP_SIGNAL_LABELS.md): final14's inputs and evaluation, but the TAP training target comes from `claude_labeling/tap_signal.py`: per-axis / per-zone ACC conditions (nothing mixed across axes or EMG channels) and a repaired pointer, no tap teacher. Same quality as `final14top` in research; `final14legacy` reproduces the old deterministic labeller's no-unknown rule (measured worse).
+
 `MUDRA_TAP_CERTAIN=1` (`make train RECIPE=final14 CERTAIN=1`; not combined with top labels): every unknown row of a TAP / SWIPE / long-press recording is decided
 before training and evaluation. Unconfirmed pointer presses, double / 240 bpm second taps and long-press starts
 become taps; everything else becomes "not a tap". Rows the labeller set to 0 stay 0 (TAP_FILESPLIT_RESULTS.md,

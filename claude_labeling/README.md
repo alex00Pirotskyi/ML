@@ -40,3 +40,7 @@ Method and evidence: `research/gesture/TAP_TOP_LABELS.md`.
 
 This replaces running `claude_research_tap/pipeline/export_labels.py` and `claude_research_lp/label_long_press.py` separately;
 their tap, hold and channel labels are reproduced exactly, with the disconnection and cross-gesture rules added.
+
+## Signal labels (2026-11-26)
+
+`tap_signal.py` / `label_signal.py`: a deterministic tap labeller on signal conditions, nothing mixed across ACC axes, ACC zones or EMG channels. A pointer-free trigger finds every contact jolt, the pointer is repaired (per-recording delay, merged double taps split, 240 bpm presses one tap per period, bounces, stuck presses, taps the pointer missed recovered on the metronome beat) and recordings that cannot be trusted are left out. `python claude_labeling/label_signal.py OUT` labels every recording in about a minute; the trainer uses it with `make train RECIPE=final14sig`. Method, research and measurements: `research/gesture/TAP_SIGNAL_LABELS.md`.

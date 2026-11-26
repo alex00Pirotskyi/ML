@@ -22,6 +22,10 @@
 #   make train KB=32 ALT_KB=14          (bigger model, same false-tap level)
 #   make train KB=64 ALT_KB=14 TARGET=5 FIST=3   (protection: a bigger model at the same taps fires 30-50% less on
 #                                        fists, fingers, wrist and band; TAP_FIST.md)
+#   make train RECIPE=final14sig        (signal labels: per-axis / per-zone ACC conditions + repaired pointer, no tap
+#                                        teacher; same quality as final14top, band -1.7/min; TAP_SIGNAL_LABELS.md)
+#   make train RECIPE=final14legacy     (the old deterministic labeller's rule: everything but the tap block is 0;
+#                                        measured worse: -3 points of taps, +2.4 fist/min, +25 ms)
 #   Model size: at most 100 KB (MAX_MODEL_SIZE_BYTES = 102400, fixed in the trainer)
 
 RECIPE ?= final14top
