@@ -12,6 +12,8 @@
 # Settings, for example:
 #   make train KB=64 ALT_KB=14          (bigger model, same false-tap level as the baseline)
 #   make train RECIPE=final14obs        (+ observable 60 ms labels)
+#   make train CERTAIN=1 KB=94 ALT_KB=14 (no unknown labels: every row of a TAP / SWIPE / long-press recording is
+#                                        tap or not-tap in training AND evaluation; folder suffix -certain)
 #   RECIPE=final is a FAILED experiment (no mid / strong taps on the band, 2026-11-26): the trainer refuses it
 #   make train KB=32 ALT_KB=14          (bigger model, same false-tap level)
 #   Model size: at most 100 KB (MAX_MODEL_SIZE_BYTES = 102400, fixed in the trainer)
@@ -25,6 +27,7 @@ PYTHON ?= python
 PULL   ?= 1
 TARGET ?=
 KB     ?=
+CERTAIN ?=
 # tree-count range for KB: up to 25 trees per KB (at least 400), so small trees can fill a big budget
 COMMA  := ,
 NEST    = 80$(COMMA)$(shell echo $$(( $(KB) * 25 > 400 ? $(KB) * 25 : 400 )))
@@ -48,13 +51,13 @@ train:
 	  echo "A training is already running:"; echo "$$running"; \
 	  echo "Wait for it to finish (make status), or start anyway with: make train FORCE=1"; exit 1; fi
 	@if [ "$(PULL)" = "1" ]; then git pull --ff-only; fi
-	@MUDRA_TAP_RECIPE=$(RECIPE) MUDRA_SPLIT=$(SPLIT) MUDRA_ALT_BUDGET_KB=$(ALT_KB) $(if $(TARGET),MUDRA_TAP_FALSE_PER_MIN_TARGET=$(TARGET)) $(if $(LIMIT),MUDRA_TAP_MOVEMENT_LIMIT=$(LIMIT)) $(if $(KB),MUDRA_MODEL_BUDGET_KB=$(KB) MUDRA_N_ESTIMATORS=$(NEST)) $(EXTRA) \
+	@MUDRA_TAP_RECIPE=$(RECIPE) MUDRA_SPLIT=$(SPLIT) MUDRA_ALT_BUDGET_KB=$(ALT_KB) $(if $(TARGET),MUDRA_TAP_FALSE_PER_MIN_TARGET=$(TARGET)) $(if $(LIMIT),MUDRA_TAP_MOVEMENT_LIMIT=$(LIMIT)) $(if $(CERTAIN),MUDRA_TAP_CERTAIN=$(CERTAIN)) $(if $(KB),MUDRA_MODEL_BUDGET_KB=$(KB) MUDRA_N_ESTIMATORS=$(NEST)) $(EXTRA) \
 	  $(PYTHON) research/gesture/prepare_run.py
 	@mkdir -p $(LOGDIR)
-	@MUDRA_TAP_RECIPE=$(RECIPE) MUDRA_SPLIT=$(SPLIT) MUDRA_ALT_BUDGET_KB=$(ALT_KB) $(if $(TARGET),MUDRA_TAP_FALSE_PER_MIN_TARGET=$(TARGET)) $(if $(LIMIT),MUDRA_TAP_MOVEMENT_LIMIT=$(LIMIT)) $(if $(KB),MUDRA_MODEL_BUDGET_KB=$(KB) MUDRA_N_ESTIMATORS=$(NEST)) $(EXTRA) \
+	@MUDRA_TAP_RECIPE=$(RECIPE) MUDRA_SPLIT=$(SPLIT) MUDRA_ALT_BUDGET_KB=$(ALT_KB) $(if $(TARGET),MUDRA_TAP_FALSE_PER_MIN_TARGET=$(TARGET)) $(if $(LIMIT),MUDRA_TAP_MOVEMENT_LIMIT=$(LIMIT)) $(if $(CERTAIN),MUDRA_TAP_CERTAIN=$(CERTAIN)) $(if $(KB),MUDRA_MODEL_BUDGET_KB=$(KB) MUDRA_N_ESTIMATORS=$(NEST)) $(EXTRA) \
 	  nohup $(PYTHON) -u $(SCRIPT) > $(LOG) 2>&1 & echo $$! > $(PIDFILE)
 	@ln -sfn $(notdir $(LOG)) $(LOGDIR)/latest.log
-	@echo "Started: recipe=$(RECIPE) split=$(SPLIT) alt_kb=$(ALT_KB) $(if $(TARGET),target=$(TARGET)) $(if $(LIMIT),limit=$(LIMIT)) $(if $(KB),kb=$(KB)) $(EXTRA)"
+	@echo "Started: recipe=$(RECIPE) split=$(SPLIT) alt_kb=$(ALT_KB) $(if $(TARGET),target=$(TARGET)) $(if $(LIMIT),limit=$(LIMIT)) $(if $(CERTAIN),certain=$(CERTAIN)) $(if $(KB),kb=$(KB)) $(EXTRA)"
 	@echo "PID $$(cat $(PIDFILE)), log $(LOG)"
 	@sleep 20; \
 	if kill -0 $$(cat $(PIDFILE)) 2>/dev/null; then \

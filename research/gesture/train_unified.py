@@ -111,7 +111,7 @@ FAILED_RECIPES = {"final"}
 TAP_RECIPE = os.environ.get("MUDRA_TAP_RECIPE", "").strip().lower()
 if TAP_RECIPE in FAILED_RECIPES and os.environ.get("MUDRA_ALLOW_FAILED_RECIPE", "") != "1":
     raise ValueError(f"MUDRA_TAP_RECIPE={TAP_RECIPE} is a FAILED experiment (no mid / strong taps on the band, "
-                     "2026-11-26). Use the default final14obs. MUDRA_ALLOW_FAILED_RECIPE=1 runs it for research only.")
+                     "2026-11-26). Use the default final14. MUDRA_ALLOW_FAILED_RECIPE=1 runs it for research only.")
 if TAP_RECIPE:
     if TAP_RECIPE not in TAP_RECIPES:
         raise ValueError(f"MUDRA_TAP_RECIPE must be one of {sorted(TAP_RECIPES)}")
@@ -146,6 +146,12 @@ TAP_FEATURES = os.environ.get("MUDRA_TAP_FEATURES", "raw").strip().lower()
 TAP_AUG = os.environ.get("MUDRA_TAP_AUG", "none").strip().lower()
 TAP_LITE = os.environ.get("MUDRA_TAP_LITE", "off").strip().lower()
 TAP_LABELS = os.environ.get("MUDRA_TAP_LABELS", "confirmed").strip().lower()
+# No uncertainty in TAP training (owner's rule, 2026-11-26): MUDRA_TAP_CERTAIN=1 turns every unknown row of the TAP
+# task into a decision before training AND evaluation (certain_labels): TAP / SWIPE pointer presses without a
+# confirmed onset become taps (pointer time, as press2), sensor-only second taps 150-450 ms after a tap in double /
+# 240 bpm recordings become taps, long-press / drag starts become taps (a long press starts with a tap), and every
+# other unknown row (lead-in, press, contraction, release, rest) becomes "not a tap". Own cache, folder and study.
+TAP_CERTAIN = os.environ.get("MUDRA_TAP_CERTAIN", "0").strip() == "1"
 #   MUDRA_TAP_OBS_MS=60      observable-pattern labels (TAP_OBSERVABLE_RESULTS.md): of every tap's positive rows only the
 #                            60 ms that a teacher, cross-fitted by person, finds most distinguishable from everything
 #                            else are trained; the tap's other positive rows are left out (never made negatives).
@@ -256,6 +262,8 @@ else:
 # i.e. 0.85 on the device = 0.9984 of the fitted model). That fits the cross-validated people but sits in the
 # score's extreme tail, which new people and new sessions do not reach: on the band even mid taps were missed.
 # With weight 1 the shift is the threshold move the research measured (s ~ 3 for 1.5/min).
+if TAP_CERTAIN:
+    TAP_TAG += "-certain"
 if TAP_LOGIT_SHIFT is not None:
     TAP_TAG += f"-shift{TAP_LOGIT_SHIFT[0]:g}-{TAP_LOGIT_SHIFT[1]:g}-pw1"
 # Soft labels on: own results folder too, so a run with and without them can be compared side by side.
@@ -939,6 +947,84 @@ def press2_labels(t, y, y_train, ev):
     return y2, added, info
 
 
+CERTAIN_SECOND_TAP_MS = (150, 450)    # sensor-only event after a tap in double / 240 bpm recordings = its second tap
+CERTAIN_ONSET_MATCH_MS = 100           # a positive run starting this close to a confirmed onset is that onset
+
+
+def certain_labels(t, y_train, ev, folder, source):
+    """No unknown rows (MUDRA_TAP_CERTAIN). y_train: the training target after soft / press2 labels. Returns
+    (labels without -1, [(onset ms, kind)] of the taps decided here, counts). Decisions, in order:
+      * TAP / SWIPE: a real pointer press (tier PRESS or EDGE) with no tap within PRESS2_MATCH_MS -> tap rows
+        t_on - 5 .. t_on + 90 (t_on = the labeller's onset estimate, else the pointer time), as press2;
+      * double / 240 bpm: a sensor-only event 150-450 ms after a tap -> tap rows t_on .. t_on + 80;
+      * long press / drag (hold folders): each press start -> tap rows t_on .. t_on + 80;
+      * every row still unknown -> 0 (not a tap): lead-in, contraction, release, rest, other sensor-only events.
+    Only unknown rows become taps: rows the labeller set to 0 (a disconnected channel) stay 0, and presses the
+    labeller flagged as disconnected are skipped."""
+    y2 = np.array(y_train, np.int8, copy=True); new_on = []; info = Counter()
+    info["certain_unknown_rows"] += int((y2 == -1).sum())
+
+    def tap_at(o, lo, hi, kind):
+        m = (t >= o + lo) & (t <= o + hi) & (y2 == -1)
+        if m.any():
+            y2[m] = 1; new_on.append((float(o), kind)); info[f"certain_{kind}"] += 1
+        else:
+            info[f"certain_{kind}_no_unknown_rows"] += 1
+
+    def has_tap_near(o, ms):
+        return bool(((y2 == 1) & (np.abs(t - o) <= ms)).any())
+
+    def disconnected(x):
+        return str(getattr(x, "rule_disconnect", "")).lower() == "true"
+
+    if ev is not None and len(ev):
+        if folder in TAP_FOLDERS:
+            pr = ev[(ev.type == "tap_press") & ev.tier.isin(["PRESS", "EDGE"]) & (ev.labeled == -1)]
+            for x in pr.itertuples():
+                o = x.t_on if x.t_on == x.t_on else x.t_ptr
+                if o == o and not disconnected(x) and not has_tap_near(o, PRESS2_MATCH_MS):
+                    tap_at(o, PRESS2_ANCHOR_MS[0], PRESS2_ANCHOR_MS[1], "pointer_press")
+            if press2_recording(source):
+                so = ev[(ev.type == "tap_sensor_only") & (ev.labeled == -1)].sort_values("t_on")
+                for x in so.itertuples():
+                    o = x.t_on
+                    if o != o or disconnected(x) or has_tap_near(o, PRESS2_MATCH_MS):
+                        continue
+                    on1 = t[np.flatnonzero(np.diff(np.r_[0, (y2 == 1).astype(np.int8)]) > 0)]
+                    d = o - on1[on1 < o]
+                    if len(d) and CERTAIN_SECOND_TAP_MS[0] <= d.min() <= CERTAIN_SECOND_TAP_MS[1]:
+                        tap_at(o, TAP_ONSET_WINDOW_MS[0], TAP_ONSET_WINDOW_MS[1], "second_tap")
+        elif folder in HOLD_FOLDERS:
+            for x in ev[ev.type == "hold_press"].itertuples():
+                o = x.t_on if x.t_on == x.t_on else x.t_ptr
+                if o == o and not disconnected(x):
+                    tap_at(o, TAP_ONSET_WINDOW_MS[0], TAP_ONSET_WINDOW_MS[1], "long_press_start")
+    info["certain_negative_rows"] += int((y2 == -1).sum())
+    y2[y2 == -1] = 0
+    return y2, new_on, info
+
+
+def certain_onsets(t, y, known, decided):
+    """Evaluation onsets of a recording with certain labels: every positive run whose start is not within
+    CERTAIN_ONSET_MATCH_MS of a known onset (confirmed / soft) or of an onset already listed is a tap to find.
+    Returns [(onset ms, kind)]: the onset decided by certain_labels that owns the run (decided 10 ms after the
+    run start at most, or up to CERTAIN_ONSET_MATCH_MS before it: a run split by labeller-0 rows), else the run
+    start + 5 ms (the press2 anchor) as "press2"."""
+    starts = t[np.flatnonzero(np.diff(np.r_[0, (np.asarray(y) == 1).astype(np.int8)]) > 0)]
+    known = list(np.asarray(known, float)); dec_t = np.asarray([o for o, _ in decided], float)
+    out = []
+    for s0 in starts:
+        if known and np.abs(np.asarray(known) - s0).min() <= CERTAIN_ONSET_MATCH_MS:
+            continue
+        own = np.flatnonzero((s0 - dec_t >= -10) & (s0 - dec_t <= CERTAIN_ONSET_MATCH_MS)) if len(dec_t) else []
+        o, kind = (decided[int(own[np.argmin(np.abs(dec_t[own] - s0))])] if len(own)
+                   else (float(s0) - PRESS2_ANCHOR_MS[0], "press2"))
+        if known and np.abs(np.asarray(known) - o).min() <= CERTAIN_ONSET_MATCH_MS:
+            continue
+        out.append((float(o), kind)); known.append(float(o))
+    return out
+
+
 def build_task_data(task: str, records, out: Path):
     """Training sample in memory, full replay rows in an on-disk float32 matrix (cached)."""
     records, _ = dedupe_records(records)          # idempotent (train_task already passes deduplicated records)
@@ -969,6 +1055,11 @@ def build_task_data(task: str, records, out: Path):
                                  code=hashlib.sha256((inspect.getsource(press2_labels) +
                                                       inspect.getsource(press2_recording)).encode()).hexdigest()))
         fp = hashlib.sha256((fp + "|tap_labels=press2|" + policy).encode()).hexdigest()
+    if task == "tap" and TAP_CERTAIN:            # the no-unknown policy
+        import inspect
+        fp = hashlib.sha256((fp + "|tap_certain|" + json.dumps(dict(second=CERTAIN_SECOND_TAP_MS,
+                             match=CERTAIN_ONSET_MATCH_MS, code=hashlib.sha256((inspect.getsource(certain_labels)
+                             + inspect.getsource(certain_onsets)).encode()).hexdigest()))).encode()).hexdigest()
     stamp = cache / "fingerprint.json"
     if stamp.is_file() and json.loads(stamp.read_text()).get("fingerprint") == fp:
         notice("UNIFIED_CACHE_REUSED", task, cache)
@@ -1030,6 +1121,10 @@ def build_task_data(task: str, records, out: Path):
             y_train, added, p2 = press2_labels(t, y, y_train, ev)
             soft_rows = added if soft_rows is None else (soft_rows | added)
             info.update(p2)
+        certain_on = []
+        if task == "tap" and TAP_CERTAIN:        # no unknown: training AND evaluation use these labels
+            y_train, certain_on, c_info = certain_labels(t, y_train, ev, folder, source)
+            info.update(c_info); y = y_train
         if task == "tap":
             rows, kinds = sample_tap(t, y_train, lab["any_active"].to_numpy(np.int8), ev, soft_rows)
         else:
@@ -1063,6 +1158,12 @@ def build_task_data(task: str, records, out: Path):
                 if soft_ev is not None:
                     for o in soft_ev.t_on.dropna():
                         onsets.append((ri, float(o), "soft", float(o) - lo_on, float(o) + hi_on))
+                if TAP_CERTAIN:                     # every tap row has an onset to find (no unknown rows)
+                    known = list(ev[(ev.type == "tap_press") & (ev.labeled == 1)].t_on.dropna())
+                    known += list(soft_ev.t_on.dropna()) if soft_ev is not None else []
+                    for o, kind in certain_onsets(t, y, known, certain_on):
+                        onsets.append((ri, float(o), "strong", float(o) - lo_on, float(o) + hi_on))
+                        onsets.append((ri, float(o), f"certain_{kind}", float(o) - lo_on, float(o) + hi_on))
                 if folder in TAP_FOLDERS:          # every real pointer press of a TAP/SWIPE recording (folder truth)
                     pr = ev[(ev.type == "tap_press") & (ev.tier == "PRESS") & (ev.labeled != 0)]
                     for x in pr.itertuples():

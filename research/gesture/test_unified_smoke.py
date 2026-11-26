@@ -443,6 +443,48 @@ def tap_final_recipe_checks():
     print("TAP_FINAL_RECIPE_CHECKS_PASSED", flush=True)
 
 
+def tap_certain_checks():
+    """MUDRA_TAP_CERTAIN: no unknown row is left; unconfirmed pointer presses, double second taps and long-press
+    starts become taps; disconnected presses and rows the labeller set to 0 do not; every new tap has an onset."""
+    t = np.arange(0, 6000, 5.0); y = np.zeros(len(t), np.int8)
+    y[(t >= 800) & (t <= 1300)] = -1; y[(t >= 1000) & (t <= 1080)] = 1          # confirmed tap at 1000
+    y[(t >= 1900) & (t <= 2400)] = -1                                              # unconfirmed press at 2100
+    y[(t >= 3000) & (t <= 3500)] = -1; y[(t >= 3200) & (t <= 3220)] = 0           # disconnected rows inside
+    y[(t >= 4000) & (t <= 4500)] = -1                                              # disconnected press at 4200
+    y[(t >= 1200) & (t <= 1650)] = -1                                              # sensor-only 300 ms after 1000
+    y[(t >= 5000) & (t <= 5500)] = -1                                              # lone sensor-only at 5300
+    ev = pd.DataFrame(dict(type=["tap_press", "tap_press", "tap_press", "tap_press", "tap_sensor_only",
+                                 "tap_sensor_only"],
+                           tier=["PRESS", "PRESS", "EDGE", "PRESS", "ORPHAN", "ORPHAN"],
+                           labeled=[1, -1, -1, -1, -1, -1], t_on=[1000, 2100, 3190, 4200, 1300, 5300.0],
+                           t_ptr=[990, 2080, 3170, 4180, np.nan, np.nan],
+                           rule_disconnect=["false", "false", "false", "true", "false", "false"]))
+    src = Path("TAP/u_DoubleTaps_1.csv.gz")
+    y2, on, info = g.certain_labels(t, y, ev, "TAP", src)
+    assert not (y2 == -1).any(), "unknown rows left"
+    assert y2[(t >= 2095) & (t <= 2190)].all(), "unconfirmed pointer press is not a tap"
+    assert y2[(t >= 1300) & (t <= 1380)].all(), "double second tap is not a tap"
+    assert not y2[(t >= 4100) & (t <= 4400)].any(), "disconnected press became a tap"
+    assert not y2[(t >= 3200) & (t <= 3220)].any(), "a labeller 0 row became a tap"
+    assert not y2[(t >= 5200) & (t <= 5500)].any(), "lone sensor-only event became a tap"
+    assert not y2[(t >= 1500) & (t <= 1650)].any() and not y2[(t >= 800) & (t < 1000)].any()
+    kinds = sorted(k for _, k in on)
+    assert kinds == ["pointer_press", "pointer_press", "second_tap"], kinds
+    ons = g.certain_onsets(t, y2, [1000.0], on)
+    assert sorted(round(o) for o, _ in ons) == [1300, 2100, 3190], ons
+    y3, _, _ = g.certain_labels(t, y, ev, "TAP", Path("TAP/u_MidTap_1.csv.gz"))      # not a double recording
+    assert not y3[(t >= 1300) & (t <= 1380)].any() and not (y3 == -1).any()
+    yh = np.full(len(t), -1, np.int8); yh[:100] = 0
+    evh = pd.DataFrame(dict(type=["hold_press"], t_on=[2000.0], t_ptr=[2030.0], labeled=[1]))
+    yh2, onh, _ = g.certain_labels(t, yh, evh, "LONG_PRESS" if "LONG_PRESS" in g.HOLD_FOLDERS
+                                   else sorted(g.HOLD_FOLDERS)[0], Path("x.csv.gz"))
+    assert not (yh2 == -1).any() and yh2[(t >= 2000) & (t <= 2080)].all() and yh2.sum() == 17
+    assert [k for _, k in onh] == ["long_press_start"]
+    yn, onn, _ = g.certain_labels(t, np.zeros(len(t), np.int8), ev, "FINGER", src)
+    assert not yn.any() and not onn, "negative folder changed"
+    print("TAP_CERTAIN_CHECKS_PASSED", flush=True)
+
+
 def unit_checks():
     # TAP: onsets 1000/3000/5000; hits at 1020 and 3010 (+ a second edge at 3060 inside the refractory),
     # one false event on a negative row, one event on an unknown row (not counted), onset 5000 missed.
@@ -795,8 +837,21 @@ def real_source_smoke(keep_input=False):
             assert "recall_press" in (out / "COMPARISON.md").read_text()
             onsets = pd.read_csv(out / "cache" / "tap_onsets.csv")
             assert list(onsets.columns) == ["rec", "t_on", "kind", "lo", "hi"]
-            assert set(onsets.kind) <= {"strong", "press"} and (onsets.kind == "press").any()
+            certain_kinds = {f"certain_{k}" for k in ("pointer_press", "second_tap", "long_press_start", "press2")}
+            assert set(onsets.kind) <= {"strong", "press"} | (certain_kinds if g.TAP_CERTAIN else set()) and \
+                (onsets.kind == "press").any(), set(onsets.kind)
             assert (onsets.hi > onsets.lo).all()
+            if g.TAP_CERTAIN:                     # no unknown row in training or evaluation; decided taps are onsets
+                assert "-certain" in g.TAP_TAG
+                with np.load(out / "cache" / "replay_meta.npz") as z:
+                    assert set(np.unique(z["label"])) == {0, 1}, np.unique(z["label"])
+                with np.load(out / "cache" / "train_meta.npz") as z:
+                    assert set(np.unique(z["y"])) == {0, 1}, np.unique(z["y"])
+                counts_ = report["dataset"]["counts"]
+                assert counts_.get("certain_unknown_rows", 0) > 0 and counts_.get("certain_long_press_start", 0) > 0
+                assert (onsets.kind == "certain_long_press_start").any(), set(onsets.kind)
+                n_dec = int(onsets.kind.isin(certain_kinds).sum())
+                assert n_dec and (onsets.kind == "strong").sum() >= n_dec
             cache_hash_compat_check(out / "cache")
             if g.TAP_GENERALIZATION:
                 tg = report["tap_generalization"]
@@ -950,6 +1005,7 @@ if __name__ == "__main__":
     lean_lite_checks()
     tap_generalization_checks()
     tap_final_recipe_checks()
+    tap_certain_checks()
     unit_checks()
     validate_events_checks()
     if "--unit-only" not in sys.argv:
@@ -961,6 +1017,8 @@ if __name__ == "__main__":
                                 ("TAP final recipe", dict(MUDRA_TAP_RECIPE="final14", MUDRA_TASKS="tap,lp")),
                                 ("TAP final recipe + observable labels",
                                  dict(MUDRA_TAP_RECIPE="final14obs", MUDRA_TASKS="tap,lp")),
+                                ("TAP baseline recipe, no unknown labels (MUDRA_TAP_CERTAIN)",
+                                 dict(MUDRA_TAP_RECIPE="final14", MUDRA_TASKS="tap,lp", MUDRA_TAP_CERTAIN="1")),
                                 ("TAP failed balanced recipe (code path kept tested; refused without opt-in)",
                                  dict(MUDRA_TAP_RECIPE="final", MUDRA_TASKS="tap,lp", MUDRA_ALLOW_FAILED_RECIPE="1")),
                                 ("TAP maximum-protection recipe (obs40 + distillation + finger x2), split by file, "

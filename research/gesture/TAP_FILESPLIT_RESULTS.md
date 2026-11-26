@@ -392,6 +392,41 @@ The unknown press around each tap is not where protection is lost: making it neg
 a threshold does, and no better. Protection comes from the movement recordings, the model size and the operating
 point.
 
+## No unknown labels: `make train CERTAIN=1` (2026-11-26)
+
+The owner's rule: when training starts, no row is uncertain. `MUDRA_TAP_CERTAIN=1` (Makefile `CERTAIN=1`) turns
+every unknown row of the TAP task into a decision, in training **and** in the evaluation:
+
+| unknown row | becomes |
+|---|---|
+| TAP / SWIPE pointer press (tier PRESS or EDGE) with no tap within 60 ms | tap, onset − 5 .. + 90 ms (as press2) |
+| double / 240 bpm: sensor-only event 150–450 ms after a tap | tap (its second tap), onset .. + 80 ms |
+| long press / drag: each press start | tap, onset .. + 80 ms (a long press starts with a tap) |
+| everything else: lead-in, contraction, release, rest, other sensor-only events | not a tap |
+
+Rules the policy keeps:
+- only unknown rows become taps; rows the labeller set to 0 (disconnected channels) stay 0;
+- presses the labeller flagged as disconnected are skipped.
+
+Every new tap is an onset the replay must find. With no unknown rows, every other event counts as a false tap,
+including release clicks and early clicks. The baseline target is the old header's false-tap rate replayed under the
+same strict rules, so it rises to match.
+
+Own cache, results folder and study (suffix `-certain`).
+
+What changes on the full labelled set:
+
+| | TAP | SWIPE | long press / drag |
+|---|---|---|---|
+| files | 1339 | 925 | 138 |
+| time: not a tap / unknown / tap, before | 43.0 / 50.5 / 6.5% | 21.3 / 72.1 / 6.5% | 58.7–72.4 / 27.6–41.3 / 0% |
+| time: not a tap / unknown / tap, after | 91.7 / 0 / 8.3% | 91.7 / 0 / 8.3% | 98.0–98.5 / 0 / 1.5–2.0% |
+| confirmed taps (unchanged) | 12330 | 7289 | 0 |
+| unconfirmed pointer presses -> taps | 1623 | 1621 | |
+| second taps (double / 240 bpm) -> taps | 690 | | |
+| long-press starts -> taps | | | 1233 |
+| new taps the replay must find (incl. 872 press2 presses) | 3185 | 1621 | 1233 |
+
 ## Limits
 
 - **These numbers describe people who are in the data.** File-split scores are optimistic for a new user. The
@@ -412,7 +447,9 @@ point.
   plain weights.
 - **Recipe `final14protect`:** `final14` + `MUDRA_TAP_OBS_MS=40` + `MUDRA_TAP_DISTILL=0.5` + `MUDRA_TAP_FINGER_WEIGHT=2`.
 
-Each option gets its own results folder and study (`-distill50`, `-fingerw2`).
+- **`MUDRA_TAP_CERTAIN=1`:** no unknown labels in the TAP task ("No unknown labels" above).
+
+Each option gets its own results folder and study (`-distill50`, `-fingerw2`, `-certain`).
 
 ## Reproduce
 

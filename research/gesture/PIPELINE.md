@@ -41,6 +41,12 @@ diff inputs + press2 labels, 14 KB, 4-15 leaves, TAP only:
     MUDRA_TAP_RECIPE=final14 python -u research/gesture/train_unified.py
     MUDRA_TAP_RECIPE=final14obs python -u research/gesture/train_unified.py   # + observable-pattern labels (60 ms)
     MUDRA_TAP_RECIPE=final14protect python -u research/gesture/train_unified.py   # obs 40 + distillation + finger x2
+    MUDRA_TAP_RECIPE=final14 MUDRA_TAP_CERTAIN=1 python -u research/gesture/train_unified.py   # no unknown labels
+
+`MUDRA_TAP_CERTAIN=1` (`make train CERTAIN=1`): every unknown row of a TAP / SWIPE / long-press recording is decided
+before training and evaluation. Unconfirmed pointer presses, double / 240 bpm second taps and long-press starts
+become taps; everything else becomes "not a tap". Rows the labeller set to 0 stay 0 (TAP_FILESPLIT_RESULTS.md,
+"No unknown labels").
 
 The held-out split and the CV folds group by recording file, always (a person split is not allowed; `MUDRA_SPLIT`
 accepts only `file`): every person takes part in every fold and in the held-out part (results folder suffix
@@ -56,7 +62,7 @@ within 20 s. Before starting it runs `prepare_run.py` with the same settings: la
 recordings (new or changed files) are moved aside as `<folder>.old_<time>` and rebuilt, and a finished run of the
 same settings is renamed `<results folder>.done_<time>`, so every `make train` trains from scratch on the current
 recordings (an unfinished run resumes). Nothing is deleted. `make status` shows the trials done and any error; `make stop` stops every running trainer. Settings:
-`RECIPE`, `SPLIT`, `ALT_KB`, `EXTRA` (e.g. `make train EXTRA="MUDRA_TAP_FALSE_PER_MIN_TARGET=3"`), `PULL=0`.
+`RECIPE`, `SPLIT`, `ALT_KB`, `CERTAIN`, `EXTRA` (e.g. `make train EXTRA="MUDRA_TAP_FALSE_PER_MIN_TARGET=3"`), `PULL=0`.
 
 A completed run is reused only if every recording, label file and event table is byte-for-byte the one it was
 trained on (else it stops and names the change); byte-identical copies of a recording are used once.
