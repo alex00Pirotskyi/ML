@@ -117,3 +117,10 @@ Low-confidence `lp_state=0` means UNKNOWN, not confirmed pressing.
 Do not train on every zero as a verified negative.
 
 [Full research, measurements and limitations](research/LP_V3_SENSOR_LABELING_RESEARCH_2026-11-16.md).
+
+## Tap and swipe labels for embedded training
+
+Use the [tap and swipe dataset and review guide](claude_labeling/TAP_ONLY.md) for a detector
+that should fire once at the onset of either a tap or a swipe and reject finger motions, wrist motions and long presses. The release
+includes row-aligned targets, an independent review format for quiet taps and finger
+identity, and an event-level scorer for device output.

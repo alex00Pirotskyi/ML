@@ -1,0 +1,227 @@
+{
+  "all": {
+    "recordings": 3072,
+    "rows": 6623066,
+    "positive_rows": 248934,
+    "negative_rows": 3681060,
+    "unknown_rows": 2693072,
+    "positive_runs": 18487,
+    "recordings_with_positives": 2089
+  },
+  "CONNECTED": {
+    "recordings": 39,
+    "rows": 54012,
+    "positive_rows": 0,
+    "negative_rows": 54012,
+    "unknown_rows": 0,
+    "positive_runs": 0,
+    "recordings_with_positives": 0
+  },
+  "DISCONNECTED": {
+    "recordings": 42,
+    "rows": 64359,
+    "positive_rows": 0,
+    "negative_rows": 18377,
+    "unknown_rows": 45982,
+    "positive_runs": 0,
+    "recordings_with_positives": 0
+  },
+  "DRAG_AND_DROP": {
+    "recordings": 37,
+    "rows": 222573,
+    "positive_rows": 0,
+    "negative_rows": 123549,
+    "unknown_rows": 99024,
+    "positive_runs": 0,
+    "recordings_with_positives": 0
+  },
+  "LONG_PRESS": {
+    "recordings": 4,
+    "rows": 27782,
+    "positive_rows": 0,
+    "negative_rows": 19006,
+    "unknown_rows": 8776,
+    "positive_runs": 0,
+    "recordings_with_positives": 0
+  },
+  "LOOSE": {
+    "recordings": 42,
+    "rows": 57767,
+    "positive_rows": 0,
+    "negative_rows": 43328,
+    "unknown_rows": 14439,
+    "positive_runs": 0,
+    "recordings_with_positives": 0
+  },
+  "MID_LONG_PRESS": {
+    "recordings": 38,
+    "rows": 288520,
+    "positive_rows": 0,
+    "negative_rows": 200595,
+    "unknown_rows": 87925,
+    "positive_runs": 0,
+    "recordings_with_positives": 0
+  },
+  "SOFT_LONG_PRESS": {
+    "recordings": 33,
+    "rows": 216178,
+    "positive_rows": 0,
+    "negative_rows": 144606,
+    "unknown_rows": 71572,
+    "positive_runs": 0,
+    "recordings_with_positives": 0
+  },
+  "STRONG_LONG_PRESS": {
+    "recordings": 20,
+    "rows": 145736,
+    "positive_rows": 0,
+    "negative_rows": 106341,
+    "unknown_rows": 39395,
+    "positive_runs": 0,
+    "recordings_with_positives": 0
+  },
+  "TABLE": {
+    "recordings": 9,
+    "rows": 7636,
+    "positive_rows": 0,
+    "negative_rows": 1552,
+    "unknown_rows": 6084,
+    "positive_runs": 0,
+    "recordings_with_positives": 0
+  },
+  "ARM": {
+    "recordings": 113,
+    "rows": 307572,
+    "positive_rows": 0,
+    "negative_rows": 307572,
+    "unknown_rows": 0,
+    "positive_runs": 0,
+    "recordings_with_positives": 0
+  },
+  "BAND": {
+    "recordings": 42,
+    "rows": 122307,
+    "positive_rows": 0,
+    "negative_rows": 122307,
+    "unknown_rows": 0,
+    "positive_runs": 0,
+    "recordings_with_positives": 0
+  },
+  "FINGER": {
+    "recordings": 357,
+    "rows": 778829,
+    "positive_rows": 0,
+    "negative_rows": 778829,
+    "unknown_rows": 0,
+    "positive_runs": 0,
+    "recordings_with_positives": 0
+  },
+  "FINGER/indexfinger": {
+    "recordings": 59,
+    "rows": 126639,
+    "positive_rows": 0,
+    "negative_rows": 126639,
+    "unknown_rows": 0,
+    "positive_runs": 0,
+    "recordings_with_positives": 0
+  },
+  "FINGER/midfinger": {
+    "recordings": 60,
+    "rows": 134257,
+    "positive_rows": 0,
+    "negative_rows": 134257,
+    "unknown_rows": 0,
+    "positive_runs": 0,
+    "recordings_with_positives": 0
+  },
+  "FINGER/pinky": {
+    "recordings": 60,
+    "rows": 120112,
+    "positive_rows": 0,
+    "negative_rows": 120112,
+    "unknown_rows": 0,
+    "positive_runs": 0,
+    "recordings_with_positives": 0
+  },
+  "FINGER/ringfinger": {
+    "recordings": 57,
+    "rows": 121593,
+    "positive_rows": 0,
+    "negative_rows": 121593,
+    "unknown_rows": 0,
+    "positive_runs": 0,
+    "recordings_with_positives": 0
+  },
+  "FINGER/thumb": {
+    "recordings": 62,
+    "rows": 135861,
+    "positive_rows": 0,
+    "negative_rows": 135861,
+    "unknown_rows": 0,
+    "positive_runs": 0,
+    "recordings_with_positives": 0
+  },
+  "FINGER/fist&stretch": {
+    "recordings": 47,
+    "rows": 119301,
+    "positive_rows": 0,
+    "negative_rows": 119301,
+    "unknown_rows": 0,
+    "positive_runs": 0,
+    "recordings_with_positives": 0
+  },
+  "FINGER/other": {
+    "recordings": 12,
+    "rows": 21066,
+    "positive_rows": 0,
+    "negative_rows": 21066,
+    "unknown_rows": 0,
+    "positive_runs": 0,
+    "recordings_with_positives": 0
+  },
+  "NOTHING": {
+    "recordings": 5,
+    "rows": 21471,
+    "positive_rows": 0,
+    "negative_rows": 21471,
+    "unknown_rows": 0,
+    "positive_runs": 0,
+    "recordings_with_positives": 0
+  },
+  "SWIPE": {
+    "recordings": 896,
+    "rows": 1527045,
+    "positive_rows": 97811,
+    "negative_rows": 317774,
+    "unknown_rows": 1111460,
+    "positive_runs": 7030,
+    "recordings_with_positives": 871
+  },
+  "TAP": {
+    "recordings": 1246,
+    "rows": 2357460,
+    "positive_rows": 151123,
+    "negative_rows": 997922,
+    "unknown_rows": 1208415,
+    "positive_runs": 11457,
+    "recordings_with_positives": 1218
+  },
+  "TAP/SoftTap": {
+    "recordings": 276,
+    "rows": 445319,
+    "positive_rows": 32012,
+    "negative_rows": 152551,
+    "unknown_rows": 260756,
+    "positive_runs": 2457,
+    "recordings_with_positives": 274
+  },
+  "WRIST": {
+    "recordings": 149,
+    "rows": 423819,
+    "positive_rows": 0,
+    "negative_rows": 423819,
+    "unknown_rows": 0,
+    "positive_runs": 0,
+    "recordings_with_positives": 0
+  }
+}
