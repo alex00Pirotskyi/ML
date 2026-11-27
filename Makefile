@@ -1,35 +1,31 @@
 # TAP training on the server.
 #
-#   make train      update the code, then start the training in the background
-#                   (new recordings: old labels are moved aside and rebuilt; a finished run of the same
-#                   settings is renamed <folder>.done_<time>, so every make train trains from scratch)
-#   make status     is it running, how many trials, last trial lines
+#   make train      update the code, then start the TAP training in the background (scripts/train_tap_f1.sh):
+#                   1. fold roadmap of recording FILES, gesture aware (fold_split.py; people are never a split unit)
+#                   2. signal labels + inputs for every DATA_TAP recording (build_tap_f1_dataset.py -> DATA/DATA_TAP_F1)
+#                   3. the legacy F1 trainer, unchanged but for the data / roadmap paths and one line that drops
+#                      unknown rows (train_tap_f1.py: Optuna LightGBM + XGBoost, F1 at 0.85 + size, max 96 KB)
+#                   4. event check of every saved model (evaluate_tap_f1.py -> TAP_MODELS_F1_FILEFOLDS/event_eval.md)
+#                   A previous TAP_MODELS_F1_FILEFOLDS is renamed .done_<time>; nothing is overwritten.
+#   make status     is it running, which step, how many trials, last lines
 #   make stop       stop every running training (also ones started by hand)
+#   make smoke      the whole chain on 2 recordings per folder and fold, 3 trials, in /tmp (a few minutes)
 #
-# Default: RECIPE=final14top (2026-11-26): the band baseline final14 (file split, 14 KB, the old header's false-tap
-# level ~6.2/min as the target, no threshold shift), but every tap is taught at the TOP of its contact jolt, never at
-# its start (claude_labeling/tap_top.py; evidence: research/gesture/TAP_TOP_LABELS.md). The labels are made inside the
-# run from the labeller's output: nothing else to do. The old onset labels stay one setting away: make train RECIPE=final14
-# (the model that worked on the band on 2026-11-24, folder ..._tap-diff-mild-litediff-press2-kb14-leaves4-15_splitfile).
-#   RECIPE=final14mid   top + the middle of the rise: measured WORSE than onset labels (kept for comparison only)
-# Settings, for example:
-#   make train KB=64 ALT_KB=14          (bigger model, same false-tap level as the baseline)
-#   make train RECIPE=final14obs        (onset labels + observable 60 ms windows)
-#   make train RECIPE=final14 CERTAIN=1 KB=94 ALT_KB=14 (no unknown labels: every row of a TAP / SWIPE / long-press
-#                                        recording is tap or not-tap in training AND evaluation; folder suffix -certain;
-#                                        onset labels only: CERTAIN would turn the start of every top-labelled tap into "not a tap")
-#   RECIPE=final is a FAILED experiment (no mid / strong taps on the band, 2026-11-26): the trainer refuses it
-#   make train KB=32 ALT_KB=14          (bigger model, same false-tap level)
-#   make train KB=64 ALT_KB=14 TARGET=5 FIST=3   (protection: a bigger model at the same taps fires 30-50% less on
-#                                        fists, fingers, wrist and band; TAP_FIST.md)
-#   make train KB=64 ALT_KB=14 TARGET=3.3   (the old v10 pipeline's protection level, 3.3 false taps/min: same
-#                                        movement false taps, +6 points of taps, 25 ms faster; TAP_SIGNAL_LABELS.md)
-#   make train RECIPE=final14sig        (signal labels: per-axis / per-zone ACC conditions + repaired pointer, no tap
-#                                        teacher; same quality as final14top, band -1.7/min; TAP_SIGNAL_LABELS.md)
-#   make train RECIPE=final14legacy     (the old deterministic labeller's rule: everything but the tap block is 0;
-#                                        measured worse: -3 points of taps, +2.4 fist/min, +25 ms)
-#   Model size: at most 100 KB (MAX_MODEL_SIZE_BYTES = 102400, fixed in the trainer)
-
+# Settings (defaults measured in research/gesture/TAP_F1_LEGACY.md):
+#   LABELS=legacy      signal labels: the top of every tap is 1, every other row 0; pointer repaired (late / early
+#                      pointer, bounces, the 2nd tap of a double, taps the pointer missed); broken recordings left out
+#   LABELS=v10rescue   your old labeller, unchanged, on the repaired pointer
+#   LABELS=v10         your old labeller exactly
+#   FEATURES=newacc    126 raw fields + the legacy model's 64 diff / ratio inputs + 31 ACC ratios (default)
+#   FEATURES=leg       without the ACC ratios;  FEATURES=new  + 144 EMG diffs;  FEATURES=lite  + Lean-lite
+#   TAPROWS=0.5        TAP / SWIPE recordings train on every 2nd row: the legacy model's data mix, half the rows from
+#                      movement recordings (today's data has a third; all rows: TAPROWS=1)
+#   TRIALS=100         Optuna trials per model family
+#   make train LABELS=v10 FEATURES=leg TAPROWS=1    exactly the old pipeline's labels, inputs and mix, on file folds
+#
+#   make train-unified RECIPE=final14top KB= ALT_KB= TARGET= FIST= CERTAIN= LIMIT= EXTRA=
+#                   the previous pipeline (research/gesture/train_unified.py; recipes and settings in
+#                   research/gesture/PIPELINE.md); make status / stop cover both
 RECIPE ?= final14top
 LIMIT  ?=
 override SPLIT := file# fixed: splits and folds by recording file only (a person split is not allowed)
@@ -51,11 +47,43 @@ LOGDIR := logs
 LOG    := $(LOGDIR)/tap_$(RECIPE)_split$(SPLIT)_$(shell date +%Y%m%d_%H%M%S).log
 PIDFILE := $(LOGDIR)/train.pid
 # a python process running the trainer (anchored, so shells and editors that mention the file do not match)
-TRAIN_RE := ^[^ ]*python[0-9.]* .*train_unified\.py
+TRAIN_RE := ^[^ ]*python[0-9.]* .*(train_unified|train_tap_f1|build_tap_f1_dataset|evaluate_tap_f1)\.py|^(ba)?sh [^ ]*train_tap_f1\.sh
+LABELS   ?= legacy
+FEATURES ?= newacc
+TAPROWS  ?= 0.5
+TRIALS   ?= 100
+F1_LOG   := $(LOGDIR)/tap_f1_$(LABELS)_$(FEATURES)_rows$(TAPROWS)_$(shell date +%Y%m%d_%H%M%S).log
 
-.PHONY: train status stop
+.PHONY: train train-unified status stop smoke
 
 train:
+	@running=$$(pgrep -af '$(TRAIN_RE)'); \
+	if [ -n "$$running" ] && [ "$(FORCE)" != "1" ]; then \
+	  echo "A training is already running:"; echo "$$running"; \
+	  echo "Wait for it to finish (make status), or start anyway with: make train FORCE=1"; exit 1; fi
+	@if [ "$(PULL)" = "1" ]; then git pull --ff-only; fi
+	@mkdir -p $(LOGDIR)
+	@TAP_F1_LABELS=$(LABELS) TAP_F1_FEATURES=$(FEATURES) TAP_F1_TAP_ROW_SHARE=$(TAPROWS) LEGACY_N_TRIALS=$(TRIALS) PYTHON=$(PYTHON) \
+	  nohup bash scripts/train_tap_f1.sh > $(F1_LOG) 2>&1 & echo $$! > $(PIDFILE)
+	@ln -sfn $(notdir $(F1_LOG)) $(LOGDIR)/latest.log
+	@echo "Started: TAP F1 pipeline labels=$(LABELS) features=$(FEATURES) tap_rows=$(TAPROWS) trials=$(TRIALS)"
+	@echo "PID $$(cat $(PIDFILE)), log $(F1_LOG)"
+	@sleep 20; \
+	if kill -0 $$(cat $(PIDFILE)) 2>/dev/null; then \
+	  echo "Running. Check progress with: make status"; \
+	else \
+	  echo "The training stopped right away. Last lines of the log:"; tail -n 30 $(F1_LOG); exit 1; fi
+
+smoke:
+	@rm -rf /tmp/tap_f1_smoke && mkdir -p /tmp/tap_f1_smoke/DATA
+	$(PYTHON) fold_split.py build
+	cp DATA/fold_roadmap_files.json /tmp/tap_f1_smoke/DATA/
+	$(PYTHON) build_tap_f1_dataset.py --out /tmp/tap_f1_smoke/DATA/DATA_TAP_F1 --limit 2 --labels $(LABELS) --features $(FEATURES) --tap-row-share $(TAPROWS)
+	cd /tmp/tap_f1_smoke && LEGACY_N_TRIALS=3 $(PYTHON) -u $(CURDIR)/train_tap_f1.py
+	$(PYTHON) evaluate_tap_f1.py /tmp/tap_f1_smoke/TAP_MODELS_F1_FILEFOLDS --data /tmp/tap_f1_smoke/DATA/DATA_TAP_F1
+	@echo "smoke OK: /tmp/tap_f1_smoke/TAP_MODELS_F1_FILEFOLDS"
+
+train-unified:
 	@if [ "$(RECIPE)" = "final" ]; then echo "RECIPE=final is a FAILED experiment (no mid / strong taps on the band, 2026-11-26). Use the default."; exit 1; fi
 	@for kb in $(KB) $(ALT_KB); do if awk -v k="$$kb" 'BEGIN{exit !(k * 1024 > 102400)}'; then \
 	  echo "$$kb KB exceeds the device maximum MAX_MODEL_SIZE_BYTES = 102400 (100 KB)"; exit 1; fi; done
@@ -81,7 +109,16 @@ train:
 status:
 	@running=$$(pgrep -af '$(TRAIN_RE)'); \
 	if [ -n "$$running" ]; then echo "Running:"; echo "$$running"; else echo "No training running."; fi
-	@if [ -e $(LOGDIR)/latest.log ]; then \
+	@if [ -e $(LOGDIR)/latest.log ] && grep -q 'TAP_F1 1/4' $(LOGDIR)/$$(readlink $(LOGDIR)/latest.log); then \
+	  log=$(LOGDIR)/$$(readlink $(LOGDIR)/latest.log); \
+	  echo "Log: $$log"; \
+	  echo "Step: $$(grep 'TAP_F1 ' $$log | tail -n 1)"; \
+	  echo "Optuna trials finished: $$(grep -c 'Trial [0-9]* finished' $$log)"; \
+	  grep 'Trial [0-9]* finished' $$log | tail -n 2 | cut -c1-200; \
+	  if grep -q 'TAP_F1_DONE' $$log; then echo "FINISHED:"; cat TAP_MODELS_F1_FILEFOLDS/event_eval.md 2>/dev/null; fi; \
+	  if grep -q 'TAP_F1_FAILED\|Traceback' $$log; then echo "ERROR in the log:"; tail -n 15 $$log; fi; \
+	  echo "Last line: $$(tail -n 1 $$log | cut -c1-200)"; \
+	elif [ -e $(LOGDIR)/latest.log ]; then \
 	  log=$(LOGDIR)/$$(readlink $(LOGDIR)/latest.log); \
 	  echo "Log: $$log"; \
 	  echo "Trials done: $$(grep -c 'UNIFIED_TRIAL ' $$log)"; \

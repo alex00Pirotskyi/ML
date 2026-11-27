@@ -63,17 +63,21 @@ still uses the old hook; the replacement takes effect on the next attempt.
 ## TAP model: `make train`
 
 ```bash
-make train      # labels, top windows, Optuna search, C header (TAP_SWIPE.h) in the background
-make status     # trials done, last lines, errors
+make train      # file folds -> signal labels + inputs -> the legacy F1 trainer -> event check, in the background
+make status     # step, Optuna trials done, last lines, errors; the event table when finished
 make stop
+make smoke      # the whole chain on 2 recordings per folder and fold, 3 trials (a few minutes)
 ```
 
-Default recipe `final14top`: every tap is taught at the **top of its contact jolt, never at its start**
-(`claude_labeling/tap_top.py`), 14 KB, the old header's false-tap level as the target. Splits and folds are by
-recording file, stratified by gesture, everywhere: the trainer's held-out part and CV folds, and the labeller's tap
-teacher (`claude_labeling/teacher/`). No person split or fold. Evidence and options:
-[research/gesture/TAP_TOP_LABELS.md](research/gesture/TAP_TOP_LABELS.md); the pipeline on one page:
-[research/gesture/PIPELINE.md](research/gesture/PIPELINE.md).
+The legacy F1 trainer (`train_tap_f1.py`: Optuna LightGBM + XGBoost, F1 at 0.85 + model size, 96 KB maximum,
+`gesture_constants.py`) unchanged except its paths and **one line that drops unknown rows** (`state < 0`). Folds are
+**recording files**, stratified by gesture (`fold_split.py` -> `DATA/fold_roadmap_files.json`); no person split or
+fold. The data (`build_tap_f1_dataset.py` -> `DATA/DATA_TAP_F1/`): signal labels with a repaired pointer
+(`claude_labeling/tap_signal.py`), the legacy model's inputs + ACC ratios (`tap_f1_features.py`), TAP / SWIPE
+recordings training on every 2nd row (the legacy model's data mix). Settings: `LABELS=legacy|v10rescue|v10`,
+`FEATURES=newacc|leg|new|lite`, `TAPROWS=0.5`, `TRIALS=100`. Results: `TAP_MODELS_F1_FILEFOLDS/` (models, C headers,
+`event_eval.md`). Evidence: [research/gesture/TAP_F1_LEGACY.md](research/gesture/TAP_F1_LEGACY.md). The previous
+pipeline is `make train-unified` ([research/gesture/PIPELINE.md](research/gesture/PIPELINE.md)).
 
 ## Long-press sEMG pseudo-labeling
 

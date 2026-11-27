@@ -50,3 +50,8 @@ __pycache__/
 /research/gesture/results_lp_flow*/traces.npz
 /research/gesture/results_lp_flow*/models/
 /research/gesture/results_lp_flow*/per_press_*.csv.gz
+
+# TAP F1 chain (make train): the built dataset (plain CSV, several GB) and the trainer's results
+/DATA/DATA_TAP_F1/
+/TAP_MODELS_F1_FILEFOLDS/
+/TAP_MODELS_F1_FILEFOLDS.done_*/

@@ -6,7 +6,17 @@ Two embedded LightGBM models for the Mudra band, exported as C headers with a st
 - **LONG_PRESS**: class 1 = RELEASE. The firmware averages ten `LONG_PRESS_predict_value()` Q20 outputs and
   releases when the mean is ≥ 0.5.
 
-## Run
+## TAP: `make train` (2026-11-27, TAP_F1_LEGACY.md)
+
+`make train` runs the legacy F1 trainer (`train_tap_f1.py`: the old Optuna LightGBM + XGBoost script, F1 at 0.85 +
+size, max 96 KB) on file-level gesture-aware folds (`fold_split.py`), with signal labels, ACC-ratio inputs and the
+legacy data mix (TAP / SWIPE recordings train on every 2nd row), built by `build_tap_f1_dataset.py`; every saved
+model is then fired like the firmware on the held-out fold (`evaluate_tap_f1.py`). The trainer is unchanged but for
+its paths and one line that drops `state < 0` rows. Measured against the old pipeline on today's data: fist false
+taps -43 %, finger -18 %, all movement -17 %, taps +0.2 points (2nd of a double +5.2). The pipeline below is
+`make train-unified`.
+
+## Run (the unified trainer, `make train-unified`)
 
     git pull --ff-only
     python -u research/gesture/train_unified.py
