@@ -5,7 +5,8 @@
 #   3. the legacy F1 trainer                    train_tap_f1.py              -> TAP_MODELS_F1_FILEFOLDS/
 #   4. event check of every saved model         evaluate_tap_f1.py           -> TAP_MODELS_F1_FILEFOLDS/event_eval.md
 # Settings (environment): TAP_F1_LABELS (legacy | v10rescue | v10 | hybrid), TAP_F1_FEATURES (newacc | leg | new | lite),
-# TAP_F1_TAP_ROW_SHARE (0.5: TAP / SWIPE recordings train on every 2nd row), LEGACY_N_TRIALS (trials per family, 100), PYTHON.
+# TAP_F1_TAP_ROW_SHARE (0.5: TAP / SWIPE recordings train on every 2nd row), TAP_F1_WL (0: no EMG WL inputs),
+# LEGACY_N_TRIALS (trials per family, 100), PYTHON.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 PY=${PYTHON:-python}
@@ -14,8 +15,8 @@ stamp() { date '+%Y-%m-%d %H:%M:%S'; }
 
 echo "[$(stamp)] TAP_F1 1/4 fold roadmap (recording files, gesture aware; old files keep their fold)"
 $PY fold_split.py build
-echo "[$(stamp)] TAP_F1 2/4 labels (${TAP_F1_LABELS:-legacy}) + inputs (${TAP_F1_FEATURES:-newacc}), TAP/SWIPE rows ${TAP_F1_TAP_ROW_SHARE:-0.5} -> DATA/DATA_TAP_F1"
-$PY build_tap_f1_dataset.py --labels "${TAP_F1_LABELS:-legacy}" --features "${TAP_F1_FEATURES:-newacc}" --tap-row-share "${TAP_F1_TAP_ROW_SHARE:-0.5}"
+echo "[$(stamp)] TAP_F1 2/4 labels (${TAP_F1_LABELS:-legacy}) + inputs (${TAP_F1_FEATURES:-newacc}, WL ${TAP_F1_WL:-0}), TAP/SWIPE rows ${TAP_F1_TAP_ROW_SHARE:-0.5} -> DATA/DATA_TAP_F1"
+$PY build_tap_f1_dataset.py --labels "${TAP_F1_LABELS:-legacy}" --features "${TAP_F1_FEATURES:-newacc}" --tap-row-share "${TAP_F1_TAP_ROW_SHARE:-0.5}" --wl "${TAP_F1_WL:-0}"
 if [ -d "$OUT" ]; then
   old="$OUT.done_$(date +%Y%m%d_%H%M%S)"
   echo "[$(stamp)] previous results moved to $old"

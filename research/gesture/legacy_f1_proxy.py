@@ -91,6 +91,11 @@ def pools(raw_cols):
     p["new"] = dedupe(p["leg"] + TF.DERIVED + acc_ratio_names())
     p["newacc"] = dedupe(p["leg"] + acc_ratio_names())
     p["lite"] = dedupe(p["new"] + list(TF.LITE_COLUMNS))
+    nowl = lambda xs: [x for x in xs if not any(w in x for w in ("->wl[", "->wl_head[", "->wl_tail["))]
+    for k in ("leg", "newacc", "new"):
+        p[f"{k}_nowl"] = nowl(p[k])                 # no EMG WL input (the default of make train since 2026-11-27)
+    wl_ratios = [x for x in TF.DERIVED if x.startswith("p_core->ratio(p_core->wl")]
+    p["newacc_wlratio"] = dedupe(p["newacc_nowl"] + wl_ratios)   # WL only as scale-free head / tail ratios
     return p
 
 

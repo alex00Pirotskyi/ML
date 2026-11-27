@@ -7,7 +7,8 @@ For every recording the file-level fold roadmap lists as trainable (DATA/fold_ro
              pointer: taps the pointer missed are found on the recording's own rhythm, the second tap of a double
              tap merged into one press is split out, a late / early pointer is re-aligned per recording. A recording
              it judges broken (pointer and signal disagree on most presses) is not written, so it never trains.
-  inputs     the input pool --features (tap_f1_features.py): raw firmware fields + diff / ratio inputs (+ Lean-lite)
+  inputs     the input pool --features (tap_f1_features.py): raw firmware fields + diff / ratio inputs (+ Lean-lite);
+             no EMG WL input unless --wl 1
   data mix   --tap-row-share 0.5 (default): TAP / SWIPE recordings train on every 2nd row only, the other rows are
              state -1 (dropped by the trainer, still scored by the event check). That gives back the legacy model's mix,
              half the rows from movement recordings (today's data has a third): the F1 objective then weighs a false
@@ -92,13 +93,13 @@ def thin_tap_rows(y, folder, share):
 
 
 def one(job):
-    rel, out_path, preset, pool_name, share = job
+    rel, out_path, preset, pool_name, share, wl = job
     src = _source(rel)
     folder, name = src.parent.name, src.name
     try:
         df = pd.read_csv(src, low_memory=False)
         raw_cols = [c for c in df.columns if c.startswith("p_core->")]
-        names = F.pool(pool_name, raw_cols)
+        names = F.pool(pool_name, raw_cols, wl=wl)
         y, q = labels(df, folder, name, preset, src)
         if len(y) != len(df):
             raise RuntimeError(f"{len(y)} labels for {len(df)} rows")
@@ -137,10 +138,10 @@ def one(job):
         return dict(rel=rel, status=f"error: {type(exc).__name__}: {exc}")
 
 
-def settings(preset, pool_name, share=1.0):
+def settings(preset, pool_name, share=1.0, wl=F.DEFAULT_WL):
     code = {"v10rescue": ["tap_v10_rescue.py", "tap_signal.py", "unified_tap_labeler_deterministic.py"],
             "v10": ["unified_tap_labeler_deterministic.py"]}.get(preset, ["tap_signal.py"])
-    sig = dict(labels=preset, tap_row_share=float(share), label_options=dict(TS.PRESETS.get(preset, {})),
+    sig = dict(labels=preset, tap_row_share=float(share), wl_inputs=bool(wl), label_options=dict(TS.PRESETS.get(preset, {})),
                labeller_version={"v10rescue": RESCUE.VERSION, "v10": V10.SCRIPT_VERSION}.get(preset, TS.VERSION),
                features=pool_name, legacy_model_inputs=hashlib.sha256(F.LEGACY_MODEL.read_bytes()).hexdigest(),
                feature_code=hashlib.sha256((ROOT / "tap_f1_features.py").read_bytes()).hexdigest(),
@@ -150,13 +151,14 @@ def settings(preset, pool_name, share=1.0):
 
 
 def build(out=DEFAULT_OUT, preset=DEFAULT_LABELS, pool_name=F.DEFAULT_POOL, roadmap=DATA / "fold_roadmap_files.json",
-          workers=None, limit=None, share=None, log=print):
+          workers=None, limit=None, share=None, wl=None, log=print):
     share = DEFAULT_TAP_ROW_SHARE if share is None else float(share)
+    wl = F.DEFAULT_WL if wl is None else bool(wl)
     if preset not in LABELLERS:
         raise SystemExit(f"--labels must be one of {LABELLERS}")
     out = Path(out)
     meta = out / "_build"
-    cfg = settings(preset, pool_name, share)
+    cfg = settings(preset, pool_name, share, wl)
     old = json.loads((meta / "build.json").read_text()) if (meta / "build.json").exists() else {}
     if old.get("signature") != cfg["signature"] and out.exists():
         log(f"[build] settings changed ({old.get('labels')}/{old.get('features')} -> {preset}/{pool_name}): "
@@ -173,13 +175,13 @@ def build(out=DEFAULT_OUT, preset=DEFAULT_LABELS, pool_name=F.DEFAULT_POOL, road
         dst = out / r.category / Path(rel).name
         if dst.exists() and dst.stat().st_mtime >= _source(rel).stat().st_mtime:
             kept += 1; continue
-        jobs.append((rel, str(dst), preset, pool_name, float(share)))
+        jobs.append((rel, str(dst), preset, pool_name, float(share), wl))
     rows = sum(r.sample_rows for r in recs)
-    n_in = len(F.pool(pool_name, pd.read_csv(_source(recs[0].path.relative_to(DATA).as_posix()), nrows=0).columns))
+    n_in = len(F.pool(pool_name, pd.read_csv(_source(recs[0].path.relative_to(DATA).as_posix()), nrows=0).columns, wl=wl))
     need = int(rows * n_in * 5.5 * len(jobs) / max(len(recs), 1))
     free = shutil.disk_usage(out.parent if out.parent.exists() else DATA).free
     log(f"[build] {len(recs)} recordings ({kept} up to date, {len(jobs)} to write), labels={preset}, "
-        f"inputs={pool_name} ({n_in}), TAP/SWIPE rows that train: {share:g}, ~{need / 1e9:.1f} GB to write, "
+        f"inputs={pool_name} ({n_in}, WL {'on' if wl else 'off'}), TAP/SWIPE rows that train: {share:g}, ~{need / 1e9:.1f} GB to write, "
         f"{free / 1e9:.1f} GB free")
     if need > free * 0.9:
         raise SystemExit(f"not enough disk space for {out}: need ~{need / 1e9:.1f} GB, {free / 1e9:.1f} GB free")
@@ -230,8 +232,10 @@ def main(argv=None):
     ap.add_argument("--limit", type=int, default=None, help="only K recordings of every folder and fold (a quick check)")
     ap.add_argument("--tap-row-share", type=float, default=float(os.environ.get("TAP_F1_TAP_ROW_SHARE", DEFAULT_TAP_ROW_SHARE)),
                     help="share of TAP / SWIPE rows that train (0.5 = every 2nd row; the rest is -1, dropped)")
+    ap.add_argument("--wl", type=int, choices=(0, 1), default=int(os.environ.get("TAP_F1_WL", int(F.DEFAULT_WL))),
+                    help="1: allow the EMG WL inputs (off by default)")
     a = ap.parse_args(argv)
-    build(a.out, a.labels, a.features, a.roadmap, a.workers, a.limit, a.tap_row_share)
+    build(a.out, a.labels, a.features, a.roadmap, a.workers, a.limit, a.tap_row_share, bool(a.wl))
     return 0
 
 

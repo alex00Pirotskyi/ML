@@ -126,11 +126,19 @@ def test_feature_pools_and_firmware_helpers():
            if c.startswith("p_core->")] if (ROOT / "DATA" / "DATA_TAP" / "TAP").exists() else None
     if raw is None:
         pytest.skip("no DATA_TAP in this checkout")
-    leg, newacc, new, lite = (F.pool(n, raw) for n in F.POOLS)
+    leg, newacc, new, lite = (F.pool(n, raw, wl=True) for n in F.POOLS)
     assert set(F.legacy_model_inputs()) <= set(leg) and len(leg) == 190
     assert set(leg) < set(newacc) < set(new) < set(lite)
     assert len(newacc) - len(leg) == 31          # 36 ACC ratios, 5 of them already inputs of the legacy model
     assert not F.needs_lite(new) and F.needs_lite(lite)
+    # WL off (the default): no WL field or WL ratio anywhere, the legacy model's inputs all still there
+    off = {n: F.pool(n, raw) for n in ("leg", "newacc", "new")}
+    assert [len(off[n]) for n in ("leg", "newacc", "new")] == [181, 212, 346]
+    assert not any(F.is_wl(x) for xs in off.values() for x in xs)
+    assert set(F.legacy_model_inputs()) <= set(off["leg"])
+    assert sum(F.is_wl(x) for x in new) == 18                                      # 9 fields + 9 ratios
+    with pytest.raises(ValueError):
+        F.pool("lite", raw)                                                        # Lean-lite is built from WL
     fm = F.FeatureMaker(["p_core->a", "p_core->b"], ["p_core->diff(p_core->a, p_core->b)",
                                                      "p_core->ratio(p_core->a, p_core->b)", "p_core->b"])
     X = fm(np.array([[30000, -30000], [5, 1]], np.float32))
@@ -155,14 +163,14 @@ def test_builder_writes_labels_inputs_and_passthrough(tmp_path):
         pytest.skip("no DATA_TAP in this checkout")
     rel = src.relative_to(ROOT / "DATA").as_posix().removesuffix(".gz")
     out = tmp_path / "TAP" / Path(rel).name
-    r = B.one((rel, str(out), "legacy", "newacc", 1.0))
+    r = B.one((rel, str(out), "legacy", "newacc", 1.0, False))
     assert r["status"] == "written", r
     df = pd.read_csv(out)
     raw = pd.read_csv(src)
     assert len(df) == len(raw) and set(df.state.unique()) <= {0, 1} and (df.state == 1).sum() == r["tap_rows"] > 0
     assert (df.class_id == raw.class_id).all() and (df.timestamp == raw.Timestamp).all()
     names = F.pool("newacc", raw.columns)
-    assert [c for c in df.columns if c.startswith("p_core->")] == names
+    assert [c for c in df.columns if c.startswith("p_core->")] == names and not any(F.is_wl(c) for c in names)
     a, b = "p_core->acc_psd[0][Z][2]", "p_core->acc_psd_mean[Z][2]"
     np.testing.assert_allclose(df[f"p_core->ratio({a}, {b})"], (raw[a] + 1) / (raw[b] + 1), rtol=1e-6)
 

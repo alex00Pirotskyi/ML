@@ -13,13 +13,14 @@ constants are the trainer's own defaults).
 | 3 | `train_tap_f1.py` | the legacy trainer (diff below) |
 | 4 | `evaluate_tap_f1.py` | every saved model on the held-out fold, fired like the firmware: taps per pointer press per kind, false taps per minute per movement kind -> `TAP_MODELS_F1_FILEFOLDS/event_eval.md` |
 
-Defaults (each one measured below): labels `legacy` (signal labels, binary), inputs `newacc`, `TAPROWS=0.5`.
-Against your pipeline run on today's data: fist false taps -43 %, finger -18 %, all movement -17 %, the same taps
-(+0.2 points; the 2nd tap of a double +5.2).
+Defaults (each one measured below): labels `legacy` (signal labels, binary), inputs `newacc`, `TAPROWS=0.5`,
+`WL=0` (no EMG waveform-length input: models led by WL did worse on the device, section 5).
+Tested on the device (2026-11-27): a big improvement over the old models; XGBoost models did
+better than LightGBM ones, and models whose top inputs were WL did worse.
 
 ```
 make train                                   # the defaults
-make train LABELS=v10 FEATURES=leg TAPROWS=1 # exactly the old pipeline's labels / inputs / data mix, on file folds
+make train LABELS=v10 FEATURES=leg TAPROWS=1 WL=1   # the old pipeline's labels / inputs / data mix, file folds
 make smoke                                   # the whole chain on 2 recordings per folder and fold, 3 trials
 ```
 
@@ -107,13 +108,31 @@ Mean of two seeds (42 and 7), 5 rotated file folds each:
 | at 0.85 (the trainer's and the firmware's threshold) | taps | normal | soft | 1st / 2nd of double | 240 bpm | movement / min | fist | finger | wrist | arm | band |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | your pipeline on today's data (v10, `leg`, all rows) | 90.8 | 95.1 | 90.8 | 98.0 / 85.3 | 84.5 | 4.96 | 11.5 | 6.2 | 4.0 | 1.7 | 2.9 |
-| **default** (`legacy`, `newacc`, `TAPROWS=0.5`) | **91.0** | 94.7 | 90.0 | 98.0 / **90.5** | **88.8** | **4.11** | **6.5** | **5.1** | 4.3 | 1.7 | 1.9 |
+| default with WL (`legacy`, `newacc`, `TAPROWS=0.5`, `WL=1`): device-tested | 91.0 | 94.7 | 90.0 | 98.0 / 90.5 | 88.8 | 4.11 | 6.5 | 5.1 | 4.3 | 1.7 | 1.9 |
+| **default** (the same, `WL=0`) | **91.0** | 94.5 | 90.1 | 97.9 / **90.1** | **88.4** | **4.50** | **6.4** | 5.8 | 4.7 | 1.7 | 2.2 |
 | strictest (v10, `leg`, `TAPROWS=0.5`) | 90.2 | 94.5 | 90.9 | 97.9 / 84.4 | 83.4 | 3.61 | 8.1 | 4.8 | 2.7 | 1.2 | 1.5 |
 
-Against your pipeline on today's data, the default fires **43 % less on fists and 18 % less on fingers**, 17 % less
-on movement overall (band -35 %, wrist +6 %, arm the same), and catches as many taps (+0.2 points; the 2nd tap of a
-double +5.2, 240 bpm +4.3, soft taps -0.8, normal -0.4). If wrist / arm / band matter more than double taps,
+Against your pipeline on today's data, the version you tested on the device fires **43 % less on fists and 18 %
+less on fingers**, 17 % less on movement overall (band -35 %, wrist +6 %, arm the same), and catches as many taps
+(+0.2 points; the 2nd tap of a double +5.2, 240 bpm +4.3, soft taps -0.8, normal -0.4). Without WL (the default
+now) it is the same on fists and taps, and fires a little more on fingers offline (section 5). If wrist / arm / band matter more than double taps,
 `make train LABELS=v10 FEATURES=leg` (with the default `TAPROWS=0.5`) is the strictest setting measured.
+
+### 5. WL inputs off (after the device tests)
+
+On the device, the models whose most important inputs were EMG WL fields (`p_core->wl`, `wl_head`, `wl_tail` per
+channel) did worse. WL measures how much the muscles work, not the tap's impact: it rises with a fist, and its level
+depends on the person, the strap position and skin contact. With file folds the same person's other recordings are
+in training, so WL looks more useful offline than it is in a new session. The legacy model used none of the 9 WL
+fields; the pools had them only because they hold all 126 raw fields. `WL=0` (default) leaves out every WL field and
+WL ratio: `leg` 181 inputs, `newacc` 212, `new` 346 (`lite` is built from WL, so it needs `WL=1`).
+
+Offline (2 seeds, everything else the default): taps 91.0 -> 91.0 %, fist 6.5 -> 6.4, finger 5.1 -> 5.8, movement
+4.1 -> 4.5 false taps / min. Offline WL helped fingers a little; on the device the WL-led models were worse, and the
+device decides. Against the old pipeline on today's data the default still fires 44 % less on fists, 7 % less on
+fingers, 9 % less on movement. A middle option, if fingers get worse on the device: WL only as scale-free ratios
+(head / tail, which do not depend on the level); offline, one seed: movement 4.3, finger 5.2 (proxy pool
+`newacc_wlratio`).
 
 ## The labels
 

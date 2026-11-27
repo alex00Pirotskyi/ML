@@ -16,8 +16,10 @@
 #                      pointer, bounces, the 2nd tap of a double, taps the pointer missed); broken recordings left out
 #   LABELS=v10rescue   your old labeller, unchanged, on the repaired pointer
 #   LABELS=v10         your old labeller exactly
-#   FEATURES=newacc    126 raw fields + the legacy model's 64 diff / ratio inputs + 31 ACC ratios (default)
-#   FEATURES=leg       without the ACC ratios;  FEATURES=new  + 144 EMG diffs;  FEATURES=lite  + Lean-lite
+#   FEATURES=newacc    the raw fields + the legacy model's 64 diff / ratio inputs + 31 ACC ratios (default)
+#   FEATURES=leg       without the ACC ratios;  FEATURES=new  + EMG diffs;  FEATURES=lite  + Lean-lite (needs WL=1)
+#   WL=0               no EMG waveform-length (WL) input at all (default; on the device WL-led models did worse);
+#                      WL=1 allows the 9 WL fields and WL ratios again
 #   TAPROWS=0.5        TAP / SWIPE recordings train on every 2nd row: the legacy model's data mix, half the rows from
 #                      movement recordings (today's data has a third; all rows: TAPROWS=1)
 #   TRIALS=100         Optuna trials per model family
@@ -51,8 +53,9 @@ TRAIN_RE := ^[^ ]*python[0-9.]* .*(train_unified|train_tap_f1|build_tap_f1_datas
 LABELS   ?= legacy
 FEATURES ?= newacc
 TAPROWS  ?= 0.5
+WL       ?= 0
 TRIALS   ?= 100
-F1_LOG   := $(LOGDIR)/tap_f1_$(LABELS)_$(FEATURES)_rows$(TAPROWS)_$(shell date +%Y%m%d_%H%M%S).log
+F1_LOG   := $(LOGDIR)/tap_f1_$(LABELS)_$(FEATURES)_rows$(TAPROWS)_wl$(WL)_$(shell date +%Y%m%d_%H%M%S).log
 
 .PHONY: train train-unified status stop smoke
 
@@ -63,10 +66,10 @@ train:
 	  echo "Wait for it to finish (make status), or start anyway with: make train FORCE=1"; exit 1; fi
 	@if [ "$(PULL)" = "1" ]; then git pull --ff-only; fi
 	@mkdir -p $(LOGDIR)
-	@TAP_F1_LABELS=$(LABELS) TAP_F1_FEATURES=$(FEATURES) TAP_F1_TAP_ROW_SHARE=$(TAPROWS) LEGACY_N_TRIALS=$(TRIALS) PYTHON=$(PYTHON) \
+	@TAP_F1_LABELS=$(LABELS) TAP_F1_FEATURES=$(FEATURES) TAP_F1_TAP_ROW_SHARE=$(TAPROWS) TAP_F1_WL=$(WL) LEGACY_N_TRIALS=$(TRIALS) PYTHON=$(PYTHON) \
 	  nohup bash scripts/train_tap_f1.sh > $(F1_LOG) 2>&1 & echo $$! > $(PIDFILE)
 	@ln -sfn $(notdir $(F1_LOG)) $(LOGDIR)/latest.log
-	@echo "Started: TAP F1 pipeline labels=$(LABELS) features=$(FEATURES) tap_rows=$(TAPROWS) trials=$(TRIALS)"
+	@echo "Started: TAP F1 pipeline labels=$(LABELS) features=$(FEATURES) tap_rows=$(TAPROWS) wl=$(WL) trials=$(TRIALS)"
 	@echo "PID $$(cat $(PIDFILE)), log $(F1_LOG)"
 	@sleep 20; \
 	if kill -0 $$(cat $(PIDFILE)) 2>/dev/null; then \
@@ -78,7 +81,7 @@ smoke:
 	@rm -rf /tmp/tap_f1_smoke && mkdir -p /tmp/tap_f1_smoke/DATA
 	$(PYTHON) fold_split.py build
 	cp DATA/fold_roadmap_files.json /tmp/tap_f1_smoke/DATA/
-	$(PYTHON) build_tap_f1_dataset.py --out /tmp/tap_f1_smoke/DATA/DATA_TAP_F1 --limit 2 --labels $(LABELS) --features $(FEATURES) --tap-row-share $(TAPROWS)
+	$(PYTHON) build_tap_f1_dataset.py --out /tmp/tap_f1_smoke/DATA/DATA_TAP_F1 --limit 2 --labels $(LABELS) --features $(FEATURES) --tap-row-share $(TAPROWS) --wl $(WL)
 	cd /tmp/tap_f1_smoke && LEGACY_N_TRIALS=3 $(PYTHON) -u $(CURDIR)/train_tap_f1.py
 	$(PYTHON) evaluate_tap_f1.py /tmp/tap_f1_smoke/TAP_MODELS_F1_FILEFOLDS --data /tmp/tap_f1_smoke/DATA/DATA_TAP_F1
 	@echo "smoke OK: /tmp/tap_f1_smoke/TAP_MODELS_F1_FILEFOLDS"
