@@ -22,6 +22,8 @@
 #   make train KB=32 ALT_KB=14          (bigger model, same false-tap level)
 #   make train KB=64 ALT_KB=14 TARGET=5 FIST=3   (protection: a bigger model at the same taps fires 30-50% less on
 #                                        fists, fingers, wrist and band; TAP_FIST.md)
+#   make train KB=64 ALT_KB=14 TARGET=3.3   (the old v10 pipeline's protection level, 3.3 false taps/min: same
+#                                        movement false taps, +6 points of taps, 25 ms faster; TAP_SIGNAL_LABELS.md)
 #   make train RECIPE=final14sig        (signal labels: per-axis / per-zone ACC conditions + repaired pointer, no tap
 #                                        teacher; same quality as final14top, band -1.7/min; TAP_SIGNAL_LABELS.md)
 #   make train RECIPE=final14legacy     (the old deterministic labeller's rule: everything but the tap block is 0;

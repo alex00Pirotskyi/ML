@@ -456,8 +456,8 @@ def label(s, folder, name, opts=None, guard=True):
     q["agreement"] = q["n_contact"] / max(1, q["presses"] - int(no_edge.sum()))
     q["expected"] = len(bt) * (2 if rk["double"] else 1) if len(bt) > 2 else np.nan
     q["tier"] = tier(q, folder)
-    if q["tier"] == "broken":
-        y[:] = -1
+    if q["tier"] == "broken" or (pos_kind == "lp" and o["lp_start"] == "exclude"):
+        y[:] = -1                                                    # left out whole (exclude: no long-press data)
     return y, J, q
 
 

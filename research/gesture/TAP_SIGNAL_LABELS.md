@@ -19,6 +19,7 @@ recipes `final14sig` and `final14legacy`, and the research behind it (`tap_signa
 | Does the repair work? | Broken on purpose on clean recordings, it gets back: merged doubles 98.2%, pointer 70 ms late 99.4%, bounces 99.9%, stuck releases 94.8%, 15% presses deleted 96.6% (doubles 90.6%), adding 0-1.4 false taps per 100. |
 | What labels come out? | 22,332 taps in 2,142 TAP / SWIPE recordings (current labels: 20,051; 18,915 the same taps): 599 second taps of merged doubles and 240 bpm presses, 1,137 taps the pointer missed (recovered on the beat), 2,270 weak presses (no clean contact jolt), 46 recordings left out (no usable ACC / pointer). |
 | Better model? | **The legacy rule is worse; the hybrid is equal.** With the old labeller's rule (only the tap block is 1, everything else 0, no unknown rows) the model loses 3.2 points of taps and fires +2.4 fist / +2.2 wrist false taps per minute at the same overall false rate, 25 ms later, and its scores sit so close to the threshold that 1 logit of score drop costs 11.7 points of taps (2 logits: 39). With the signal choosing the taps and their top, and the rows around taps left out as today (hybrid), the model equals today's: taps +0.2, fist +0.5 (n.s.), band -1.7/min\*, 240 bpm +1.2, second taps +0.9. Same at 64 KB. |
+| Why does the old pipeline show no fist false taps? | It is set much stricter (3.3 false taps/min, not 6.2) and misses 10% of normal and 22% of soft / swipe / fast / second taps; at its strictness today's pipeline does better on taps and movements (section 5). |
 | So `make train`? | **Unchanged (`final14top`).** No label variant improves fist protection; the levers stay model size (TAP_FIST.md: 64 KB -30% fist at the same taps) and the movement negatives. `make train RECIPE=final14sig` trains the same model quality from deterministic labels (no tap teacher, repaired pointer); `RECIPE=final14legacy` reproduces the old labeller's rule for a band A/B. |
 
 ![A double-tap recording](figures/tap_signal_double.png)
@@ -185,3 +186,39 @@ hybrid taps -0.1, fist +0.4, band -0.6.
     python research/gesture/tap_generalization_research.py "$S+sighybrid2" "$S+siglegacy2" "$S+sighybrid2+seed1"
     python research/gesture/tap_top_research.py compare raw126_diff+augm+litediff+press2+kb14+leaves7+top+topb10 \
         "$S+sighybrid2" "$S+sighybrid2+seed1" "$S+siglegacy2"
+
+## 5. Why the old pipeline (v10 labeller + its Optuna trainer) shows no fist false taps (2026-11-27)
+
+The old trainer maximises row-level F1 at 0.85 over every row, with no class balancing (`scale_pos_weight` 1-15
+while tap rows are about 2% of the rows), and allows up to 100 KB (`MAX_MODEL_SIZE_BYTES = 102400`). `make train`
+balances the classes and maximises taps up to 6.2 false taps/min (the previous header's level). Replicated in the
+research harness on the same recordings: the old labelling rule (`legacy` preset, no long-press data), the raw 126
+inputs, 71 KB (400 trees of 15 leaves), positives weighted 0.1 (unbalanced), read at 0.85:
+
+| | normal | soft | 2nd of double | 240 bpm | swipe | taps | fist /min | finger /min | wrist /min | band /min | all /min | latency |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| old recipe, 71 KB, at 0.85 | 90.0 | 77.7 | 78.1 | 77.4 | 78.8 | 82.5 | 4.0 | 1.3 | 2.3 | 2.1 | 3.3 | 37.5 ms |
+| old recipe, 14 KB, at 0.85 | 83.9 | 69.0 | 72.0 | 69.5 | 72.3 | 76.2 | 3.9 | 1.4 | 3.1 | 2.4 | 3.2 | 42.5 ms |
+| `make train` as shipped (14 KB, 6.2/min) | 96.9 | 92.4 | 93.8 | 92.8 | 89.3 | 94.0 | 11.0 | 7.0 | 7.8 | 6.8 | 6.2 | 7.5 ms |
+
+The old pipeline does not separate taps from fists better. It is set much stricter (3.3 false taps/min instead of
+6.2) and pays in taps (one normal tap in ten, one soft tap / swipe / second tap / 240 bpm tap in five) and 30 ms.
+At its own false-tap rate (3.31/min overall), differences to it (`*` = 95% file bootstrap excludes 0):
+
+| | normal | soft | 2nd of double | 240 bpm | swipe | taps | fist /min | wrist /min | band /min | latency |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `make train` recipe, 14 KB | -1.9\* | +5.0\* | +1.6 | +3.4 | -1.6\* | +1.3\* | -1.1 | -0.7 | -0.8 | -20 ms\* |
+| `make train` recipe, 64 KB | +2.1\* | +10.9\* | +5.9\* | +10.7\* | +3.9\* | +6.3\* | -0.7 | -0.9 | -1.1 | -25 ms\* |
+| today's labels with the old training (71 KB, raw, unbalanced) | +2.0\* | +9.5\* | +1.2 | +6.6\* | +4.4\* | +4.3\* | -1.3 | -1.1\* | -1.4 | -25 ms\* |
+
+At the same strictness today's pipeline keeps more taps, fires no more on movements and is 20-25 ms faster; with
+the bigger model it keeps 6.3 points more taps (11 points more soft and 240 bpm taps). The old pipeline's protection
+is `make train KB=64 ALT_KB=14 TARGET=3.3`.
+
+Not an exact copy: fixed LightGBM settings instead of its Optuna search (F-score feature selection, XGBoost,
+preprocessing), sampled rows with a positive weight instead of every row, file folds instead of its person folds,
+and the `legacy` preset instead of the v10 script itself (same gates in spirit, with the repaired pointer).
+
+    python research/gesture/tap_generalization_research.py raw126+kb96+leaves15+siglegacynolp+posw10 \
+        raw126+kb96+leaves15+press2+top+topb10+posw10 raw126+kb14+leaves7+siglegacynolp+posw10
+    # siglegacynolp: SIG_OPTS='{"weak":"zero","lp_start":"exclude","rise":"zero","context":"zero"}' label_signal.py
