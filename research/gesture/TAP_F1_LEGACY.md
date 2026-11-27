@@ -117,6 +117,22 @@ double +5.2, 240 bpm +4.3, soft taps -0.8, normal -0.4). If wrist / arm / band m
 
 ## The labels
 
+![old vs new labels on the same taps](figures/tap_f1_label_blocks.png)
+
+Both label a **block of rows per tap**, not one row. Over all TAP / SWIPE recordings:
+
+| | taps labelled | rows per tap (mean / median) | block, ms from the tap's ACC peak (median) |
+|---|---|---|---|
+| old (v10) | 19,232 | 10.4 / 11 (~56 ms) | -24 .. +31: the rise, the peak and the decay |
+| new (`legacy`) | 22,264 | 7.6 / 8 (~38 ms) | -7 .. +31: the peak and the decay, never the rise |
+
+The blocks end at the same place; the new one leaves out the rise (73 % of the old blocks start 20 ms or more
+before the peak) and adds 3,032 taps the old one could not label (2nd taps of doubles merged into one press, taps
+the pointer missed). With `TAPROWS=0.5` the trainer uses every 2nd row of a TAP / SWIPE recording, tap rows and the
+rest alike (about 4 rows per tap); in `DATA/DATA_TAP_F1` the other rows are `state -1`, so a tap reads
+1, -1, 1, -1, ... there. That is the data mix, not the labeller; `TAPROWS=1` trains on every row.
+(`research/gesture/plot_tap_label_blocks.py` draws the figure.)
+
 * `legacy` (default): `claude_labeling/tap_signal.py`, preset legacy. Per recording: the pointer's own delay,
   bounces merged, every pointer press matched to the contact jolt of ONE ACC axis and a few zones (never all axes
   summed), the 2nd tap of a double inside one press, a 240 bpm series one tap per beat, taps the pointer missed
