@@ -164,12 +164,13 @@ def sample_one(job):
     return B[np.ix_(rows, keep)], target, np.full(len(rows), fold, np.int8), [cols[i] for i in keep]
 
 
-def select_inputs(recs, label_dir, meta, share, wl, lite, rfe_rows, workers, raw_cols, lsig, roadmap_fp, log):
+def select_inputs(recs, label_dir, meta, share, wl, lite, rfe_rows, workers, raw_cols, lsig, roadmap_fp, log,
+                  emg=F.DEFAULT_EMG):
     import select_tap_f1_features as SEL
-    cands = F.candidates(raw_cols, wl=wl, lite=lite)
+    cands = F.candidates(raw_cols, wl=wl, lite=lite, emg=emg)
     train = [r for r in recs if r.fold_id != TEST_FOLD]
     data_fp = hashlib.sha256("".join(sorted(f"{r.file_id}:{_source(_rel(r)).stat().st_mtime_ns}" for r in train)).encode()).hexdigest()
-    sig = dict(labels=lsig["signature"], tap_row_share=share, wl=wl, lite=lite, rfe_rows=rfe_rows,
+    sig = dict(labels=lsig["signature"], tap_row_share=share, wl=wl, lite=lite, emg=emg, rfe_rows=rfe_rows,
                candidates=hashlib.sha256("\n".join(cands).encode()).hexdigest(), rfe=SEL.SETTINGS,
                roadmap=roadmap_fp, data=data_fp, selector_code=_sha([ROOT / "select_tap_f1_features.py"]))
     sig_h = hashlib.sha256(json.dumps(sig, sort_keys=True).encode()).hexdigest()
@@ -253,9 +254,12 @@ def _rel(r):
 
 # ================================================================================================ the build
 def build(out=DEFAULT_OUT, preset=DEFAULT_LABELS, pool_name=F.DEFAULT_POOL, roadmap=DATA / "fold_roadmap_files.json",
-          workers=None, limit=None, share=None, wl=None, lite=True, rfe_rows=DEFAULT_RFE_ROWS, log=print):
+          workers=None, limit=None, share=None, wl=None, lite=True, rfe_rows=DEFAULT_RFE_ROWS, log=print, emg=None):
     share = DEFAULT_TAP_ROW_SHARE if share is None else float(share)
     wl = F.DEFAULT_WL if wl is None else bool(wl)
+    emg = F.DEFAULT_EMG if emg is None else str(emg)
+    if emg not in F.EMG_MODES:
+        raise SystemExit(f"--emg must be one of {F.EMG_MODES}")
     if preset not in LABELLERS:
         raise SystemExit(f"--labels must be one of {LABELLERS}")
     if pool_name not in F.POOLS:
@@ -295,12 +299,12 @@ def build(out=DEFAULT_OUT, preset=DEFAULT_LABELS, pool_name=F.DEFAULT_POOL, road
     selected = None
     if pool_name == "rfe":
         selected = select_inputs(recs, label_dir, meta, share, wl, lite, rfe_rows, workers, raw_cols, lsig,
-                                 client.data_fingerprint, log)
+                                 client.data_fingerprint, log, emg=emg)
     names = F.pool(pool_name, raw_cols, wl=wl, selected=selected)
     if F.needs_lite(names) and not lite:
         raise SystemExit("the inputs use Lean-lite but --no-lite was given")
     log(f"[build] 2/3 inputs: {pool_name}, {len(names)} inputs ({sum(n in F.LITE_COLUMNS for n in names)} Lean-lite, "
-        f"WL {'on' if wl else 'off'})")
+        f"WL {'on' if wl else 'off'}, EMG {emg if pool_name == 'rfe' else 'fixed pool'})")
 
     # 3. CSVs ---------------------------------------------------------------------------------------------------
     bsig = dict(labels=lsig["signature"], pool=pool_name, inputs=hashlib.sha256("\n".join(names).encode()).hexdigest(),
@@ -374,9 +378,12 @@ def main(argv=None):
                     help="no Lean-lite candidates (the device firmware lacks lean_lite.h)")
     ap.add_argument("--rfe-rows", type=int, default=int(os.environ.get("TAP_F1_RFE_ROWS", DEFAULT_RFE_ROWS)),
                     help="rows of the training folds the feature elimination looks at")
+    ap.add_argument("--emg", default=os.environ.get("TAP_F1_EMG", F.DEFAULT_EMG), choices=F.EMG_MODES,
+                    help="robust: EMG PSD candidates only as change over time inside one channel and zone "
+                         "(research/gesture/EMG_PSD_ROBUST_FEATURES.md)")
     a = ap.parse_args(argv)
     build(a.out, a.labels, a.features, a.roadmap, a.workers, a.limit, a.tap_row_share, bool(a.wl), not a.no_lite,
-          a.rfe_rows)
+          a.rfe_rows, emg=a.emg)
     return 0
 
 

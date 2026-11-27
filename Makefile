@@ -24,6 +24,10 @@
 #   WL=0               no input on the absolute EMG waveform length (default; WL-led models did worse on the
 #                      device); Lean-lite (relative, log scale) stays. WL=1 allows the 9 WL fields and WL ratios
 #   LITE=1             Lean-lite among the candidates (default; needs firmware/lean_lite.h); LITE=0 without
+#   EMG=all            every EMG-EMG pair and the absolute EMG codes are candidates (default). EMG=robust: EMG PSD
+#                      only as change over time inside one channel and zone (now / oldest / mean, diff and ratio;
+#                      3192 candidates): no absolute EMG code, no zone-vs-zone, no channel-vs-channel pair, the
+#                      parts that move with band placement, contact and power-grid hum (EMG_PSD_ROBUST_FEATURES.md)
 #   RFE_ROWS=400000    rows of the training folds the feature elimination looks at
 #   TAPROWS=0.5        TAP / SWIPE recordings train on every 2nd row: the legacy model's data mix, half the rows from
 #                      movement recordings (today's data has a third; all rows: TAPROWS=1)
@@ -60,9 +64,10 @@ FEATURES ?= rfe
 TAPROWS  ?= 0.5
 WL       ?= 0
 LITE     ?= 1
+EMG      ?= all
 RFE_ROWS ?= 400000
 TRIALS   ?= 100
-F1_LOG   := $(LOGDIR)/tap_f1_$(LABELS)_$(FEATURES)_rows$(TAPROWS)_wl$(WL)_lite$(LITE)_$(shell date +%Y%m%d_%H%M%S).log
+F1_LOG   := $(LOGDIR)/tap_f1_$(LABELS)_$(FEATURES)_rows$(TAPROWS)_wl$(WL)_lite$(LITE)_emg$(EMG)_$(shell date +%Y%m%d_%H%M%S).log
 
 .PHONY: train train-unified status stop smoke
 
@@ -73,11 +78,11 @@ train:
 	  echo "Wait for it to finish (make status), or start anyway with: make train FORCE=1"; exit 1; fi
 	@if [ "$(PULL)" = "1" ]; then git pull --ff-only; fi
 	@mkdir -p $(LOGDIR)
-	@TAP_F1_LABELS=$(LABELS) TAP_F1_FEATURES=$(FEATURES) TAP_F1_TAP_ROW_SHARE=$(TAPROWS) TAP_F1_WL=$(WL) TAP_F1_LITE=$(LITE) \
+	@TAP_F1_LABELS=$(LABELS) TAP_F1_FEATURES=$(FEATURES) TAP_F1_TAP_ROW_SHARE=$(TAPROWS) TAP_F1_WL=$(WL) TAP_F1_LITE=$(LITE) TAP_F1_EMG=$(EMG) \
 	  TAP_F1_RFE_ROWS=$(RFE_ROWS) LEGACY_N_TRIALS=$(TRIALS) PYTHON=$(PYTHON) \
 	  nohup bash scripts/train_tap_f1.sh > $(F1_LOG) 2>&1 & echo $$! > $(PIDFILE)
 	@ln -sfn $(notdir $(F1_LOG)) $(LOGDIR)/latest.log
-	@echo "Started: TAP F1 pipeline labels=$(LABELS) features=$(FEATURES) tap_rows=$(TAPROWS) wl=$(WL) lite=$(LITE) trials=$(TRIALS)"
+	@echo "Started: TAP F1 pipeline labels=$(LABELS) features=$(FEATURES) tap_rows=$(TAPROWS) wl=$(WL) lite=$(LITE) emg=$(EMG) trials=$(TRIALS)"
 	@echo "PID $$(cat $(PIDFILE)), log $(F1_LOG)"
 	@sleep 20; \
 	if kill -0 $$(cat $(PIDFILE)) 2>/dev/null; then \
@@ -89,7 +94,7 @@ smoke:
 	@rm -rf /tmp/tap_f1_smoke && mkdir -p /tmp/tap_f1_smoke/DATA
 	$(PYTHON) fold_split.py build
 	cp DATA/fold_roadmap_files.json /tmp/tap_f1_smoke/DATA/
-	$(PYTHON) build_tap_f1_dataset.py --out /tmp/tap_f1_smoke/DATA/DATA_TAP_F1 --limit 2 --labels $(LABELS) --features $(FEATURES) --tap-row-share $(TAPROWS) --wl $(WL) $(if $(filter 0,$(LITE)),--no-lite,)
+	$(PYTHON) build_tap_f1_dataset.py --out /tmp/tap_f1_smoke/DATA/DATA_TAP_F1 --limit 2 --labels $(LABELS) --features $(FEATURES) --tap-row-share $(TAPROWS) --wl $(WL) --emg $(EMG) $(if $(filter 0,$(LITE)),--no-lite,)
 	cd /tmp/tap_f1_smoke && LEGACY_N_TRIALS=3 $(PYTHON) -u $(CURDIR)/train_tap_f1.py
 	$(PYTHON) evaluate_tap_f1.py /tmp/tap_f1_smoke/TAP_MODELS_F1_FILEFOLDS --data /tmp/tap_f1_smoke/DATA/DATA_TAP_F1
 	@echo "smoke OK: /tmp/tap_f1_smoke/TAP_MODELS_F1_FILEFOLDS"

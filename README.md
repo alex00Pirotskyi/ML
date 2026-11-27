@@ -77,8 +77,10 @@ fold. The data (`build_tap_f1_dataset.py` -> `DATA/DATA_TAP_F1/`): signal labels
 device); inputs kept by a fast feature elimination (`select_tap_f1_features.py`) from 5,127 candidates: raw fields,
 every ACC-ACC and EMG-EMG diff and ratio, Lean-lite (`tap_f1_features.py`); TAP / SWIPE recordings training on every
 2nd row (the legacy model's data mix). Settings: `LABELS=legacy|v10rescue|v10`, `FEATURES=rfe|newacc|leg|new|lite`,
-`LITE=1`, `RFE_ROWS=400000`, `TAPROWS=0.5`, `WL=0`, `TRIALS=100`. Results: `TAP_MODELS_F1_FILEFOLDS/` (models, C headers,
-`event_eval.md`). Evidence: [research/gesture/TAP_F1_LEGACY.md](research/gesture/TAP_F1_LEGACY.md). The previous
+`LITE=1`, `EMG=all|robust`, `RFE_ROWS=400000`, `TAPROWS=0.5`, `WL=0`, `TRIALS=100`. Results: `TAP_MODELS_F1_FILEFOLDS/`
+(models, C headers, `event_eval.md`). Evidence: [research/gesture/TAP_F1_LEGACY.md](research/gesture/TAP_F1_LEGACY.md).
+Which EMG PSD inputs survive band placement, contact, rotation and power-grid hum (and what `EMG=robust` trades):
+[research/gesture/EMG_PSD_ROBUST_FEATURES.md](research/gesture/EMG_PSD_ROBUST_FEATURES.md). The previous
 pipeline is `make train-unified` ([research/gesture/PIPELINE.md](research/gesture/PIPELINE.md)).
 
 ## Long-press sEMG pseudo-labeling

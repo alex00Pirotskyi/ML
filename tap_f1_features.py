@@ -49,7 +49,10 @@ LEGACY_MODEL = ROOT / "research" / "gesture" / "legacy_tap_f1_features.json"
 POOLS = ("rfe", "leg", "newacc", "new", "lite")
 DEFAULT_POOL = "rfe"
 DEFAULT_WL = False         # no absolute WL input: on the device, models that leaned on WL did worse (2026-11-27)
+EMG_MODES = ("all", "robust")
+DEFAULT_EMG = "all"        # "robust": EMG PSD only as change over time inside one channel and zone (see candidates)
 LITE_COLUMNS = list(TF.LITE_COLUMNS)
+_EMG_FIELD = re.compile(r"^p_core->(emg_psd\[0\]|emg_psd\[EMG_PSD_HISTORY_SIZE - 1\]|emg_psd_mean)\[CH(\d)\]\[(\d)\]$")
 
 # raw field families; a pair is only formed inside one modality, ratios only over PSD codes (>= 0)
 _FAMILIES = (
@@ -98,15 +101,29 @@ def families(raw_columns):
     return out
 
 
-def candidates(raw_columns, wl=DEFAULT_WL, lite=True):
-    """every input the feature elimination may choose from (see the module text), in a fixed order"""
-    raw = [c for c in raw_columns if c.startswith("p_core->") and (wl or not is_wl(c))]
+def emg_over_time(a, b):
+    """True for two EMG PSD fields of the same channel and zone (different slots: now, oldest history, mean)"""
+    ma, mb = _EMG_FIELD.match(a), _EMG_FIELD.match(b)
+    return bool(ma and mb and ma.group(2, 3) == mb.group(2, 3) and ma.group(1) != mb.group(1))
+
+
+def candidates(raw_columns, wl=DEFAULT_WL, lite=True, emg=DEFAULT_EMG):
+    """every input the feature elimination may choose from (see the module text), in a fixed order.
+    emg="robust" keeps EMG PSD only as change over time inside one channel and zone: diff / ratio of now, oldest
+    history and mean (45 pairs, 90 inputs) - no absolute EMG code, no zone-vs-zone and no channel-vs-channel pair,
+    which carry per-recording offsets that move with band placement, contact and power-grid hum
+    (research/gesture/EMG_PSD_ROBUST_FEATURES.md)."""
+    assert emg in EMG_MODES, emg
+    raw = [c for c in raw_columns if c.startswith("p_core->") and (wl or not is_wl(c))
+           and not (emg == "robust" and _EMG_FIELD.match(c))]
     fam = families(raw_columns)
     legacy = set(legacy_model_inputs())
     out = list(raw)
     for group, ops in _PAIR_GROUPS:
         fields = [c for f in group for c in fam[f]]
         for a, b in combinations(fields, 2):
+            if emg == "robust" and _EMG_FIELD.match(a) and not emg_over_time(a, b):
+                continue
             for op in ops:
                 fwd, rev = f"p_core->{op}({a}, {b})", f"p_core->{op}({b}, {a})"
                 out.append(rev if (rev in legacy and fwd not in legacy) else fwd)

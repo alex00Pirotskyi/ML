@@ -14,8 +14,10 @@ kept by a feature elimination over raw fields, diff / ratio pairs and Lean-lite 
 legacy data mix (TAP / SWIPE recordings train on every 2nd row), built by `build_tap_f1_dataset.py`; every saved
 model is then fired like the firmware on the held-out fold (`evaluate_tap_f1.py`). The trainer is unchanged but for
 its paths and one line that drops `state < 0` rows. Measured against the old pipeline on today's data: fist false
-taps -43 %, finger -18 %, all movement -17 %, taps +0.2 points (2nd of a double +5.2). The pipeline below is
-`make train-unified`.
+taps -43 %, finger -18 %, all movement -17 %, taps +0.2 points (2nd of a double +5.2). `EMG=robust` restricts the
+EMG PSD candidates to change over time inside one channel and zone (EMG_PSD_ROBUST_FEATURES.md: flat under simulated
+placement and hum, but +1.9 fist false taps per minute; robustness that keeps fist rejection needs training
+augmentation, the next step there). The pipeline below is `make train-unified`.
 
 ## Run (the unified trainer, `make train-unified`)
 

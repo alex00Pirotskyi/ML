@@ -4,6 +4,7 @@ from __future__ import annotations
 import gzip
 import json
 from pathlib import Path
+import re
 import sys
 
 import numpy as np
@@ -170,6 +171,22 @@ def test_candidates_are_pairs_inside_one_modality_without_wl():
     fm = F.FeatureMaker(raw + F.LITE_COLUMNS, c)                                    # every candidate computes
     assert len(fm.names) == 5127
     assert len(F.candidates(raw, lite=False)) == 5112
+
+
+def test_robust_emg_candidates_are_change_over_time_inside_one_channel_and_zone():
+    raw = _raw_columns()
+    c = F.candidates(raw, emg="robust")
+    assert len(c) == len(set(c)) == 3192
+    emg = [x for x in c if "emg_psd" in x]
+    assert len(emg) == 90 and all(x.startswith(("p_core->diff(", "p_core->ratio(")) for x in emg)   # no absolute code
+    for x in emg:
+        a, b = re.match(r"^p_core->(?:diff|ratio)\((p_core->.+?), (p_core->.+)\)$", x).groups()
+        assert F.emg_over_time(a, b)                                               # same channel and zone, other slot
+    assert F.emg_over_time("p_core->emg_psd[0][CH2][3]", "p_core->emg_psd_mean[CH2][3]")
+    assert not F.emg_over_time("p_core->emg_psd[0][CH2][3]", "p_core->emg_psd_mean[CH1][3]")   # channel vs channel
+    assert not F.emg_over_time("p_core->emg_psd[0][CH2][3]", "p_core->emg_psd[0][CH2][4]")     # zone vs zone
+    assert [x for x in c if "emg_psd" not in x] == [x for x in F.candidates(raw) if "emg_psd" not in x]   # rest as before
+    assert len(F.FeatureMaker(raw + F.LITE_COLUMNS, c).names) == 3192
 
 
 def test_rfe_keeps_the_informative_input_and_drops_twins(tmp_path):
