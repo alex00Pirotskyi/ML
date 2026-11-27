@@ -9,6 +9,7 @@ on:
       - 'gesture_constants.py'
       - 'tap_f1_features.py'
       - 'build_tap_f1_dataset.py'
+      - 'select_tap_f1_features.py'
       - 'evaluate_tap_f1.py'
       - 'export_plus.py'
       - 'scripts/train_tap_f1.sh'
@@ -36,6 +37,7 @@ jobs:
         with:
           sparse-checkout: |
             DATA/DATA_TAP
+            DATA/DATA_TAP_LEAN8
             DATA/fold_roadmap.json
             DATA/fold_roadmap_files.json
             claude_labeling
@@ -47,6 +49,7 @@ jobs:
             gesture_constants.py
             tap_f1_features.py
             build_tap_f1_dataset.py
+            select_tap_f1_features.py
             evaluate_tap_f1.py
             export_plus.py
             Makefile
@@ -56,9 +59,9 @@ jobs:
           python-version: '3.11'
       - name: Install the trainer's dependencies
         run: python -m pip install --disable-pip-version-check numpy pandas scipy scikit-learn lightgbm xgboost optuna joblib psutil pyarrow pytest
-      - name: Unit tests (roadmap, inputs, builder, the trainer's one line, event check)
+      - name: Unit tests (roadmap, candidates, feature elimination, builder, the trainer's one line, event check)
         run: python -m pytest -q tests/test_tap_f1.py tests/test_tap_signal.py
       - name: Roadmap is file level and every fold is complete
         run: python fold_split.py check DATA/fold_roadmap_files.json
-      - name: Whole chain on 2 recordings per folder and fold, 3 trials per model family
+      - name: Whole chain (labels, feature elimination, CSVs, trainer, event check) on 2 recordings per folder and fold, 3 trials
         run: make smoke PYTHON=python

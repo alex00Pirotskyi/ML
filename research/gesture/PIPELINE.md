@@ -9,7 +9,8 @@ Two embedded LightGBM models for the Mudra band, exported as C headers with a st
 ## TAP: `make train` (2026-11-27, TAP_F1_LEGACY.md)
 
 `make train` runs the legacy F1 trainer (`train_tap_f1.py`: the old Optuna LightGBM + XGBoost script, F1 at 0.85 +
-size, max 96 KB) on file-level gesture-aware folds (`fold_split.py`), with signal labels, ACC-ratio inputs and the
+size, max 96 KB) on file-level gesture-aware folds (`fold_split.py`), with signal labels, no absolute-WL input, inputs
+kept by a feature elimination over raw fields, diff / ratio pairs and Lean-lite (`select_tap_f1_features.py`) and the
 legacy data mix (TAP / SWIPE recordings train on every 2nd row), built by `build_tap_f1_dataset.py`; every saved
 model is then fired like the firmware on the held-out fold (`evaluate_tap_f1.py`). The trainer is unchanged but for
 its paths and one line that drops `state < 0` rows. Measured against the old pipeline on today's data: fist false

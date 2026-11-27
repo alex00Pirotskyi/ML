@@ -1,25 +1,39 @@
 """Inputs of the TAP F1 trainer (train_tap_f1.py), by name, and how to compute them from the firmware's raw fields.
 
-Every input is either a raw p_core field of the recording CSVs, or a firmware helper call on two raw fields, named
-exactly as the exporter (export_plus.py) writes it into the C header:
+Every input is either a raw p_core field of the recording CSVs, a Lean-lite field, or a firmware helper call on two
+raw fields, named exactly as the exporter (export_plus.py) writes it into the C header:
 
     p_core->diff(a, b)   = a - b, saturated to int16
     p_core->ratio(a, b)  = (a + 1) / (b + 1), float
 
+Candidates (`candidates`, the input of the feature elimination, select_tap_f1_features.py), like the legacy pool:
+    the raw fields                                   117 (126 minus the 9 WL fields)
+    ACC PSD with ACC PSD: diff and ratio             every pair of acc_psd[0], acc_psd[last], acc_psd_mean
+                                                     (54 fields, 1431 pairs, any axis / zone): 2862
+    EMG PSD with EMG PSD: diff and ratio             every pair of emg_psd[0], emg_psd[last], emg_psd_mean
+                                                     (45 fields, 990 pairs): 1980
+    ACC rate with ACC rate: diff only                acc_rate can be negative, so no ratio (153)
+    Lean-lite                                        15 (p_core->cload_lite.*)
+    = 5127. A pair is used once (diff(b, a) = -diff(a, b), ratio(b, a) = 1 / ratio(a, b): the same split for a tree),
+    in the legacy model's orientation where it had one. Ratios only over PSD codes (never negative, so b + 1 >= 1).
+
 Pools (the trainer ranks the pool with f_classif and picks the best n_features of it, as before):
+    rfe     the candidates the feature elimination kept (default; DATA_TAP_F1/_build/selected_features.json)
     leg     the raw fields + the 64 diff / ratio inputs of the legacy model (its 95 inputs are all in here)
     newacc  leg + 36 ACC ratios: every (axis, zone) of the newest ACC PSD over its running mean and over its
             oldest history slot (the legacy model's strongest family, made complete)
-    new     newacc + 144 EMG inputs: within-channel PSD zone vs zone and slot vs slot diffs, WL head / tail ratios
-    lite    new + 15 Lean-lite diff inputs (p_core->cload_lite.*; need the Lean-8 frame counter of DATA_TAP_LEAN8
-            and firmware/lean_lite.h on the device; built from WL, so only with WL on)
+    new     newacc + 144 EMG inputs: within-channel PSD zone vs zone and slot vs slot diffs (+ WL ratios with WL on)
+    lite    new + 15 Lean-lite inputs
 
-WL: by default no pool has a WL input (the 9 raw fields p_core->wl / wl_head / wl_tail and the 9 WL ratios of
-`new`): tested on the device, the models whose top inputs were WL fired worse, and the legacy model used none.
-126 raw fields - 9 WL = 117: leg 181 inputs, newacc 212, new 346 (with WL: 190 / 221 / 364, lite 379).
+WL: no input uses the absolute WL level (the 9 raw fields p_core->wl / wl_head / wl_tail and the WL ratios): tested on
+the device, the models whose top inputs were WL fired worse, and the legacy model used none. Lean-lite stays: it is
+WL on a log scale relative to its own recent minimum, maximum and mean (rise10, fall10, range10, dev3, xm), so a
+different strap position or skin contact (a gain on WL) cancels out. It needs firmware/lean_lite.h on the device and
+the Lean-8 frame counter of DATA_TAP_LEAN8.
 """
 from __future__ import annotations
 
+from itertools import combinations
 import json
 from pathlib import Path
 import re
@@ -32,9 +46,24 @@ sys.path.insert(0, str(ROOT / "research" / "gesture"))
 import tap_features as TF  # noqa: E402  (EMG diff / WL ratio names, Lean-lite)
 
 LEGACY_MODEL = ROOT / "research" / "gesture" / "legacy_tap_f1_features.json"
-POOLS = ("leg", "newacc", "new", "lite")
-DEFAULT_POOL = "newacc"
-DEFAULT_WL = False         # WL inputs off: on the device, models that leaned on WL did worse (2026-11-27)
+POOLS = ("rfe", "leg", "newacc", "new", "lite")
+DEFAULT_POOL = "rfe"
+DEFAULT_WL = False         # no absolute WL input: on the device, models that leaned on WL did worse (2026-11-27)
+LITE_COLUMNS = list(TF.LITE_COLUMNS)
+
+# raw field families; a pair is only formed inside one modality, ratios only over PSD codes (>= 0)
+_FAMILIES = (
+    ("acc_psd_now", r"^p_core->acc_psd\[0\]\["),
+    ("acc_psd_old", r"^p_core->acc_psd\[ACC_PSD_HISTORY_SIZE - 1\]\["),
+    ("acc_psd_mean", r"^p_core->acc_psd_mean\["),
+    ("acc_rate", r"^p_core->acc_rate\["),
+    ("emg_psd_now", r"^p_core->emg_psd\[0\]\["),
+    ("emg_psd_old", r"^p_core->emg_psd\[EMG_PSD_HISTORY_SIZE - 1\]\["),
+    ("emg_psd_mean", r"^p_core->emg_psd_mean\["),
+)
+_PAIR_GROUPS = ((("acc_psd_now", "acc_psd_old", "acc_psd_mean"), ("diff", "ratio")),
+                (("emg_psd_now", "emg_psd_old", "emg_psd_mean"), ("diff", "ratio")),
+                (("acc_rate",), ("diff",)))
 
 
 def legacy_model_inputs():
@@ -53,18 +82,51 @@ def acc_ratio_names():
 
 
 def is_wl(name):
-    """an EMG waveform-length input: p_core->wl / wl_head / wl_tail, or a helper call on one of them"""
+    """an input on the absolute EMG waveform length: p_core->wl / wl_head / wl_tail, or a helper call on one of them
+    (Lean-lite, p_core->cload_lite.*, is relative and not counted)"""
     return "->wl[" in name or "->wl_head[" in name or "->wl_tail[" in name
 
 
-def pool(name, raw_columns, wl=DEFAULT_WL):
-    """the input names of a pool, in a fixed order, given the recording's raw p_core columns. wl=False (default)
-    leaves out every WL input (the 9 raw WL fields and the WL ratios); Lean-lite is built from WL, so `lite` needs
-    wl=True."""
+def families(raw_columns):
+    """{family: [raw column, ...]} in the recording's column order"""
+    out = {f: [] for f, _ in _FAMILIES}
+    for c in raw_columns:
+        for f, rx in _FAMILIES:
+            if re.match(rx, c):
+                out[f].append(c)
+                break
+    return out
+
+
+def candidates(raw_columns, wl=DEFAULT_WL, lite=True):
+    """every input the feature elimination may choose from (see the module text), in a fixed order"""
+    raw = [c for c in raw_columns if c.startswith("p_core->") and (wl or not is_wl(c))]
+    fam = families(raw_columns)
+    legacy = set(legacy_model_inputs())
+    out = list(raw)
+    for group, ops in _PAIR_GROUPS:
+        fields = [c for f in group for c in fam[f]]
+        for a, b in combinations(fields, 2):
+            for op in ops:
+                fwd, rev = f"p_core->{op}({a}, {b})", f"p_core->{op}({b}, {a})"
+                out.append(rev if (rev in legacy and fwd not in legacy) else fwd)
+    if lite:
+        out += LITE_COLUMNS
+    return list(dict.fromkeys(out))
+
+
+def pool(name, raw_columns, wl=DEFAULT_WL, selected=None):
+    """the input names of a pool, in a fixed order, given the recording's raw p_core columns. No absolute-WL input
+    unless wl=True. `rfe` is the list the feature elimination kept (selected)."""
     if name not in POOLS:
         raise ValueError(f"unknown input pool {name!r}; one of {POOLS}")
-    if name == "lite" and not wl:
-        raise ValueError("the lite inputs are computed from WL; use them with WL inputs on (--wl 1 / make train WL=1)")
+    if name == "rfe":
+        if selected is None:
+            raise ValueError("the rfe pool needs the selected inputs (select_tap_f1_features.py)")
+        bad = [s for s in selected if is_wl(s) and not wl]
+        if bad:
+            raise ValueError(f"selected inputs use WL with WL off: {bad[:3]}")
+        return list(selected)
     raw = [c for c in raw_columns if c.startswith("p_core->") and (wl or not is_wl(c))]
     dedupe = lambda xs: [x for x in dict.fromkeys(xs) if wl or not is_wl(x)]
     leg = dedupe(raw + [f for f in legacy_model_inputs() if f not in raw])
@@ -74,7 +136,7 @@ def pool(name, raw_columns, wl=DEFAULT_WL):
     if name == "newacc":
         return newacc
     new = dedupe(newacc + TF.DERIVED)
-    return new if name == "new" else dedupe(new + list(TF.LITE_COLUMNS))
+    return new if name == "new" else dedupe(new + LITE_COLUMNS)
 
 
 def needs_lite(names):

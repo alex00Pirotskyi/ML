@@ -121,24 +121,30 @@ def test_repo_roadmap_is_file_level():
 
 
 # ------------------------------------------------------------------------------------------------ inputs
-def test_feature_pools_and_firmware_helpers():
-    raw = [c for c in pd.read_csv(sorted((ROOT / "DATA" / "DATA_TAP" / "TAP").glob("*.csv.gz"))[0], nrows=0).columns
-           if c.startswith("p_core->")] if (ROOT / "DATA" / "DATA_TAP" / "TAP").exists() else None
-    if raw is None:
+def _raw_columns():
+    d = ROOT / "DATA" / "DATA_TAP" / "TAP"
+    if not d.exists():
         pytest.skip("no DATA_TAP in this checkout")
-    leg, newacc, new, lite = (F.pool(n, raw, wl=True) for n in F.POOLS)
+    return [c for c in pd.read_csv(sorted(d.glob("*.csv.gz"))[0], nrows=0).columns if c.startswith("p_core->")]
+
+
+def test_feature_pools_and_firmware_helpers():
+    raw = _raw_columns()
+    leg, newacc, new, lite = (F.pool(n, raw, wl=True) for n in ("leg", "newacc", "new", "lite"))
     assert set(F.legacy_model_inputs()) <= set(leg) and len(leg) == 190
     assert set(leg) < set(newacc) < set(new) < set(lite)
     assert len(newacc) - len(leg) == 31          # 36 ACC ratios, 5 of them already inputs of the legacy model
     assert not F.needs_lite(new) and F.needs_lite(lite)
     # WL off (the default): no WL field or WL ratio anywhere, the legacy model's inputs all still there
-    off = {n: F.pool(n, raw) for n in ("leg", "newacc", "new")}
+    off = {n: F.pool(n, raw) for n in ("leg", "newacc", "new", "lite")}
     assert [len(off[n]) for n in ("leg", "newacc", "new")] == [181, 212, 346]
     assert not any(F.is_wl(x) for xs in off.values() for x in xs)
     assert set(F.legacy_model_inputs()) <= set(off["leg"])
     assert sum(F.is_wl(x) for x in new) == 18                                      # 9 fields + 9 ratios
+    assert sum(x in F.LITE_COLUMNS for x in off["lite"]) == 15                     # Lean-lite is relative: allowed
     with pytest.raises(ValueError):
-        F.pool("lite", raw)                                                        # Lean-lite is built from WL
+        F.pool("rfe", raw)                                                         # needs the selected list
+    assert F.pool("rfe", raw, selected=["p_core->acc_rate[X][0]"]) == ["p_core->acc_rate[X][0]"]
     fm = F.FeatureMaker(["p_core->a", "p_core->b"], ["p_core->diff(p_core->a, p_core->b)",
                                                      "p_core->ratio(p_core->a, p_core->b)", "p_core->b"])
     X = fm(np.array([[30000, -30000], [5, 1]], np.float32))
@@ -147,6 +153,44 @@ def test_feature_pools_and_firmware_helpers():
     assert fm.float_columns == [1]
     with pytest.raises(KeyError):
         F.FeatureMaker(["p_core->a"], ["p_core->ratio(p_core->a, p_core->zz)"])
+
+
+def test_candidates_are_pairs_inside_one_modality_without_wl():
+    raw = _raw_columns()
+    c = F.candidates(raw)
+    assert len(c) == len(set(c)) == 5127
+    assert not any(F.is_wl(x) for x in c) and sum(x in F.LITE_COLUMNS for x in c) == 15
+    assert set(F.legacy_model_inputs()) <= set(c)                                 # the old pool is inside, same names
+    calls = [x for x in c if x.startswith(("p_core->diff(", "p_core->ratio("))]
+    assert len(calls) == 2 * 1431 + 2 * 990 + 153
+    for x in calls:                                                                # never ACC with EMG
+        assert not ("acc_" in x and "emg_" in x)
+        if x.startswith("p_core->ratio("):                                         # ratios only over PSD codes >= 0
+            assert "acc_rate" not in x
+    fm = F.FeatureMaker(raw + F.LITE_COLUMNS, c)                                    # every candidate computes
+    assert len(fm.names) == 5127
+    assert len(F.candidates(raw, lite=False)) == 5112
+
+
+def test_rfe_keeps_the_informative_input_and_drops_twins(tmp_path):
+    pytest.importorskip("lightgbm")
+    import select_tap_f1_features as SEL
+    rng = np.random.default_rng(1)
+    n, cols = 6000, [f"p_core->acc_psd[0][X][{i}]" for i in range(50)]
+    B = rng.normal(100, 20, (n, len(cols))).astype(np.float32)
+    B[:, 1] = B[:, 0]                                                              # an exact twin of field 0
+    y = ((B[:, 2] - B[:, 3]) > 25).astype(np.int8)                                 # the tap depends on 2 - 3 only
+    fold = np.repeat(np.arange(1, 5), n // 4).astype(np.int8)
+    np.save(tmp_path / "base.npy", B); np.save(tmp_path / "y.npy", y); np.save(tmp_path / "fold.npy", fold)
+    (tmp_path / "meta.json").write_text(json.dumps(dict(base_cols=cols)))
+    key = "p_core->diff(p_core->acc_psd[0][X][2], p_core->acc_psd[0][X][3])"
+    cands = cols + [key] + [f"p_core->ratio({cols[i]}, {cols[i + 1]})" for i in range(10, 30)]
+    selected, report = SEL.select(tmp_path, cands, workers=1, threads=1, log=lambda *a: None)
+    assert key in selected
+    assert not (cols[0] in selected and cols[1] in selected)                       # twins: one of them at most
+    assert SEL.MIN_KEEP <= len(selected) <= SEL.MAX_KEEP and report["rounds"][0]["n"] >= len(selected)
+    assert selected == sorted(selected, key=cands.index)                           # candidate order
+    assert "kept" in SEL.report_markdown(report)
 
 
 # ------------------------------------------------------------------------------------------------ builder + trainer
@@ -190,6 +234,8 @@ def test_trainer_one_line_drops_unknown_rows(tmp_path):
     assert (out.roadmap_fold_id == 2).all()
     assert T.MAX_MODEL_SIZE_BYTES == 98304 and T.MIN_REALISTIC_SIZE == 5120 and T.DEFAULT_THRESHOLD == 0.85
     assert T.FOLD_ROADMAP_PATH.name == "fold_roadmap_files.json" and T.DATA_FOLDER == "DATA/DATA_TAP_F1/"
+    import build_tap_f1_dataset as B
+    assert B.TEST_FOLD == T.TEST_FOLD_ID                         # the feature elimination never sees the test fold
 
 
 # ------------------------------------------------------------------------------------------------ event check

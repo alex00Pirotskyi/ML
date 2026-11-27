@@ -496,7 +496,11 @@ def cmd_run(label, pool_name, spw=None, folds=(TEST_FOLD,), tag=None):
     from sklearn.metrics import f1_score
     files, cols, z = load_cache()
     base_cols = cols["raw"] + cols["lite"]
-    names = pools(cols["raw"])[pool_name]
+    if pool_name.startswith("file:"):                 # a kept-input list (select_tap_f1_features.py report JSON)
+        names = json.loads(Path(pool_name[5:]).read_text())["selected"]
+        pool_name = "rfe" + Path(pool_name[5:]).stem.replace("selected", "")
+    else:
+        names = pools(cols["raw"])[pool_name]
     y_all = np.load(OUT / f"y_{label}.npy")
     target = (y_all > 0) & (np.asarray(z["cls"]) == 1)          # the trainer: state > 0 AND class_id == 1
     keep = y_all >= 0                                           # the one line: unknown rows (state -1) never train

@@ -9,17 +9,20 @@ constants are the trainer's own defaults).
 | step | file | what it does |
 |---|---|---|
 | 1 | `fold_split.py build` | `DATA/fold_roadmap_files.json`: 5 folds of **recording files**, never of people. Inside every stratum (folder, gesture, bpm for TAP / SWIPE) files are dealt largest first, so every fold has the same gesture mix and ~1.13 M rows. Byte-identical duplicates follow their recording. Recordings on disk the old roadmap missed (73 new FINGER / WRIST files of 2026-11-24) are added. A rebuild keeps every file's fold; only new files are dealt. |
-| 2 | `build_tap_f1_dataset.py` | `DATA/DATA_TAP_F1/<FOLDER>/<name>.csv` per recording: the labels as `state`, the inputs, `class_id` (+ `timestamp`, `PointerState`, not inputs). |
+| 2 | `build_tap_f1_dataset.py` | labels once per recording; the feature elimination (`select_tap_f1_features.py`) picks the inputs from 5,127 candidates on the training folds; then `DATA/DATA_TAP_F1/<FOLDER>/<name>.csv` per recording: the labels as `state`, the kept inputs, `class_id` (+ `timestamp`, `PointerState`, not inputs). |
 | 3 | `train_tap_f1.py` | the legacy trainer (diff below) |
 | 4 | `evaluate_tap_f1.py` | every saved model on the held-out fold, fired like the firmware: taps per pointer press per kind, false taps per minute per movement kind -> `TAP_MODELS_F1_FILEFOLDS/event_eval.md` |
 
-Defaults (each one measured below): labels `legacy` (signal labels, binary), inputs `newacc`, `TAPROWS=0.5`,
-`WL=0` (no EMG waveform-length input: models led by WL did worse on the device, section 5).
+Defaults (each one measured below): labels `legacy` (signal labels, binary), inputs `rfe` (feature elimination
+over raw fields, diff / ratio pairs and Lean-lite, section 6), `TAPROWS=0.5`, `WL=0` (no input on the absolute EMG
+waveform length: models led by WL did worse on the device, section 5).
 Tested on the device (2026-11-27): a big improvement over the old models; XGBoost models did
 better than LightGBM ones, and models whose top inputs were WL did worse.
 
 ```
 make train                                   # the defaults
+make train FEATURES=newacc                   # the fixed input set that was tested on the device (no elimination)
+make train LITE=0                            # no Lean-lite candidates (firmware without lean_lite.h)
 make train LABELS=v10 FEATURES=leg TAPROWS=1 WL=1   # the old pipeline's labels / inputs / data mix, file folds
 make smoke                                   # the whole chain on 2 recordings per folder and fold, 3 trials
 ```
@@ -134,6 +137,48 @@ fingers, 9 % less on movement. A middle option, if fingers get worse on the devi
 (head / tail, which do not depend on the level); offline, one seed: movement 4.3, finger 5.2 (proxy pool
 `newacc_wlratio`).
 
+### 6. Inputs by feature elimination (the default since 2026-11-28)
+
+The chain is labels -> no absolute WL -> candidates -> elimination -> the trainer:
+
+| candidates (`tap_f1_features.candidates`) | count |
+|---|---|
+| raw fields without the 9 WL fields | 117 |
+| ACC PSD with ACC PSD (`acc_psd[0]`, `acc_psd[last]`, `acc_psd_mean`; any axis / zone): diff and ratio | 2,862 |
+| EMG PSD with EMG PSD (`emg_psd[0]`, `emg_psd[last]`, `emg_psd_mean`): diff and ratio | 1,980 |
+| ACC rate with ACC rate: diff only (it can be negative) | 153 |
+| Lean-lite (`p_core->cload_lite.*`: WL on a log scale relative to its own recent min / max / mean) | 15 |
+| total (the legacy model's 95 inputs are all in it, same names) | 5,127 |
+
+A pair is used once (reversed, it is the same split for a tree); never ACC with EMG; ratios only over PSD codes
+(never negative, so `b + 1 >= 1` on the device). `select_tap_f1_features.py`, on 400,000 rows of the four training
+folds (the trainer's test fold never takes part):
+
+1. screen: the ~5,000 pairs are computed a block at a time (never stored for all rows) and scored by mutual
+   information on 32 quantile bins and by the F statistic; the best 500 go on, with all 132 raw and Lean-lite inputs.
+2. twins: of inputs that move together (|Spearman| >= 0.98) the better one stays.
+3. RFE: LightGBM with the legacy model's tree settings (100 trees, 63 bins), each training fold held out once
+   (4 fits a round); the weakest by mean gain go (a third a round above 200, a fifth above 120, a tenth below).
+4. choice: the smallest round (at most 250) within one standard error of the best validation average precision.
+
+On this machine (2 cores, 243,000 sample rows) it takes 7.5 minutes; with 48 cores, a minute or two. Labels, the
+sample and the kept list are cached: a rerun with nothing changed skips straight to the trainer. The kept list and the
+curve of every round are in `DATA/DATA_TAP_F1/_build/selected_features.md`.
+
+Result on today's data: the curve is flat from 624 inputs down to about 80 (average precision 0.80 +- 0.003); it
+kept **81 inputs**: 23 raw fields, 9 Lean-lite, 18 ACC diffs, 18 ACC ratios, 6 EMG diffs, 7 EMG ratios. Offline
+on the fold the elimination never saw (fold 0, two seeds, the default labels and mix), against the fixed `newacc`
+inputs (212, without WL):
+
+| fold 0, at 0.85 | inputs | taps | movement / min | fist | finger | wrist | band |
+|---|---|---|---|---|---|---|---|
+| `newacc` (fixed) | 212 | 90.7 | 3.51 | 5.8 | 5.0 | 2.6 | 4.6 |
+| **`rfe`** | **81** | **91.4** | 3.56 | 5.8 | 4.9 | 2.3 | 7.1 |
+
+The same protection with 0.7 points more taps and less than half the inputs (band: 2.5 minutes of recordings in one
+fold, so a few false taps either way). Lean-lite needs `firmware/lean_lite.h` on the device; `make train LITE=0`
+leaves it out of the candidates.
+
 ## The labels
 
 ![old vs new labels on the same taps](figures/tap_f1_label_blocks.png)
@@ -165,7 +210,7 @@ rest alike (about 4 rows per tap); in `DATA/DATA_TAP_F1` the other rows are `sta
 ## Files
 
 * `fold_split.py`, `gesture_constants.py`, `train_tap_f1.py`, `build_tap_f1_dataset.py`, `tap_f1_features.py`,
-  `evaluate_tap_f1.py`, `scripts/train_tap_f1.sh`, `Makefile` (`train`, `status`, `stop`, `smoke`; the previous
-  pipeline is `make train-unified`).
+  `select_tap_f1_features.py`, `evaluate_tap_f1.py`, `scripts/train_tap_f1.sh`, `Makefile` (`train`, `status`,
+  `stop`, `smoke`; the previous pipeline is `make train-unified`).
 * `research/gesture/legacy_f1_proxy.py` (this page's numbers), `research/gesture/legacy_tap_f1_features.json` (your
   model's inputs and parameters), `tests/test_tap_f1.py`, `.github/workflows/tap-f1-legacy-smoke.yml`.

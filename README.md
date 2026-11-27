@@ -73,10 +73,11 @@ The legacy F1 trainer (`train_tap_f1.py`: Optuna LightGBM + XGBoost, F1 at 0.85 
 `gesture_constants.py`) unchanged except its paths and **one line that drops unknown rows** (`state < 0`). Folds are
 **recording files**, stratified by gesture (`fold_split.py` -> `DATA/fold_roadmap_files.json`); no person split or
 fold. The data (`build_tap_f1_dataset.py` -> `DATA/DATA_TAP_F1/`): signal labels with a repaired pointer
-(`claude_labeling/tap_signal.py`), the legacy model's inputs + ACC ratios (`tap_f1_features.py`), TAP / SWIPE
-recordings training on every 2nd row (the legacy model's data mix), no EMG WL input (`WL=0`; WL-led models did worse
-on the device). Settings: `LABELS=legacy|v10rescue|v10`, `FEATURES=newacc|leg|new|lite`, `TAPROWS=0.5`, `WL=0`,
-`TRIALS=100`. Results: `TAP_MODELS_F1_FILEFOLDS/` (models, C headers,
+(`claude_labeling/tap_signal.py`); no input on the absolute EMG WL level (`WL=0`; WL-led models did worse on the
+device); inputs kept by a fast feature elimination (`select_tap_f1_features.py`) from 5,127 candidates: raw fields,
+every ACC-ACC and EMG-EMG diff and ratio, Lean-lite (`tap_f1_features.py`); TAP / SWIPE recordings training on every
+2nd row (the legacy model's data mix). Settings: `LABELS=legacy|v10rescue|v10`, `FEATURES=rfe|newacc|leg|new|lite`,
+`LITE=1`, `RFE_ROWS=400000`, `TAPROWS=0.5`, `WL=0`, `TRIALS=100`. Results: `TAP_MODELS_F1_FILEFOLDS/` (models, C headers,
 `event_eval.md`). Evidence: [research/gesture/TAP_F1_LEGACY.md](research/gesture/TAP_F1_LEGACY.md). The previous
 pipeline is `make train-unified` ([research/gesture/PIPELINE.md](research/gesture/PIPELINE.md)).
 
