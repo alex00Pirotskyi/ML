@@ -36,6 +36,15 @@ TAP_REFRACTORY_MS = 150      # a second rising edge within this time of the prev
 TAP_HIT_BEFORE_MS = 100      # an event this long before a labeled onset still counts as that tap
 TAP_HIT_AFTER_MS = 250       # ... or this long after it
 TAP_FALSE_PER_MIN_TARGET = 1.0   # score = recall * min(1, target / false events per minute)
+# TAP_OBJECTIVE "overall": the score above. "balanced": every tap kind counts the same and the worst movement kind
+# sets the protection: mean recall over the tap kinds x min(1, TAP_MOVEMENT_LIMIT / highest false events per minute
+# over the movement kinds). Kinds come from the recording (train_unified.tap_kind): "tap:soft", "tap:mid",
+# "tap:strong", "tap:double", "tap:fast", "tap:other", "tap:swipe"; "move:finger", "move:fist", "move:wrist",
+# "move:arm", "move:band". A kind needs TAP_KIND_MIN_ONSETS onsets / TAP_KIND_MIN_MINUTES minutes to count.
+TAP_OBJECTIVE = "overall"
+TAP_MOVEMENT_LIMIT = 7.0
+TAP_KIND_MIN_ONSETS = 20
+TAP_KIND_MIN_MINUTES = 1.0
 
 # LP press replay
 LP_AVERAGE_SAMPLES = 10      # firmware averages the last ten LONG_PRESS_predict_value() outputs
@@ -93,6 +102,9 @@ typedef struct {
         float rise10[3];
         float dev3[3];
         float d01[3];
+        float range10[3];
+        float fall10[3];
+        float xm[3];
     } cload_lite;
     /* firmware helpers the trees may call: p_core->diff(a, b), p_core->ratio(a, b) (set by mudra_fill) */
     float (*ratio)(const uint16_t ref, const uint16_t den);
@@ -236,16 +248,23 @@ class TapCounts:
     def __init__(self):
         self.onsets = 0; self.hits = 0; self.false = 0; self.neg_ms = 0.0; self.latency = []
         self.folder = {}
+        self.kind = {}             # recording kind (train_unified.tap_kind) -> counts, as per folder
         self.extra = {}            # name -> [windows, windows with an event]: extra recall references (reported only)
 
     def _f(self, name):
         return self.folder.setdefault(name, dict(onsets=0, hits=0, false=0, neg_ms=0.0))
+
+    def _k(self, name):
+        return self.kind.setdefault(name, dict(onsets=0, hits=0, false=0, neg_ms=0.0))
 
     def add(self, other: "TapCounts"):
         self.onsets += other.onsets; self.hits += other.hits; self.false += other.false
         self.neg_ms += other.neg_ms; self.latency.extend(other.latency)
         for k, v in other.folder.items():
             f = self._f(k)
+            for key in f: f[key] += v[key]
+        for k, v in other.kind.items():
+            f = self._k(k)
             for key in f: f[key] += v[key]
         for k, (n, h) in other.extra.items():
             e = self.extra.setdefault(k, [0, 0]); e[0] += n; e[1] += h
@@ -257,6 +276,9 @@ class TapCounts:
         recall = self.hits / self.onsets if self.onsets else float("nan")
         fpm = rate(self.false, self.neg_ms)
         score = (recall * min(1.0, target / fpm)) if (self.onsets and fpm > 0) else (recall if self.onsets else 0.0)
+        bal = self.balanced()
+        if TAP_OBJECTIVE == "balanced":
+            score = bal["score"]
         lat = np.asarray(self.latency, float)
         folders = {k: dict(onsets=v["onsets"], recall=(v["hits"] / v["onsets"] if v["onsets"] else None),
                            false_events=v["false"], negative_minutes=round(v["neg_ms"] / 60000.0, 2),
@@ -267,14 +289,51 @@ class TapCounts:
                     latency_ms_median=float(np.median(lat)) if len(lat) else None,
                     latency_ms_p90=float(np.percentile(lat, 90)) if len(lat) else None,
                     objective_score=float(score), false_per_min_target=target, per_folder=folders,
+                    objective=TAP_OBJECTIVE, balanced=bal,
                     **{f"recall_{k}": (h / n if n else float("nan")) for k, (n, h) in sorted(self.extra.items())},
                     **{f"n_{k}": n for k, (n, h) in sorted(self.extra.items())})
 
 
-def tap_replay_recording(decision, t_ms, label, onsets, folder, counts: TapCounts, extra=None):
+    def balanced(self, limit=None):
+        """Mean recall over the tap kinds x min(1, limit / worst movement false events per minute)."""
+        limit = TAP_MOVEMENT_LIMIT if limit is None else float(limit)
+        rec = {k[4:]: v["hits"] / v["onsets"] for k, v in sorted(self.kind.items())
+               if k.startswith("tap:") and v["onsets"] >= TAP_KIND_MIN_ONSETS}
+        fpm = {k[5:]: v["false"] / (v["neg_ms"] / 60000.0) for k, v in sorted(self.kind.items())
+               if k.startswith("move:") and v["neg_ms"] >= TAP_KIND_MIN_MINUTES * 60000.0}
+        mean_recall = float(np.mean(list(rec.values()))) if rec else 0.0
+        worst_kind, worst = max(fpm.items(), key=lambda kv: kv[1]) if fpm else (None, 0.0)
+        score = mean_recall * (min(1.0, limit / worst) if worst > 0 else 1.0)
+        return dict(score=float(score), mean_recall=mean_recall, worst_movement=worst_kind,
+                    worst_false_per_min=float(worst), movement_limit=limit,
+                    recall_by_kind={k: round(v, 4) for k, v in rec.items()},
+                    false_per_min_by_kind={k: round(v, 3) for k, v in fpm.items()})
+
+
+def match_windows(events, lo, hi):
+    """One-to-one matching of event times to reference windows [lo, hi] (inclusive): an event satisfies at most one
+    window. Maximum cardinality for any window widths: windows by end time (then start), each takes the earliest
+    free event inside it (the optimal greedy for points vs intervals). Returns a bool per window (found)."""
+    ev = np.asarray(events, np.float64); lo = np.asarray(lo, np.float64); hi = np.asarray(hi, np.float64)
+    found = np.zeros(len(lo), bool)
+    if not len(ev) or not len(lo):
+        return found
+    order = np.argsort(ev, kind="stable"); ev = ev[order]
+    used = np.zeros(len(ev), bool)
+    for w in np.lexsort((lo, hi)):
+        i = int(np.searchsorted(ev, lo[w], side="left"))
+        while i < len(ev) and ev[i] <= hi[w]:
+            if not used[i]:
+                used[i] = True; found[w] = True
+                break
+            i += 1
+    return found
+
+
+def tap_replay_recording(decision, t_ms, label, onsets, folder, counts: TapCounts, extra=None, kind=None):
     """One recording. decision: bool per row; label: tap_label per row; onsets: confirmed onset times (ms).
-    extra: optional {name: (lo_ms, hi_ms) arrays}: reference windows whose recall is REPORTED (a window counts
-    as found if any kept event falls inside it); they never change hits, false events or the objective."""
+    extra: optional {name: (lo_ms, hi_ms) arrays}: reference windows whose recall is REPORTED (one-to-one: a kept
+    event can find only one window, match_windows); they never change hits, false events or the objective."""
     d = np.asarray(decision, bool); t = np.asarray(t_ms, np.float64); lab = np.asarray(label)
     if not len(d):
         return counts
@@ -287,11 +346,13 @@ def tap_replay_recording(decision, t_ms, label, onsets, folder, counts: TapCount
     used = np.zeros(len(kept), bool)
     et = t[kept] if len(kept) else np.zeros(0)
     f = counts._f(folder)
+    f_onsets = f_hits = 0
     for o in np.sort(np.asarray(onsets, np.float64)):
         cand = np.flatnonzero(~used & (et >= o - TAP_HIT_BEFORE_MS) & (et <= o + TAP_HIT_AFTER_MS))
-        counts.onsets += 1; f["onsets"] += 1
+        counts.onsets += 1; f["onsets"] += 1; f_onsets += 1
         if len(cand):
-            used[cand[0]] = True; counts.hits += 1; f["hits"] += 1; counts.latency.append(float(et[cand[0]] - o))
+            used[cand[0]] = True; counts.hits += 1; f["hits"] += 1; f_hits += 1
+            counts.latency.append(float(et[cand[0]] - o))
     # unmatched events on trusted-negative or positive rows are errors; on unknown rows they are not counted
     spare = kept[~used]
     false = int((lab[spare] >= 0).sum()) if len(spare) else 0
@@ -299,16 +360,15 @@ def tap_replay_recording(decision, t_ms, label, onsets, folder, counts: TapCount
     if extra:
         for name, (lo, hi) in extra.items():
             lo = np.asarray(lo, np.float64); hi = np.asarray(hi, np.float64)
-            if len(et) and len(lo):
-                i = np.searchsorted(et, lo, side="left")
-                found = (i < len(et)) & (et[np.minimum(i, len(et) - 1)] <= hi)
-            else:
-                found = np.zeros(len(lo), bool)
+            found = match_windows(et, lo, hi)
             e = counts.extra.setdefault(name, [0, 0]); e[0] += int(len(lo)); e[1] += int(found.sum())
     dt = np.diff(np.r_[t, t[-1] + (np.median(np.diff(t)) if len(t) > 1 else 0.0)])
     dt = np.clip(dt, 0, 50)
     neg = float(dt[lab == 0].sum())
     counts.neg_ms += neg; f["neg_ms"] += neg
+    if kind is not None:                         # the same counts per recording kind (balanced objective)
+        k = counts._k(kind)
+        k["onsets"] += f_onsets; k["hits"] += f_hits; k["false"] += false; k["neg_ms"] += neg
     return counts
 
 

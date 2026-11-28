@@ -8,7 +8,7 @@ python claude_labeling/label_gestures.py DATA/DATA_TAP        DATA/LABELS/DATA_T
 python claude_labeling/label_gestures.py DATA/DATA_LONG_PRESS DATA/LABELS/DATA_LONG_PRESS
 ```
 
-About 3 minutes per data folder. One `<recording>.labels.csv.gz` per recording (rows in source order), plus `_events.csv.gz` and `_summary.json`.
+Recordings are labelled in parallel processes (one per CPU, at most 16; `--workers N` or `MUDRA_LABEL_WORKERS=N`; `--workers 1` = one process). The labels do not depend on it. One `<recording>.labels.csv.gz` per recording (rows in source order), plus `_events.csv.gz` and `_summary.json`.
 
 | Column | Use |
 | --- | --- |
@@ -20,7 +20,27 @@ About 3 minutes per data folder. One `<recording>.labels.csv.gz` per recording (
 
 **−1 means "leave the row out of the loss".** Full column list, rules, evidence and limits: `GESTURE_LABELING_2026-11-17.md`.
 
-`models/` must stay next to the script. Keep recordings under their original file names (they select the held-out fold model per person).
+`models/` must stay next to the script. The tap teacher is cross-fitted on gesture-aware **file** folds (never person folds):
+every recording is scored by the fold model that never saw it, found by the recording's content hash, so renamed or copied
+recordings are matched too; recordings none of the five saw get their mean. The contact model is always the mean of its
+five folds. Retrain the teacher: `claude_labeling/teacher/README.md`.
+
+## Top labels (what `make train` teaches)
+
+`tap_top.py` moves every tap of the training target from the labeller's onset window to the **top of its contact jolt**
+(the ACC impulse at >= 80 % of its height around the peak), never its start. The trainer does it in memory
+(`MUDRA_TAP_WINDOW=top`, the default recipe `final14top`); to look at it:
+
+```bash
+python claude_labeling/plot_tap_top.py top_labels.png          # one recording per tap kind
+python claude_labeling/tap_top.py DATA/DATA_TAP DATA/LABELS/DATA_TAP DATA/LABELS_TOP/DATA_TAP   # sidecars + _top_events.csv.gz
+```
+
+Method and evidence: `research/gesture/TAP_TOP_LABELS.md`.
 
 This replaces running `claude_research_tap/pipeline/export_labels.py` and `claude_research_lp/label_long_press.py` separately;
 their tap, hold and channel labels are reproduced exactly, with the disconnection and cross-gesture rules added.
+
+## Signal labels (2026-11-26)
+
+`tap_signal.py` / `label_signal.py`: a deterministic tap labeller on signal conditions, nothing mixed across ACC axes, ACC zones or EMG channels. A pointer-free trigger finds every contact jolt, the pointer is repaired (per-recording delay, merged double taps split, 240 bpm presses one tap per period, bounces, stuck presses, taps the pointer missed recovered on the metronome beat) and recordings that cannot be trusted are left out. `python claude_labeling/label_signal.py OUT` labels every recording in about a minute; the trainer uses it with `make train RECIPE=final14sig`. Method, research and measurements: `research/gesture/TAP_SIGNAL_LABELS.md`.

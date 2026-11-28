@@ -1,0 +1,44 @@
+{
+ "raw126_diff+augm": {
+  "plain": {
+   "2nd tap of double clicked %": 50.4,
+   "240 bpm taps clicked %": 52.3,
+   "single tap + extra click %": 0.93,
+   "movement clicks/min": 1.07
+  },
+  "chain 0.60": {
+   "2nd tap of double clicked %": 72.1,
+   "240 bpm taps clicked %": 61.1,
+   "single tap + extra click %": 1.36,
+   "movement clicks/min": 1.15
+  }
+ },
+ "raw126_diff+augm+litediff+press2": {
+  "plain": {
+   "2nd tap of double clicked %": 63.9,
+   "240 bpm taps clicked %": 58.9,
+   "single tap + extra click %": 1.37,
+   "movement clicks/min": 1.24
+  },
+  "chain 0.60": {
+   "2nd tap of double clicked %": 81.0,
+   "240 bpm taps clicked %": 69.7,
+   "single tap + extra click %": 1.51,
+   "movement clicks/min": 1.35
+  }
+ },
+ "raw126_diff+augm+litediff+press2+accdiff": {
+  "plain": {
+   "2nd tap of double clicked %": 59.1,
+   "240 bpm taps clicked %": 58.5,
+   "single tap + extra click %": 1.31,
+   "movement clicks/min": 1.16
+  },
+  "chain 0.60": {
+   "2nd tap of double clicked %": 79.5,
+   "240 bpm taps clicked %": 68.2,
+   "single tap + extra click %": 1.76,
+   "movement clicks/min": 1.24
+  }
+ }
+}

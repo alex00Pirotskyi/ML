@@ -1,0 +1,20 @@
+every arm at the reference's tap recall (93.9%, its 6.2/min point)
+                                                                                       thr  taps  normal  soft  double_1st  double_2nd  fast240  swipe  finger/min  fist/min  wrist/min  arm/min  band/min  all/min
+raw126_diff+augm+litediff+press2+kb14+leaves7+top+topb10                            0.9367  93.9    96.8  92.2        99.0        93.7     92.5   89.1        6.78     10.66       7.55     1.97      6.43     6.09
+raw126_diff+augm+litediff+press2+kb14+leaves7+top+topb10 | band moved               0.9367  92.3    96.0  91.3        97.3        90.5     90.0   88.4        7.77     12.69       6.62     1.05      4.43     6.05
+raw126_diff+augm+litediff+press2+kb14+leaves7+top+topb10 | scores -1 logit          0.9748  89.1    92.9  87.6        97.1        86.9     87.1   83.0        3.08      5.44       2.78     1.18      3.33     4.11
+raw126_diff+augm+litediff+press2+kb14+leaves7+top+topb10+fistw3                     0.9307  94.2    96.4  93.0        99.2        94.2     93.4   88.9        7.51      7.57       9.20     2.37      5.87     6.29
+raw126_diff+augm+litediff+press2+kb14+leaves7+top+topb10+fistw3 | band moved        0.9307  92.9    95.9  92.1        97.7        91.8     91.4   88.4        8.70      9.28       7.79     1.18      4.21     6.22
+raw126_diff+augm+litediff+press2+kb14+leaves7+top+topb10+fistw3 | scores -1 logit   0.9723  88.9    92.2  88.3        96.8        85.5     87.5   82.9        3.44      4.48       3.67     1.23      2.77     4.19
+raw126_diff+augm+litediff+press2+kb14+leaves7+top+topb10+fistw10                    0.9242  94.0    96.4  93.0        98.8        93.9     93.4   88.8        7.87      5.87      11.02     2.76      6.87     6.54
+raw126_diff+augm+litediff+press2+kb14+leaves7+top+topb10+fistw10 | band moved       0.9242  93.3    95.9  92.7        98.1        92.1     91.8   88.9        9.74      7.78       9.75     1.54      4.88     6.71
+raw126_diff+augm+litediff+press2+kb14+leaves7+top+topb10+fistw10 | scores -1 logit  0.9696  88.6    91.5  88.6        96.3        85.8     86.6   82.5        3.72      3.31       5.05     1.58      3.21     4.42
+raw126_diff+augm+litediff+press2+kb14+leaves7+top+topb10+lpneg                      0.9307  94.0    96.6  92.0        99.2        94.2     93.2   88.9        6.68     11.20       7.48     2.06      6.21     5.99
+raw126_diff+augm+litediff+press2+kb14+leaves7+top+topb10+lpneg | band moved         0.9307  92.6    96.0  90.8        97.8        92.1     90.7   88.1        7.71     12.37       6.42     0.97      4.54     5.95
+raw126_diff+augm+litediff+press2+kb14+leaves7+top+topb10+lpneg | scores -1 logit    0.9723  89.1    92.6  86.3        97.7        87.4     87.8   82.7        3.10      5.23       3.23     1.10      2.55     4.07
+raw126_diff+augm+litediff+press2+kb64+leaves15+top+topb10                           0.9518  94.1    96.4  93.5        99.5        92.3     93.8   89.4        3.95      7.46       4.46     1.45      3.21     4.91
+raw126_diff+augm+litediff+press2+kb64+leaves15+top+topb10 | band moved              0.9518  92.6    96.1  91.1        97.7        91.2     91.1   88.5        5.21      9.60       3.26     0.57      2.33     4.86
+raw126_diff+augm+litediff+press2+kb64+leaves15+top+topb10 | scores -1 logit         0.9810  91.2    94.2  91.0        98.7        87.2     90.4   85.9        2.21      4.80       2.44     0.88      1.66     3.86
+raw126_diff+augm+litediff+press2+kb64+leaves15+top+topb10+fistw3                    0.9472  93.9    96.7  93.0        99.3        91.6     93.1   89.9        4.03      6.83       4.98     1.23      2.88     4.94
+raw126_diff+augm+litediff+press2+kb64+leaves15+top+topb10+fistw3 | band moved       0.9472  93.0    96.2  91.9        97.4        92.5     91.3   88.8        5.19      8.32       3.81     0.61      2.22     4.94
+raw126_diff+augm+litediff+press2+kb64+leaves15+top+topb10+fistw3 | scores -1 logit  0.9791  91.2    94.1  90.8        98.7        87.4     90.6   85.8        2.36      4.59       2.75     0.97      1.55     3.96

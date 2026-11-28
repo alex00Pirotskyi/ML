@@ -60,6 +60,47 @@ so edits made after `git add` do not silently affect the compressed commit.
 If you update the hook while a commit is already running, that running commit
 still uses the old hook; the replacement takes effect on the next attempt.
 
+## TAP model: `make train`
+
+```bash
+make train      # labels -> no WL -> inputs (+ augmentation) -> RFE -> trainer -> back test -> firmware bundle, in the background
+make status     # step, Optuna trials done, last lines, errors; the bundle summary when finished
+make stop
+make smoke      # the whole chain on 2 recordings per folder and fold, 8 trials (a few minutes)
+```
+
+1. **Folds** are recording files, stratified by gesture (`fold_split.py` -> `DATA/fold_roadmap_files.json`); never a
+   person split or fold. Fold 0 is held out from everything below.
+2. **Labels** once per recording: signal labels with a repaired pointer (`claude_labeling/tap_signal.py`).
+3. **Inputs** (`build_tap_f1_dataset.py` -> `DATA/DATA_TAP_F1/`): WL, WL_head and WL_tail removed (`WL=0`: none of
+   the 9 fields `p_core->wl` / `wl_head` / `wl_tail` on the 3 channels, nor their ratios; the bundle refuses a model
+   that reads one; Lean-lite, relative to its own recent WL, stays, `LITE=0` drops it too); candidates are the raw
+   ACC fields, every ACC-ACC diff and ratio, EMG PSD only as diffs inside one channel (over time and zone vs zone,
+   `EMG=within`) and Lean-lite (`tap_f1_features.py`, 3,237); every training-fold recording gets one band placement /
+   skin contact / power-grid hum / rotation change (`AUG=1`, `tap_f1_augment.py`); TAP / SWIPE recordings train on
+   every 2nd row (the legacy model's data mix).
+4. **Feature elimination** (`select_tap_f1_features.py`) keeps the useful, non-redundant inputs on the training folds.
+5. **Trainer** (`train_tap_f1.py`, the legacy F1 trainer unchanged but for its paths and one line that drops unknown
+   rows): Optuna LightGBM + XGBoost, F1 at 0.85 + model size, 96 KB maximum, every Pareto model exported.
+6. **Back test** (`backtest_tap_f1.py` -> `backtest.md`): every saved model on every row of the held-out fold, through
+   the firmware tap / double-tap logic, clean and with band changes (placement, power-grid hum in each zone,
+   rotation). Score U = taps (% of presses) - 2 x false taps per minute, averaged over the movement kinds with fist
+   and finger counted twice, then averaged over clean and the band changes. The model with the best U wins; models
+   within one standard error of it are as good, and among those XGBoost goes first, then the smallest. Its FIRE is
+   the highest within one standard error of its best U, so a thin held-out fold leans to fewer false taps.
+7. **Firmware bundle** (`export_tap_bundle.py` -> `TAP_MODELS_F1_FILEFOLDS/firmware/`): `core_typedef.h`,
+   `tap_gestures.h`, `tap_gestures.c` and `BUNDLE.md`; compiled with strict warnings (and for Cortex-M4F when clang is
+   there), replayed in C over the held-out recordings and compared event by event with the back test. While no tap is
+   pending the C only asks "score >= FIRE?" and stops after the trees that settle it.
+
+Settings: `LABELS=legacy|v10rescue|v10`, `FEATURES=rfe|newacc|leg|new|lite`, `EMG=within|robust|all`, `AUG=1|0`,
+`LITE=1`, `RFE_ROWS=400000`, `TAPROWS=0.5`, `WL=0`, `TRIALS=100`; back test `BACKTEST_LAMBDA=2` (points of taps per
+false tap per minute), `BACKTEST_SE=1` (0: the best U as is), `BACKTEST_PREFER=XGBoost` (empty: no type first),
+`BACKTEST_STRESS_TOP=all`. The 2026-11-27 setup: `make train EMG=all
+AUG=0`. Evidence: [research/gesture/TAP_F1_LEGACY.md](research/gesture/TAP_F1_LEGACY.md),
+[research/gesture/EMG_PSD_ROBUST_FEATURES.md](research/gesture/EMG_PSD_ROBUST_FEATURES.md). The previous
+pipeline is `make train-unified` ([research/gesture/PIPELINE.md](research/gesture/PIPELINE.md)).
+
 ## Long-press sEMG pseudo-labeling
 
 Generate firmware-aware, causal and non-destructive per-sample pseudo-labels for each sEMG

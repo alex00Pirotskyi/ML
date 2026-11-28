@@ -1,0 +1,82 @@
+[
+ {
+  "arm": "raw126_diff+augm+litediff+press2+kb14+leaves7",
+  "threshold": 0.9459,
+  "taps": 14516,
+  "peak_logit_above_thr_p10": 1.04,
+  "peak_logit_above_thr_p25": 2.19,
+  "peak_logit_above_thr_p50": 3.16,
+  "taps_found": 0.96,
+  "taps_found_scores_minus_1": 0.9033,
+  "taps_found_scores_minus_2": 0.7849,
+  "ms_above_thr_p25": 86.0,
+  "ms_above_thr_p50": 112.0,
+  "latency_p10_p50_p90": [
+   -18.0,
+   -5.0,
+   12.0
+  ],
+  "release_clicks_per_100_taps": 7.89,
+  "early_clicks_per_100_taps": 2.31
+ },
+ {
+  "arm": "raw126_diff+augm+litediff+press2+kb14+leaves7+top+topb10",
+  "threshold": 0.9339,
+  "taps": 14516,
+  "peak_logit_above_thr_p10": 1.34,
+  "peak_logit_above_thr_p25": 2.54,
+  "peak_logit_above_thr_p50": 3.56,
+  "taps_found": 0.9663,
+  "taps_found_scores_minus_1": 0.9209,
+  "taps_found_scores_minus_2": 0.8323,
+  "ms_above_thr_p25": 69.0,
+  "ms_above_thr_p50": 90.0,
+  "latency_p10_p50_p90": [
+   -9.0,
+   5.0,
+   25.0
+  ],
+  "release_clicks_per_100_taps": 8.33,
+  "early_clicks_per_100_taps": 2.4
+ },
+ {
+  "arm": "raw126_diff+augm+litediff+press2+kb14+leaves7+top+topb35",
+  "threshold": 0.9446,
+  "taps": 14516,
+  "peak_logit_above_thr_p10": 1.16,
+  "peak_logit_above_thr_p25": 2.34,
+  "peak_logit_above_thr_p50": 3.3,
+  "taps_found": 0.9626,
+  "taps_found_scores_minus_1": 0.9124,
+  "taps_found_scores_minus_2": 0.8059,
+  "ms_above_thr_p25": 74.0,
+  "ms_above_thr_p50": 96.0,
+  "latency_p10_p50_p90": [
+   -17.0,
+   -4.0,
+   13.0
+  ],
+  "release_clicks_per_100_taps": 7.82,
+  "early_clicks_per_100_taps": 2.27
+ },
+ {
+  "arm": "raw126_diff+augm+litediff+press2+kb14+leaves7+midtop",
+  "threshold": 0.9619,
+  "taps": 14516,
+  "peak_logit_above_thr_p10": 0.85,
+  "peak_logit_above_thr_p25": 1.9,
+  "peak_logit_above_thr_p50": 2.76,
+  "taps_found": 0.9557,
+  "taps_found_scores_minus_1": 0.8849,
+  "taps_found_scores_minus_2": 0.7255,
+  "ms_above_thr_p25": 73.0,
+  "ms_above_thr_p50": 98.0,
+  "latency_p10_p50_p90": [
+   -27.0,
+   -12.0,
+   5.0
+  ],
+  "release_clicks_per_100_taps": 7.47,
+  "early_clicks_per_100_taps": 2.28
+ }
+]

@@ -1,0 +1,74 @@
+name: TAP F1 chain (file folds, signal labels, legacy F1 trainer)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'train_tap_f1.py'
+      - 'fold_split.py'
+      - 'gesture_constants.py'
+      - 'tap_f1_features.py'
+      - 'build_tap_f1_dataset.py'
+      - 'select_tap_f1_features.py'
+      - 'evaluate_tap_f1.py'
+      - 'tap_f1_augment.py'
+      - 'backtest_tap_f1.py'
+      - 'export_tap_bundle.py'
+      - 'export_plus.py'
+      - 'scripts/train_tap_f1.sh'
+      - 'claude_labeling/tap_signal.py'
+      - 'claude_labeling/tap_v10_rescue.py'
+      - 'claude_labeling/unified_tap_labeler_deterministic.py'
+      - 'research/gesture/tap_features.py'
+      - 'research/gesture/generate_lean_lite_features.py'
+      - 'research/gesture/legacy_tap_f1_features.json'
+      - 'research/gesture/legacy_f1_proxy.py'
+      - 'research/gesture/tap_gestures.py'
+      - 'tests/test_tap_f1.py'
+      - 'Makefile'
+      - '.github/workflows/tap-f1-legacy-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tap-f1-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            DATA/DATA_TAP
+            DATA/DATA_TAP_LEAN8
+            DATA/fold_roadmap.json
+            DATA/fold_roadmap_files.json
+            claude_labeling
+            research/gesture
+            scripts
+            tests
+            train_tap_f1.py
+            fold_split.py
+            gesture_constants.py
+            tap_f1_features.py
+            build_tap_f1_dataset.py
+            select_tap_f1_features.py
+            evaluate_tap_f1.py
+            tap_f1_augment.py
+            backtest_tap_f1.py
+            export_tap_bundle.py
+            export_plus.py
+            Makefile
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install the trainer's dependencies
+        run: python -m pip install --disable-pip-version-check numpy pandas scipy scikit-learn lightgbm xgboost optuna joblib psutil pyarrow pytest
+      - name: Unit tests (roadmap, candidates, feature elimination, builder, the trainer's one line, event check)
+        run: python -m pytest -q tests/test_tap_f1.py tests/test_tap_signal.py
+      - name: Roadmap is file level and every fold is complete
+        run: python fold_split.py check DATA/fold_roadmap_files.json
+      - name: Whole chain (labels, augmentation, feature elimination, CSVs, trainer, back test, firmware bundle compiled and replayed in C) on 2 recordings per folder and fold, 8 trials
+        run: make smoke PYTHON=python

@@ -81,6 +81,7 @@ def setup(task):
     t0 = time.perf_counter()
     files_t = g.canonical_files(g.RAW_SOURCE_TAP); files_l = g.canonical_files(g.RAW_SOURCE_LP)
     data, rpl, info = g.build_task_data(task, g.selected_sources(task, files_t, files_l), out)
+    g.group_by_file(data, rpl)                  # file groups only, as the trainer (no person split)
     build_s = time.perf_counter() - t0
     tr, te = g.split_heldout(data, task)
     budgets = [b for b in (g.budget_bytes(g.MODEL_BUDGET_KB), g.budget_bytes(g.ALT_BUDGET_KB)) if b]

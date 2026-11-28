@@ -1,0 +1,13 @@
+UNIFIED_TRAINER_START cpu_threads 76 of 96 fold_workers 3 x 25 threads lean8_inputs off tap_threshold 0.85 lp_release_threshold 0.5 budget_kb 14.0 alt_budget_kb 10.0 trials 40 tasks tap tap_features diff tap_aug mild output results_unified_v3_feature_selection_no_lean8_tap-diff-mild-litediff-press2-kb14-leaves4-15_splitfile
+LEAN8_FILES DATA_TAP: 5878 reused, 0 generated
+LEAN8_FILES DATA_LONG_PRESS: 4862 reused, 0 generated
+LEAN8_FIRMWARE_PARITY {"status": "not run", "reason": "firmware header not found (set MUDRA_LEAN8_FIRMWARE_HEADER)"}
+UNIFIED_LABELS_REUSED DATA_TAP 2939 /root/tree_run_script/ML/DATA/LABELS/DATA_TAP
+UNIFIED_LABELS_REUSED DATA_LONG_PRESS 2431 /root/tree_run_script/ML/DATA/LABELS/DATA_LONG_PRESS
+UNIFIED_DUPLICATE_RECORDINGS 137 byte-identical copies left out, e.g. [["DATA/DATA_LONG_PRESS_LEAN8/MID_LONG_PRESS/s_MidLongPress_Horizontal_NONE_0bpm_2026-06-03_12-53-00.csv.gz", "DATA/DATA_LONG_PRESS_LEAN8/MID_LONG_PRESS/kirilleft_MidLongPress_Horizontal_NONE_0bpm_2026-01-04_13-53-00.csv.gz"], ["DATA/DATA_LONG_PRESS_LEAN8/MID_LONG_PRESS/s_MidLongPress_Reverse_NONE_0bpm_2026-06-03_12-54-15.csv.gz", "DATA/DATA_LONG_PRESS_LEAN8/MID_LONG_PRESS/kirilleft_MidLongPress_Reverse_NONE_0bpm_2026-01-04_13-54-15.csv.gz"], ["DATA/DATA_LONG_PRESS_LEAN8/MID_LONG_PRESS/s_MidLongPress_Vertical_NONE_0bpm_2026-06-03_12-53-38.csv.gz", "DATA/DATA_LONG_PRESS_LEAN8/MID_LONG_PRESS/kirilleft_MidLongPress_Vertical_NONE_0bpm_2026-01-04_13-53-38.csv.gz"]]
+UNIFIED_DATA_IDENTITY tap 78f8d7433cf45cdd 2940 recordings 137 duplicates left out
+UNIFIED_FEATURES 126 / 126 missing []
+UNIFIED_CACHE_REUSED tap /root/tree_run_script/ML/research/gesture/results_unified_v3_feature_selection_no_lean8_tap-diff-mild-litediff-press2-kb14-leaves4-15_splitfile/tap/cache
+UNIFIED_LEAN8_GATE {"min_frames": 50, "eval_min_frames": 50, "steady_frames": 500, "lean8": false, "train_rows_built": 996265, "train_rows_used": 921226, "positives_built": 140448, "positives_used": 131461, "tap_onsets_ready": "17028/18487", "tap_onsets_steady": "2465/18487"}
+UNIFIED_DATA {"train_rows": 921226, "positives": 131461, "negatives": 789765, "replay_rows": 6365597, "recordings": 2887, "train_GB": 1.05, "replay_GB": 7.26, "kinds": {"background": 173282, "hard_near_press": 301672, "hard_muscle_activity": 314811, "positive": 126039, "positive_soft": 5422}}
+UNIFIED_SPLIT_BY_FILE tap 2887 files as groups, 58 people (the same person can be on both sides)

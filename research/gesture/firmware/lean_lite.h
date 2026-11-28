@@ -2,7 +2,7 @@
 /*
  * Lean-lite: integer, O(1) replacement for the Claude Lean-8 EMG features.
  *
- * 15 int16 model inputs (5 per EMG channel). No float, no division, no libm, no 64-bit math,
+ * 24 int16 model inputs (8 per EMG channel). No float, no division, no libm, no 64-bit math,
  * no history ring of samples: about 100 cycles per EMG frame on a Cortex-M4 and 164 bytes of state.
  *
  *   min10[ch]   floor of L = log2(WL + 1) over the last ~9-10 s           (Q8: 256 = one octave)
@@ -10,6 +10,13 @@
  *   rise10[ch]  L - min10: activity above the recent floor                (Q8, >= 0)
  *   dev3[ch]    running mean of |L - running mean of L|, time constant 128 frames (~2.8 s), x8 (Q8)
  *   d01[ch]     emg_psd_mean[ch][0] - emg_psd_mean[ch][1] (codes are 10000*log10(1+power): a dB-like ratio)
+ *   range10[ch] max10 - min10: the recent dynamic range                   (Q8, >= 0)
+ *   fall10[ch]  max10 - L: how far below the recent peak                  (Q8, >= 0)
+ *   xm[ch]      L - running mean of L (signed; the mean dev3 uses)        (Q8)
+ *
+ * The final TAP model ("Lean-lite diff", TAP_FOCUS_RESULTS.md) reads only rise10, fall10, range10, dev3, xm:
+ * differences of log levels, so an EMG gain change (band moved, other arm, other person) cancels. min10,
+ * max10 and d01 are absolute levels; they stay for older models (appended fields keep their offsets).
  *
  * Dropped from Lean-8 (rarely used by the trees, or redundant): lw (trees split on wl directly),
  * Pm, r32. min10/max10 use 1-second blocks instead of an exact sliding window; sd3 became dev3.
@@ -86,13 +93,16 @@
     #define LEAN_LITE_MAX_Q15(p, n, r) lean_lite_host_max((p), (n), (r))
 #endif
 
-/* The model inputs, as stored in t_core (30 bytes). */
+/* The model inputs, as stored in t_core (48 bytes). */
 typedef struct {
     int16_t min10[3];
     int16_t max10[3];
     int16_t rise10[3];
     int16_t dev3[3];
     int16_t d01[3];
+    int16_t range10[3];
+    int16_t fall10[3];
+    int16_t xm[3];
 } t_cload_lite;
 
 /* Private state, 164 bytes. All zero = reset. */
@@ -164,8 +174,8 @@ static inline void lean_lite_update(lean_lite_state_t* s, const uint32_t wl[3], 
             s->dev_acc[ch]  = 0;
         }
         s->mean_acc[ch] += x - (s->mean_acc[ch] >> LEAN_LITE_EMA_SHIFT);
-        int32_t d = x - (s->mean_acc[ch] >> LEAN_LITE_EMA_SHIFT);
-        if (d < 0) d = -d;
+        const int32_t xm = x - (s->mean_acc[ch] >> LEAN_LITE_EMA_SHIFT);
+        const int32_t d  = xm < 0 ? -xm : xm;
         s->dev_acc[ch] += d - (s->dev_acc[ch] >> LEAN_LITE_EMA_SHIFT);
 
         out->min10[ch]  = (int16_t) lo;
@@ -173,6 +183,9 @@ static inline void lean_lite_update(lean_lite_state_t* s, const uint32_t wl[3], 
         out->rise10[ch] = (int16_t) (x - lo);
         out->dev3[ch]   = LEAN_LITE_SSAT16(s->dev_acc[ch] >> LEAN_LITE_DEV_SHIFT);
         out->d01[ch]    = LEAN_LITE_SSAT16((int32_t) psd_mean[ch * 5u] - (int32_t) psd_mean[ch * 5u + 1u]);
+        out->range10[ch] = (int16_t) (hi - lo);
+        out->fall10[ch]  = (int16_t) (hi - x);
+        out->xm[ch]      = LEAN_LITE_SSAT16(xm);
     }
 
     /* Close the block once per ~second: push it into the ring and re-aggregate (CMSIS-DSP min/max). */

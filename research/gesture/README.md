@@ -30,7 +30,7 @@ is in git history (commit 53e3e83d), and `MUDRA_EXPERIMENT=v2` now stops with th
 | Features | Optuna picks an integer **K = 1…150** over all available firmware fields; each CV fold uses its own ranking, learned from that fold's training people only (`feature_selection.py`). Both starting trials use K = all fields. |
 | Rows scored | from Lean-8 frame **500** = `lean_8_features_ready()`, the rows on which the firmware runs the models (`MUDRA_EVAL_MIN_FRAMES`) |
 | Training rows | from frame 50 (`MUDRA_TRAIN_MIN_FRAMES`); the warm-up rows still help (results, §2) |
-| TAP false-event budget | the previous production TAP header's false rate on the development people (`MUDRA_TAP_FALSE_PER_MIN_TARGET=baseline`, or a number). A fixed 1/min made the search give up ~25% of taps. |
+| TAP false-event budget | the previous production TAP header's false rate on the development people (`MUDRA_TAP_FALSE_PER_MIN_TARGET=baseline`, or a number). A fixed 1/min made the search give up ~25% of taps. The score is recall x min(1, target / false rate): below the target only recall counts, so the search picks the most sensitive model that stays just under it. With the file split (about 6/min) that makes taps very sensitive; `make train TARGET=4` asks for at most 4 (finger false taps -37%, fist -35%, 1.2 points of taps; TARGET=3: -57% / -58%, 3 points; TAP_FILESPLIT_RESULTS.md). A number gets its own folder and study (`-target4`). Below 4/min Optuna also searches a logit shift 0..3, with the TAP positive weight fixed at 1 (the shift is subtracted from the first tree's leaves, so the firmware's 0.85 means a stricter probability of the fitted model). Recommended: `make train KB=32 ALT_KB=14 TARGET=3`; 1.5 lost taps on the band (TAP_FILESPLIT_RESULTS.md, "Band test of 64 KB / 1.5") |
 | TAP labels | confirmed taps only. Soft labels (`MUDRA_TAP_SOFT_LABELS`) are off: measured, they do not help (results, §5). |
 | Default model | chosen on CV only; the held-out report is written once, before anything is fitted on those people (`holdout_report.json`) |
 | Production model | ranking refitted on everyone at the locked K, then refit |
@@ -39,7 +39,8 @@ The ranking method:
 
 1. Build correlation clusters from the training rows: Spearman |ρ|, complete linkage, cut chosen by
    silhouette among strong-correlation cuts (|ρ| ≥ 0.7).
-2. Run an inner person-grouped cross-fit. In each split, train a screening LightGBM on all fields.
+2. Run an inner cross-fit over the recording files, gesture-aware like the trainer's CV folds (stratified by
+   recording type; ranker `fs-3`). In each split, train a screening LightGBM on all fields.
 3. For each feature and each cluster (shifted jointly), apply a **within-recording circular shift** and
    measure the drop in the firmware replay score. The operating point is fixed from the unperturbed
    screening model.
@@ -47,6 +48,15 @@ The ranking method:
 
 This is block-permutation importance, not conditional sampling. The ordering is only a search path: K,
 retraining and replay decide.
+
+**Speed (TAP, exact).** Step 3 used to re-predict the whole screening model on every row for every shift (about
+90 % of the ranking time). It now computes the same scores without that (`FastTapShift`): only the trees that
+split on a shifted column can move a score, by at most their leaf range, so rows farther from the threshold keep
+their decision; the rows in reach are re-predicted with a sub-model of just those trees on just their columns;
+only recordings whose decisions changed are counted again. Shifts that put more than 30 % of the rows in reach use
+the full model as before. The random shifts, scores and rankings are bit-for-bit the original ones (checked when it
+starts, with the original path as the fallback; `tests/test_fs_fast_shift.py`). Measured on 251 recordings with the
+real ranker settings: 459 s -> 54 s per ranking, identical ranking. `MUDRA_FS_FAST=0` turns it off.
 
 Outputs (`results_unified_v3_feature_selection/<task>/`):
 
@@ -137,7 +147,7 @@ The following counts are taken:
 `score` = weighted harmonic mean, hold_kept 0.5, timely_release 0.3, tap_released 0.2. It is 0 if any part
 is 0, so a model that never releases scores 0.
 
-The objective is the mean of per-fold scores (3 person-grouped folds), which penalizes settings that only
+The objective is the mean of per-fold scores (3 gesture-aware file folds), which penalizes settings that only
 work for some people. The pooled score is also stored.
 
 **Firmware rules assumed (please confirm).** These are constants in `replay.py`:
@@ -189,6 +199,18 @@ Environment variables:
 | `MUDRA_USE_LEAN8` | 1 | EMG context inputs next to the 126 raw fields. `1` = the 24 float Lean-8 fields. `0` = none (firmware built with `NEW_CLOAD_FEATURES 0`); output `results_unified_v3_feature_selection_no_lean8/`, studies `lean80`. `lite` = the 15 integer Lean-lite fields of `firmware/lean_lite.h` (see `LEAN_LITE.md`); data in `DATA/DATA_*_LITE`, output `results_unified_v3_feature_selection_lean_lite/`, studies `lean8lite`. Rows, labels, frame gates and the held-out split are identical in all three, so they are clean A/B arms |
 | `MUDRA_TAP_FEATURES` | raw | `diff` = add 135 within-channel EMG PSD diffs and 9 WL ratios to the TAP inputs, exported as the firmware helpers `p_core->diff(a, b)` / `p_core->ratio(a, b)` (TAP_GENERALIZATION_RESULTS.md). Needs `MUDRA_USE_LEAN8=0`; output folder and TAP study get the suffix `_tap-<features>-<aug>` |
 | `MUDRA_TAP_AUG` | none | `mild` = placement augmentation of the TAP training rows (random EMG gain, spectral tilt and contact noise per recording; replay and held-out scores use the real recordings). Needs `MUDRA_USE_LEAN8=0` |
+| `MUDRA_TAP_LITE` | off | `diff` = add the 15 gain-invariant Lean-lite diff inputs `p_core->cload_lite.{rise10,fall10,range10,dev3,xm}[CH1..3]` (firmware/lean_lite.h), computed per recording from the logged WL (no new data files) and recomputed under augmentation / placement stress. Needs `MUDRA_USE_LEAN8=0`; folder suffix `-litediff` |
+| `MUDRA_TAP_LABELS` | confirmed | `press2` = "trust the press" in DoubleTaps and 240 bpm TAP recordings: unknown presses become training positives, negatives right at a press are left out (TAP_FOCUS_RESULTS.md). Training labels only; scores use the original labels. Folder suffix `-press2` |
+| `MUDRA_TAP_OBS_MS` | off | e.g. `60` = observable-pattern labels (TAP_OBSERVABLE_RESULTS.md): of each tap's positive rows only the 60 ms that a teacher cross-fitted by file finds most distinguishable are trained, the rest left out; done inside every CV fold's, the development and everyone's training people. Folder suffix `-obs60` |
+| `MUDRA_TAP_WINDOW` | onset (`final14top`: top) | where each tap of the TAP target is taught (`claude_labeling/tap_top.py`, TAP_TOP_LABELS.md): `onset` = the labeller's onset window; `top` = the top of the tap's contact jolt (ACC impulse >= 80 % of its height around the peak), never its start; `mid` = from the middle of the rise (measured worse). Old rows outside the new window are left out, never made negatives; replay, onsets and scores unchanged. Not combined with `MUDRA_TAP_OBS_MS`, `MUDRA_TAP_CERTAIN` or soft labels. Folder suffix `-top` / `-mid`. `signal` (`final14sig` / `final14legacy`): the training target comes from `claude_labeling/tap_signal.py` (per-axis / per-zone ACC conditions, repaired pointer: merged double taps split, missed taps recovered on the beat, broken recordings left out); replay and evaluation unchanged; folder suffix `-signal` (TAP_SIGNAL_LABELS.md) |
+| `MUDRA_TAP_SIGNAL_PRESET` | hybrid | with `MUDRA_TAP_WINDOW=signal`: `hybrid` = rows around taps left out as today (measured equal to `final14top`); `legacy` = the old deterministic labeller's rule, every row but the tap block is 0, no unknown rows (measured worse) |
+| `MUDRA_NUM_LEAVES` | 8,127 | LightGBM `num_leaves` search range `low,high`; a non-default range (or budget) adds `-kb<budget>-leaves<low>-<high>` to the TAP folder |
+| `MUDRA_TAP_RECIPE` | (none) | `final` = **FAILED EXPERIMENT** (no mid / strong taps on the band, 2026-11-26; refused unless `MUDRA_ALLOW_FAILED_RECIPE=1`): `final14obs` + `MUDRA_TAP_OBJECTIVE=balanced MUDRA_TAP_MOVEMENT_LIMIT=7 MUDRA_SIZE_LADDER_KB=8,12,16,24,32,48,64,100 MUDRA_SIZE_PENALTY_PER_KB=0.0001 MUDRA_MODEL_BUDGET_KB=100 MUDRA_N_ESTIMATORS=80,2600`, the logit shift 0..3 with the positive weight fixed at 1, no finger weighting / distillation / soft labels (TAP_FILESPLIT_RESULTS.md, "Final pipeline"). `final14` = the final TAP recipe as defaults: `MUDRA_TASKS=tap MUDRA_USE_LEAN8=0 MUDRA_TAP_FEATURES=diff MUDRA_TAP_AUG=mild MUDRA_TAP_LITE=diff MUDRA_TAP_LABELS=press2 MUDRA_MODEL_BUDGET_KB=14 MUDRA_ALT_BUDGET_KB=0 MUDRA_NUM_LEAVES=4,15 MUDRA_TRAIN_MIN_FRAMES=50 MUDRA_EVAL_MIN_FRAMES=50` (explicit variables still win). `final14obs` = the same + `MUDRA_TAP_OBS_MS=60` (the best balance with the file split, TAP_FILESPLIT_RESULTS.md). `final14protect` = `final14` + `MUDRA_TAP_OBS_MS=40 MUDRA_TAP_DISTILL=0.5 MUDRA_TAP_FINGER_WEIGHT=2` (far fewer finger / fist false taps at 0.85 for about 1 point of taps at 14 KB; at 32 KB and above with a stricter target `final14obs` protects more: `make train KB=32 ALT_KB=14 TARGET=3`) |
+| `MUDRA_TAP_DISTILL` | off | label weight `a` of distillation (e.g. `0.5`): the TAP model learns `a*label + (1-a)*teacher`, the teacher being a full-size LightGBM (no budget) on all inputs, cross-fitted by group inside every training set (CV folds, development, everyone); trained as the usual binary model (two weighted rows per frame), so size and C export are unchanged. Folder suffix `-distill50` |
+| `MUDRA_N_ESTIMATORS` | 80,400 | tree-count range of the search; widen for bigger budgets (400 trees of 4 leaves fill about 18 KB). `make train KB=32` sets `MUDRA_MODEL_BUDGET_KB=32` and `80,800`; add `ALT_KB=14` for a 14 KB candidate from the same search |
+| `MUDRA_TAP_FINGER_WEIGHT` | 1 | FINGER-folder negatives (finger motion, fist) weighted x k in the TAP model's training before class balancing; teachers keep plain weights. Folder suffix `-fingerw2` |
+| `MUDRA_TAP_FIST_WEIGHT` | 1 | `make train FIST=k`: fist negatives only (FINGER recordings with "fist" in the name) weighted x k, on top of the finger weight; teachers keep plain weights. At 14 KB it moves false taps from fists to wrist motion; with `KB=64 TARGET=5` it adds to the bigger model's protection (TAP_FIST.md). Folder suffix `-fistw3` |
+| `MUDRA_SPLIT` | file (only value) | the held-out split and the CV folds group by recording file: every file is its own group, so every person takes part in every fold and in the held-out part. A person split is not allowed (the trainer refuses any other value). Gesture-aware: held-out files and CV folds are stratified by recording type (folder, gesture from the file name, bpm for TAP / SWIPE; types with fewer than 5 files pooled per folder); `split.json` lists the files per type on each side. The shipped header is refitted on every file. Folder suffix `_splitfile`, study suffix `_splitfile_gesture1` |
 | `MUDRA_TASKS` | tap,lp | train only these tasks, e.g. `tap` |
 | `MUDRA_TAP_BASELINE_EXTRA` | (none) | path of one more TAP header replayed as a baseline on the same held-out people, e.g. today's no-Lean `TAP_SWIPE.h` for an A/B in one table |
 | `MUDRA_LEAN_LITE_PARITY_FILES` | 24 | recordings on which `generate_lean_lite_features.py` proves exact equality with `firmware/lean_lite.h` compiled for the host (synthetic edge cases always) |
@@ -200,6 +222,11 @@ Environment variables:
 | `MUDRA_EVAL_MIN_FRAMES` | 500 | rows scored and ranked = rows the firmware runs the models on (`lean_8_features_ready()`) |
 | `MUDRA_TRAIN_MIN_FRAMES` | 50 | rows used as training examples, counted in Lean-8 frames (~1.1 s); the older name `MUDRA_LEAN8_MIN_FRAMES` is still read |
 | `MUDRA_TAP_FALSE_PER_MIN_TARGET` | baseline | TAP false-event budget: `baseline` = previous TAP header's rate on the development people, or a number |
+| `MUDRA_TAP_OBJECTIVE` | overall | TAP score. `overall` = recall x min(1, target / false taps per min). `balanced` = mean recall over the tap kinds (soft, mid, strong, double, fast 240 bpm, other taps, swipes; `tap_kind()`) x min(1, `MUDRA_TAP_MOVEMENT_LIMIT` / the highest false taps per minute over the movement kinds: finger, fist, wrist / twist / tap on hand, arm, band). A kind needs 20 onsets / 1 minute in a fold to count. Own folder and study (`-balanced7`) |
+| `MUDRA_TAP_MOVEMENT_LIMIT` | 7 | balanced objective: false taps per minute that no movement kind may exceed (`make train LIMIT=5`) |
+| `MUDRA_SIZE_LADDER_KB` | (none) | TAP sizes scored for every trial, e.g. `8,12,16,24,32,48,64,100` (the largest = `MUDRA_MODEL_BUDGET_KB`; sizes above it are dropped). The trial is fitted once at the largest size; its first trees are the smaller models. Optuna maximises max over sizes of (score - `MUDRA_SIZE_PENALTY_PER_KB` x KB); the header is the best (trial, size), the best raw score is exported beside it (`models/budget_<kb>kb`) |
+| `MUDRA_SIZE_PENALTY_PER_KB` | 0.0001 | with the ladder: score points per KB (0.0001 = a model must be 1 point better per 100 KB) |
+| `MUDRA_TAP_LOGIT_SHIFT` | auto | TAP logit-shift range of the search: `auto` = 0,3 with the balanced objective or when the target is a number below 4 (positive weight then fixed at 1), else none; `off`; or `lo,hi`. Own folder and study (`-shift0-3-pw1`) |
 | `MUDRA_TAP_SOFT_LABELS` | off | a teacher score (e.g. 0.5): unconfirmed taps with at least that score become weighted positives and count in the objective. Measured not to help; part of the TAP study name when set |
 | `MUDRA_CPU_THREADS` | 80% of CPUs | all threads the trainer uses (CPUs the process may use, cgroup quota respected); does not change the models (deterministic=True) |
 | `MUDRA_FOLD_WORKERS` | 3 when `MUDRA_CPU_THREADS` ≥ 24 (2 when ≥ 16) | CV folds of a trial trained at the same time, each LightGBM with `MUDRA_CPU_THREADS / workers` threads. Same trees and scores as one fold at a time (smoke: `FOLD_PARALLEL_EQUIVALENT`); 1 = one fold at a time |

@@ -16,12 +16,16 @@ What changed against the first unified trainer (see research/gesture/README.md):
   * Wider LightGBM search (80-400 trees, depth 3-10, up to 127 leaves). Every model
     is trimmed to the model-data budget exactly, so the search trades trees for depth
     inside the budget instead of minimising size.
-  * Performance-first selection: the best replay score (mean over person folds) inside
-    MODEL_BUDGET_KB is the default header, unless it never fires / never releases on the
-    held-out people, in which case the next candidate is promoted. The best inside
-    ALT_BUDGET_KB is exported beside it.
+  * Performance-first selection: the best replay score (mean over the gesture-aware file
+    folds) inside MODEL_BUDGET_KB is the default header, unless it never fires / never
+    releases on the held-out files, in which case the next candidate is promoted. The best
+    inside ALT_BUDGET_KB is exported beside it. Splits and folds are by recording file only.
   * The previous successful TAP model, LP v20 and the 2026-11-17 unified models are
-    replayed READ-ONLY as baselines on the same held-out people.
+    replayed READ-ONLY as baselines on the same held-out files.
+
+Final TAP recipe (TAP_FOCUS_RESULTS.md, "Final recipe"; 14 KB device budget), one line:
+
+    MUDRA_TAP_RECIPE=final14 python -u research/gesture/train_unified.py
 
 Only directly logged p_core-> fields reach the models. PointerState, folder,
 timestamps, contact scores, hold_ms and subject are labels, sampling aids or split
@@ -37,6 +41,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -59,19 +64,77 @@ import lightgbm as lgb
 import numpy as np
 import optuna
 import pandas as pd
-from sklearn.model_selection import GroupKFold, GroupShuffleSplit
+from sklearn.model_selection import StratifiedKFold, StratifiedShuffleSplit   # file folds only (gesture-aware)
 
 import replay as R
 import generate_lean8_features as lean8
 import generate_lean_lite_features as lite
 import tap_features as TF
 import feature_selection as FS
+sys.path.insert(0, str(ROOT / "claude_labeling"))
+import tap_top as TT
+import tap_signal as TSIG
+TSIG_ROLES = ("contact", "weak", "second", "recovered", "release", "inpress")   # jolts the hard negatives sit around
 
 v6 = previous_tap.v6
 export_plus = v6.export_plus
 
 # ============================================================================ settings
 # Intentionally no CLI. Change these constants (or the MUDRA_* environment variables) if needed.
+# MUDRA_TAP_RECIPE=final14: the final TAP recipe (TAP_FOCUS_RESULTS.md, "Final recipe") as defaults; a MUDRA_*
+# variable set explicitly still wins. TAP model only (LP is unchanged and not trained by it).
+TAP_RECIPES = {
+    "final14": dict(MUDRA_TASKS="tap", MUDRA_USE_LEAN8="0", MUDRA_TAP_FEATURES="diff", MUDRA_TAP_AUG="mild",
+                    MUDRA_TAP_LITE="diff", MUDRA_TAP_LABELS="press2", MUDRA_MODEL_BUDGET_KB="14",
+                    MUDRA_ALT_BUDGET_KB="0", MUDRA_NUM_LEAVES="4,15", MUDRA_TRAIN_MIN_FRAMES="50",
+                    MUDRA_EVAL_MIN_FRAMES="50", MUDRA_TAP_SOFT_LABELS="off"),
+}
+# final14 + observable-pattern labels (TAP_OBSERVABLE_RESULTS.md): per tap only its most distinguishable 60 ms
+TAP_RECIPES["final14obs"] = dict(TAP_RECIPES["final14"], MUDRA_TAP_OBS_MS="60")
+# Maximum protection (TAP_FILESPLIT_RESULTS.md): 40 ms observable labels, distillation from a full-size teacher
+# (half label, half teacher) and finger / fist negatives x 2. Same size; keeps the most taps when the false-tap
+# target is strict, and at 0.85 fires far less on finger motion and fists for about 1 point of tap recall.
+TAP_RECIPES["final14protect"] = dict(TAP_RECIPES["final14"], MUDRA_TAP_OBS_MS="40", MUDRA_TAP_DISTILL="0.5",
+                                     MUDRA_TAP_FINGER_WEIGHT="2")
+# TOP labels (claude_labeling/tap_top.py, TAP_TOP_LABELS.md): final14's data recipe, but every tap is taught at the TOP of
+# its contact jolt (the ACC impulse >= 80 % of its height around the peak), never at its start. "mid" also teaches the
+# middle of the rise (from 50 %). The tap set, the inputs, the split and the evaluation are final14's.
+TAP_RECIPES["final14top"] = dict(TAP_RECIPES["final14"], MUDRA_TAP_WINDOW="top")
+TAP_RECIPES["final14mid"] = dict(TAP_RECIPES["final14"], MUDRA_TAP_WINDOW="mid")
+# SIGNAL labels (claude_labeling/tap_signal.py, TAP_SIGNAL_LABELS.md): final14's inputs, size and evaluation, but the TAP
+# training labels come from per-axis / per-zone ACC signal conditions with a repaired pointer: the top of every tap's
+# contact jolt is a tap (merged double taps split, taps the pointer missed recovered on the beat), every other row of the
+# recording is "not a tap" (releases included). No unknown rows; recordings the checks cannot trust are left out.
+TAP_RECIPES["final14sig"] = dict(TAP_RECIPES["final14"], MUDRA_TAP_WINDOW="signal", MUDRA_TAP_LABELS="confirmed",
+                                 MUDRA_TAP_SIGNAL_PRESET="hybrid")
+# the deterministic labeller's rule (only the tap block is 1, every other row 0, no unknown rows): measured WORSE
+# (TAP_SIGNAL_LABELS.md: -2.9 points of taps, +2.3 fist false taps/min at the same false rate, +25 ms latency)
+TAP_RECIPES["final14legacy"] = dict(TAP_RECIPES["final14sig"], MUDRA_TAP_SIGNAL_PRESET="legacy")
+# final: FAILED EXPERIMENT on the band (see FAILED_RECIPES below). final14obs's data recipe (press2 labels, observable 60 ms, diff + lite
+# inputs, mild placement augmentation, 4-15 leaves) with
+#   - the balanced objective: every tap kind (soft, mid, strong, double, fast, other taps, swipes) counts the same,
+#     and the worst movement kind (finger, fist, wrist / twist, arm, band) must stay under MUDRA_TAP_MOVEMENT_LIMIT
+#     false taps per minute (7: the balanced level, TAP_FILESPLIT_RESULTS.md, "Final pipeline");
+#   - one operating-point control: the logit shift 0..3 (positive weight fixed at 1);
+#   - the size ladder: every trial is scored at 8..100 KB and Optuna maximises score - 0.0001 per KB (a model must
+#     be 1 point better per 100 KB to be worth the bytes); the export is the best (trial, size).
+# No finger weighting, distillation or soft labels.
+TAP_RECIPES["final"] = dict(TAP_RECIPES["final14obs"], MUDRA_TAP_OBJECTIVE="balanced", MUDRA_TAP_MOVEMENT_LIMIT="7",
+                            MUDRA_SIZE_LADDER_KB="8,12,16,24,32,48,64,100", MUDRA_SIZE_PENALTY_PER_KB="0.0001",
+                            MUDRA_MODEL_BUDGET_KB="100", MUDRA_N_ESTIMATORS="80,2600")
+# FAILED EXPERIMENT (2026-11-26): on the band the "final" recipe never reached the tap threshold on mid and strong
+# taps (43 s test: highest score 16 of 20, threshold 17; no tap). It is refused unless MUDRA_ALLOW_FAILED_RECIPE=1
+# (research / smoke tests only). TAP_FILESPLIT_RESULTS.md, "FAILED EXPERIMENT".
+FAILED_RECIPES = {"final"}
+TAP_RECIPE = os.environ.get("MUDRA_TAP_RECIPE", "").strip().lower()
+if TAP_RECIPE in FAILED_RECIPES and os.environ.get("MUDRA_ALLOW_FAILED_RECIPE", "") != "1":
+    raise ValueError(f"MUDRA_TAP_RECIPE={TAP_RECIPE} is a FAILED experiment (no mid / strong taps on the band, "
+                     "2026-11-26). Use the default final14. MUDRA_ALLOW_FAILED_RECIPE=1 runs it for research only.")
+if TAP_RECIPE:
+    if TAP_RECIPE not in TAP_RECIPES:
+        raise ValueError(f"MUDRA_TAP_RECIPE must be one of {sorted(TAP_RECIPES)}")
+    for _k, _v in TAP_RECIPES[TAP_RECIPE].items():
+        os.environ.setdefault(_k, _v)
 RAW_SOURCE_TAP = ROOT / "DATA" / "DATA_TAP"
 RAW_SOURCE_LP = ROOT / "DATA" / "DATA_LONG_PRESS"
 # MUDRA_USE_LEAN8 picks the EMG context inputs next to the 126 raw firmware fields:
@@ -90,14 +153,177 @@ LEAN8_TAG = "lite" if USE_LITE else USE_LEAN8        # recorded in fingerprints 
 #                            computed from the raw columns (no new data files)
 #   MUDRA_TAP_AUG=mild       placement augmentation of the TAP training rows (EMG gain, spectral tilt, contact noise)
 # Each setting writes its own results folder; the default (raw, none) is unchanged.
+#   MUDRA_TAP_LITE=diff      adds the 15 gain-invariant Lean-lite diff inputs p_core->cload_lite.{rise10,fall10,
+#                            range10,dev3,xm}[CH1..3] (firmware/lean_lite.h), computed per recording from the logged WL
+#                            (tap_features.lite_rows; no new data files) and recomputed under augmentation/stress
+#   MUDRA_TAP_LABELS=press2  "trust the press": in DoubleTaps and 240 bpm TAP recordings every real pointer press is
+#                            a tap (TAP_FOCUS_RESULTS.md). Unknown presses become positives, negatives right at a
+#                            press are left out. Training labels only: replay references and scores are unchanged.
+# Each setting writes its own results folder; the default (raw, none, off, confirmed) is unchanged.
 TAP_FEATURES = os.environ.get("MUDRA_TAP_FEATURES", "raw").strip().lower()
 TAP_AUG = os.environ.get("MUDRA_TAP_AUG", "none").strip().lower()
+TAP_LITE = os.environ.get("MUDRA_TAP_LITE", "off").strip().lower()
+TAP_LABELS = os.environ.get("MUDRA_TAP_LABELS", "confirmed").strip().lower()
+# No uncertainty in TAP training (owner's rule, 2026-11-26): MUDRA_TAP_CERTAIN=1 turns every unknown row of the TAP
+# task into a decision before training AND evaluation (certain_labels): TAP / SWIPE pointer presses without a
+# confirmed onset become taps (pointer time, as press2), sensor-only second taps 150-450 ms after a tap in double /
+# 240 bpm recordings become taps, long-press / drag starts become taps (a long press starts with a tap), and every
+# other unknown row (lead-in, press, contraction, release, rest) becomes "not a tap". Own cache, folder and study.
+TAP_CERTAIN = os.environ.get("MUDRA_TAP_CERTAIN", "0").strip() == "1"
+#   MUDRA_TAP_OBS_MS=60      observable-pattern labels (TAP_OBSERVABLE_RESULTS.md): of every tap's positive rows only the
+#                            60 ms that a teacher, cross-fitted by file group, finds most distinguishable from everything
+#                            else are trained; the tap's other positive rows are left out (never made negatives).
+#                            Done separately inside every CV fold's training files, the development files and
+#                            every file, so no score sees a teacher fitted on its own file. Training labels only.
+#   MUDRA_TAP_WINDOW=top     where each tap is taught (claude_labeling/tap_top.py): "onset" (default) = the labeller's
+#                            onset window [t_on, t_on + 80] (press2: [t_on - 5, t_on + 90]); "top" = the top of the tap's
+#                            contact jolt (>= 80 % of its height around the peak); "mid" = from the middle of the rise
+#                            (50 %) to the end of the top. Never the start. The tap set is unchanged, the rows of the old
+#                            window outside the new one are left out (unknown), evaluation and replay are unchanged.
+#                            "signal" = the signal labeller (claude_labeling/tap_signal.py): per-axis / per-zone ACC
+#                            conditions + repaired pointer; the top of each contact jolt is a tap, every other row not
+#                            a tap; replay and evaluation unchanged (TAP_SIGNAL_LABELS.md).
+TAP_WINDOW = os.environ.get("MUDRA_TAP_WINDOW", "onset").strip().lower()
+if TAP_WINDOW not in ("onset", "top", "mid", "signal"):
+    raise ValueError("MUDRA_TAP_WINDOW must be onset, top, mid or signal")
+TAP_SIGNAL = TAP_WINDOW == "signal"         # labels from claude_labeling/tap_signal.py (training target only)
+TAP_SIGNAL_PRESET = os.environ.get("MUDRA_TAP_SIGNAL_PRESET", "hybrid").strip().lower()
+_obs = os.environ.get("MUDRA_TAP_OBS_MS", "off").strip().lower()
+TAP_OBS_MS = None if _obs in ("off", "0", "none", "") else float(_obs)
 if TAP_FEATURES not in ("raw", "diff") or TAP_AUG not in ("none", "mild"):
     raise ValueError("MUDRA_TAP_FEATURES must be raw or diff; MUDRA_TAP_AUG must be none or mild")
-TAP_GENERALIZATION = TAP_FEATURES != "raw" or TAP_AUG != "none"
+if TAP_LITE not in ("off", "diff") or TAP_LABELS not in ("confirmed", "press2"):
+    raise ValueError("MUDRA_TAP_LITE must be off or diff; MUDRA_TAP_LABELS must be confirmed or press2")
+TAP_GENERALIZATION = (TAP_FEATURES != "raw" or TAP_AUG != "none" or TAP_LITE != "off" or TAP_LABELS != "confirmed"
+                      or TAP_OBS_MS is not None or TAP_WINDOW != "onset")
+if TAP_WINDOW != "onset" and TAP_OBS_MS is not None:
+    raise ValueError("MUDRA_TAP_WINDOW=top/mid already chooses each tap's window: it cannot be combined with "
+                     "MUDRA_TAP_OBS_MS (observable windows are chosen inside the onset window)")
 if TAP_GENERALIZATION and LEAN8_MODE != "off":
-    raise ValueError("MUDRA_TAP_FEATURES / MUDRA_TAP_AUG need MUDRA_USE_LEAN8=0 (researched without Lean inputs)")
-TAP_TAG = f"_tap-{TAP_FEATURES}-{TAP_AUG}" if TAP_GENERALIZATION else ""
+    raise ValueError("MUDRA_TAP_FEATURES / MUDRA_TAP_AUG / MUDRA_TAP_LITE / MUDRA_TAP_LABELS need MUDRA_USE_LEAN8=0 "
+                     "(researched without Lean-8 inputs; MUDRA_TAP_LITE=diff brings the Lean-lite diff fields itself)")
+TAP_TAG = (f"_tap-{TAP_FEATURES}-{TAP_AUG}" + ("-litediff" if TAP_LITE == "diff" else "")
+           + ("-press2" if TAP_LABELS == "press2" else "")
+           + (f"-obs{TAP_OBS_MS:g}" if TAP_OBS_MS is not None else "")
+           + (f"-{TAP_WINDOW}" if TAP_WINDOW != "onset" else "")) if TAP_GENERALIZATION else ""
+# Observable-pattern teacher (as researched): a full-size LightGBM (no budget) on all model inputs, 3 gesture-aware
+# file folds (teacher_folds).
+OBS_TEACHER = dict(objective="binary", n_estimators=300, learning_rate=0.08, num_leaves=31, max_depth=8,
+                   min_child_samples=100, reg_lambda=1.0, reg_alpha=1e-3, colsample_bytree=0.7, subsample=0.8,
+                   subsample_freq=1, max_bin=127, verbosity=-1, deterministic=True)
+OBS_ANCHOR_MS = (-5.0, 95.0)          # a positive row belongs to the onset / press at most 5 ms after, 95 ms before it
+# press2 constants (as researched): presses of these TAP recordings; soft = the labeller's unknown presses with a tap
+# teacher score >= 0.5 (positive rows in its 0-80 ms onset window), the other unknown presses are anchored at their
+# onset estimate t_on (rows t_on - 5 .. t_on + 90); negatives t_on - 30 .. t_on + 120 of any real press are left out.
+PRESS2_NAME_KEYS = ("DoubleTap", "240bpm")
+PRESS2_SOFT_SCORE = 0.5
+PRESS2_ANCHOR_MS = (-5, 90)
+PRESS2_NEGATIVE_GAP_MS = (-30, 120)
+PRESS2_MATCH_MS = 60
+# A budget or leaves range other than the defaults gets its own TAP results folder (and study).
+_TAP_KB = float(os.environ.get("MUDRA_MODEL_BUDGET_KB", 32))
+_TAP_LEAVES = os.environ.get("MUDRA_NUM_LEAVES", "8,127").replace(" ", "")
+if TAP_GENERALIZATION and (_TAP_KB != 32 or _TAP_LEAVES != "8,127"):
+    TAP_TAG += f"-kb{_TAP_KB:g}" + ("" if _TAP_LEAVES == "8,127" else "-leaves" + _TAP_LEAVES.replace(",", "-"))
+# Distillation (MUDRA_TAP_DISTILL = weight a of the label, e.g. 0.5): the TAP model learns soft targets
+# a*label + (1-a)*teacher, where the teacher is a cross-fitted full-size model (no size budget) on all inputs. The
+# small model then copies how sure a big model is, frame by frame, instead of only 0/1 (TAP_FILESPLIT_RESULTS.md).
+# Trained as the usual binary model (two weighted rows per frame), so the size accounting and C export are unchanged.
+_distill = os.environ.get("MUDRA_TAP_DISTILL", "off").strip().lower()
+TAP_DISTILL = None if _distill in ("off", "none", "") else float(_distill)
+if TAP_DISTILL is not None and not 0.0 <= TAP_DISTILL < 1.0:
+    raise ValueError("MUDRA_TAP_DISTILL is the label weight a in [0, 1) (0.5: half label, half teacher), or off")
+if TAP_GENERALIZATION and TAP_DISTILL is not None:
+    TAP_TAG += f"-distill{round(TAP_DISTILL * 100):d}"
+# Finger-motion and fist negatives weighted x k in the TAP model's training (MUDRA_TAP_FINGER_WEIGHT, default 1):
+# the FINGER folder's frames count k times as much as other "not a tap" frames before the classes are balanced.
+# Teachers (observable labels, distillation) keep plain weights, as researched (TAP_FILESPLIT_RESULTS.md).
+TAP_FINGER_WEIGHT = float(os.environ.get("MUDRA_TAP_FINGER_WEIGHT", "1"))
+if TAP_FINGER_WEIGHT <= 0:
+    raise ValueError("MUDRA_TAP_FINGER_WEIGHT must be > 0")
+if TAP_GENERALIZATION and TAP_FINGER_WEIGHT != 1.0:
+    TAP_TAG += f"-fingerw{TAP_FINGER_WEIGHT:g}"
+# Fist negatives only (FINGER-folder recordings with "fist" in the file name: Fist & Stretch) weighted x k
+# (MUDRA_TAP_FIST_WEIGHT, default 1; make train FIST=k), on top of MUDRA_TAP_FINGER_WEIGHT. At 14 KB it moves false
+# taps from fists to wrist motion; with a bigger model (KB=64) it adds to the bigger model's protection
+# (TAP_FIST.md). Teachers keep plain weights.
+TAP_FIST_WEIGHT = float(os.environ.get("MUDRA_TAP_FIST_WEIGHT", "1"))
+if TAP_FIST_WEIGHT <= 0:
+    raise ValueError("MUDRA_TAP_FIST_WEIGHT must be > 0")
+if TAP_GENERALIZATION and TAP_FIST_WEIGHT != 1.0:
+    TAP_TAG += f"-fistw{TAP_FIST_WEIGHT:g}"
+# A fixed false-tap target (MUDRA_TAP_FALSE_PER_MIN_TARGET=<number>): own results folder and study, so runs with
+# different targets never share trials and can be compared side by side.
+_TARGET_ENV = os.environ.get("MUDRA_TAP_FALSE_PER_MIN_TARGET", "baseline").strip().lower()
+if TAP_GENERALIZATION and _TARGET_ENV != "baseline":
+    TAP_TAG += f"-target{float(_TARGET_ENV):g}"
+# Strict TAP targets need a moved decision point, and the firmware threshold stays 0.85 (Q20 17). A lower
+# positive-class weight cannot do it: at 32 KB weight 1 -> 5.5 false taps/min at 0.85, 0.05 -> 2.4, 0.01 -> 2.25
+# (it saturates, and costs taps). Moving the threshold reaches any rate on the best curve (TAP_FILESPLIT_RESULTS.md,
+# "Maximum protection"). So with a numeric target below 4/min Optuna also searches a logit shift s in 0..3: s is
+# subtracted from every leaf of the first tree (exact, also in the C export, which keeps float leaves), so 0.85 in
+# the firmware means probability sigmoid(logit(0.85) + s) of the fitted model (s = 3: 0.991). The cap 3 keeps the
+# device threshold able to return to the unshifted operating point (device 0.20 = 0.83 of the model at s = 3). The
+# 64 KB / 1.5 run picked s = 4.7 with weight 5.7: device 0.85 = 0.9984, and even device 0.20 = 0.964, so lowering
+# the device threshold could not bring taps back on the band. The setting MUDRA_TAP_LOGIT_SHIFT=lo,hi searches that
+# range, off never shifts. Own folder and study (-shift0-3-pw1).
+# TAP objective (replay.TAP_OBJECTIVE): "overall" (default) = recall x min(1, target / false taps per min);
+# "balanced" = mean recall over the tap kinds x min(1, MUDRA_TAP_MOVEMENT_LIMIT / worst movement kind's false taps
+# per min). Kinds: tap_kind(). Own folder and study (-balanced<limit>).
+TAP_OBJECTIVE = os.environ.get("MUDRA_TAP_OBJECTIVE", "overall").strip().lower()
+if TAP_OBJECTIVE not in ("overall", "balanced"):
+    raise ValueError("MUDRA_TAP_OBJECTIVE must be overall or balanced")
+TAP_MOVEMENT_LIMIT = float(os.environ.get("MUDRA_TAP_MOVEMENT_LIMIT", "7"))
+if TAP_MOVEMENT_LIMIT <= 0:
+    raise ValueError("MUDRA_TAP_MOVEMENT_LIMIT must be > 0 (false taps per minute)")
+if TAP_OBJECTIVE == "balanced":
+    TAP_TAG += f"-balanced{TAP_MOVEMENT_LIMIT:g}"
+# Size ladder (MUDRA_SIZE_LADDER_KB, e.g. 8,12,...,100): every TAP trial is fitted once at the largest size and
+# scored at each size (the first trees of a boosted model are the model a smaller budget fits: same trees). Optuna
+# maximises max over sizes of (score - MUDRA_SIZE_PENALTY_PER_KB x KB): a bigger model has to earn its bytes. The
+# exported header is the best (trial, size); the best raw score is exported beside it (models/budget_<kb>kb).
+_LADDER_ENV = os.environ.get("MUDRA_SIZE_LADDER_KB", "").strip()
+SIZE_LADDER_KB = tuple(sorted({float(v) for v in _LADDER_ENV.split(",") if v.strip()})) if _LADDER_ENV else ()
+SIZE_PENALTY_PER_KB = float(os.environ.get("MUDRA_SIZE_PENALTY_PER_KB", "0.0001"))
+if SIZE_LADDER_KB and SIZE_LADDER_KB[-1] != _TAP_KB:
+    # MUDRA_MODEL_BUDGET_KB (make train KB=...) is the largest size: the ladder keeps its sizes below it, plus it
+    SIZE_LADDER_KB = tuple(sorted({v for v in SIZE_LADDER_KB if v < _TAP_KB} | {_TAP_KB}))
+if SIZE_LADDER_KB:
+    if len(SIZE_LADDER_KB) < 2 or SIZE_LADDER_KB[0] <= 0 or SIZE_PENALTY_PER_KB < 0:
+        raise ValueError("MUDRA_SIZE_LADDER_KB needs >= 2 positive sizes; MUDRA_SIZE_PENALTY_PER_KB >= 0")
+    TAP_TAG += f"-ladder{SIZE_LADDER_KB[0]:g}-{SIZE_LADDER_KB[-1]:g}-pen{SIZE_PENALTY_PER_KB * 1e4:g}"
+_SHIFT_ENV = os.environ.get("MUDRA_TAP_LOGIT_SHIFT", "auto").strip().lower()
+if _SHIFT_ENV == "auto":
+    TAP_LOGIT_SHIFT = ((0.0, 3.0) if TAP_OBJECTIVE == "balanced" or (_TARGET_ENV != "baseline" and float(_TARGET_ENV) < 4.0)
+                       else None)
+elif _SHIFT_ENV in ("off", "none", ""):
+    TAP_LOGIT_SHIFT = None
+else:
+    TAP_LOGIT_SHIFT = tuple(float(v) for v in _SHIFT_ENV.split(","))
+    if len(TAP_LOGIT_SHIFT) != 2 or not 0.0 <= TAP_LOGIT_SHIFT[0] < TAP_LOGIT_SHIFT[1] <= 8.0:
+        raise ValueError("MUDRA_TAP_LOGIT_SHIFT must be auto, off, or lo,hi with 0 <= lo < hi <= 8")
+# With the shift searched, the TAP positive-class weight is fixed at 1. Both move the operating point, so searching
+# both lets Optuna pair a large weight with a large shift (trial 29 of the 64 KB / 1.5 run: weight 5.7 + shift 4.7,
+# i.e. 0.85 on the device = 0.9984 of the fitted model). That fits the cross-validated people but sits in the
+# score's extreme tail, which new people and new sessions do not reach: on the band even mid taps were missed.
+# With weight 1 the shift is the threshold move the research measured (s ~ 3 for 1.5/min).
+if TAP_CERTAIN:
+    TAP_TAG += "-certain"
+if TAP_SIGNAL and TAP_SIGNAL_PRESET not in TSIG.PRESETS:
+    raise ValueError(f"MUDRA_TAP_SIGNAL_PRESET must be one of {sorted(TSIG.PRESETS)}")
+if TAP_SIGNAL and TAP_SIGNAL_PRESET != "hybrid":
+    TAP_TAG += f"-{TAP_SIGNAL_PRESET}"
+if TAP_WINDOW != "onset" and TAP_CERTAIN:
+    raise ValueError("MUDRA_TAP_WINDOW=top/mid and MUDRA_TAP_CERTAIN=1 are not combined: certain turns the start of "
+                     "every tap (left out by the top labels) into 'not a tap'")
+if TAP_LOGIT_SHIFT is not None:
+    TAP_TAG += f"-shift{TAP_LOGIT_SHIFT[0]:g}-{TAP_LOGIT_SHIFT[1]:g}-pw1"
+# Soft labels on: own results folder too, so a run with and without them can be compared side by side.
+_SOFT_ENV = os.environ.get("MUDRA_TAP_SOFT_LABELS", "off").strip().lower()
+if TAP_WINDOW != "onset" and _SOFT_ENV not in ("off", "0", "none", ""):
+    raise ValueError("MUDRA_TAP_WINDOW=top/mid is not combined with MUDRA_TAP_SOFT_LABELS (measured not to help)")
+if TAP_GENERALIZATION and _SOFT_ENV not in ("off", "0", "none", ""):
+    TAP_TAG += f"-soft{float(_SOFT_ENV):g}"
 TASKS_TO_RUN = [t.strip() for t in os.environ.get("MUDRA_TASKS", "tap,lp").lower().split(",") if t.strip()]
 if not TASKS_TO_RUN or not set(TASKS_TO_RUN) <= {"tap", "lp"}:
     raise ValueError("MUDRA_TASKS must list tap and/or lp")
@@ -138,11 +364,27 @@ PRESS_WINDOW_MS = (150, 250)         # pointer-press reference: [min(press, onse
 TAP_TARGET_FALLBACK = 1.0
 LABEL_TAP = ROOT / "DATA" / "LABELS" / "DATA_TAP"
 LABEL_LP = ROOT / "DATA" / "LABELS" / "DATA_LONG_PRESS"
+# What the held-out split and the CV folds group by: FILES only. Every recording file is its own group, so all
+# people take part in every fold and in the held-out part. A person split (people held out) is not allowed: models
+# selected that way were clearly worse on the band. The shipped header is refitted on every file. Folder _splitfile.
+# The file split is gesture-aware: the held-out files and the CV folds are stratified by recording type (folder,
+# gesture from the file name, and bpm for TAP / SWIPE), so every part gets its share of each gesture
+# (recording_stratum, file_strata). Types with fewer than STRATUM_MIN_FILES files are pooled per folder.
+SPLIT_BY = os.environ.get("MUDRA_SPLIT", "file").strip().lower()
+if SPLIT_BY != "file":
+    raise ValueError("MUDRA_SPLIT must be file: the trainer splits and folds by recording file (gesture-aware) only; "
+                     "a person split is not allowed")
+SPLIT_TAG = "" if SPLIT_BY == "person" else "_splitfile"
+# Study-name suffix: the file split is gesture-aware (stratified, v1); a study scored on the earlier plain file
+# split is never resumed with these folds.
+SPLIT_STUDY_TAG = "" if SPLIT_BY == "person" else "_splitfile_gesture1"
 OUTPUT = ROOT / "research" / "gesture" / (dict(full="results_unified_v3_feature_selection",
                                                off="results_unified_v3_feature_selection_no_lean8",
-                                               lite="results_unified_v3_feature_selection_lean_lite")[LEAN8_MODE] + TAP_TAG)
+                                               lite="results_unified_v3_feature_selection_lean_lite")[LEAN8_MODE]
+                                          + TAP_TAG + SPLIT_TAG)
 PREVIOUS_UNIFIED = ROOT / "research" / "gesture" / "results_unified_20261117"
 CLAUDE_LABELER = ROOT / "claude_labeling" / "label_gestures.py"
+LABEL_TEACHER = "file_fold_v1"         # label_gestures.TEACHER: tap teacher cross-fitted on gesture-aware FILE folds
 TRIALS_PER_MODEL = 40
 TOP_K_PER_MODEL = 5
 CV_FOLDS = 3
@@ -165,18 +407,36 @@ VERIFIED_HASHES = True
 FILE_LIMIT_PER_FOLDER = None        # testing aid: use at most this many recordings per folder
 
 # Model-data budget: exact static C model bytes (export_plus), the same number the header reports.
+# MAX_MODEL_SIZE_BYTES is the device's hard maximum for any exported model (TAP or LP). It is deliberately not a
+# setting: budgets above it are refused at start, and every export is checked against it.
+MAX_MODEL_SIZE_BYTES = 102400
 MODEL_BUDGET_KB = float(os.environ.get("MUDRA_MODEL_BUDGET_KB", 32))
 ALT_BUDGET_KB = (None if os.environ.get("MUDRA_ALT_BUDGET_KB", "24").lower() in ("", "none", "0")
                  else float(os.environ.get("MUDRA_ALT_BUDGET_KB", "24")))
+for _name, _kb in (("MUDRA_MODEL_BUDGET_KB", MODEL_BUDGET_KB), ("MUDRA_ALT_BUDGET_KB", ALT_BUDGET_KB),
+                   *(("MUDRA_SIZE_LADDER_KB", _v) for _v in SIZE_LADDER_KB)):
+    if _kb is not None and int(round(float(_kb) * 1024)) > MAX_MODEL_SIZE_BYTES:
+        raise ValueError(f"{_name}={_kb:g} KB exceeds MAX_MODEL_SIZE_BYTES = {MAX_MODEL_SIZE_BYTES} "
+                         f"({MAX_MODEL_SIZE_BYTES / 1024:g} KB), the device maximum")
+assert not SIZE_LADDER_KB or SIZE_LADDER_KB[-1] == MODEL_BUDGET_KB
+R.TAP_OBJECTIVE = TAP_OBJECTIVE; R.TAP_MOVEMENT_LIMIT = TAP_MOVEMENT_LIMIT
 NODE_BYTES = 6                      # export_plus packed LightGBM node: float threshold + 2 bytes
 
 # LightGBM search space (agreed ranges). Leaves are capped at 2**depth and at 127 (uint8 child index).
-N_ESTIMATORS = (80, 400)
+# Tree-count range of the search. MUDRA_N_ESTIMATORS=lo,hi widens it for bigger budgets: 400 trees of 4 leaves fill only
+# about 18 KB (make train KB=32 passes 80,800).
+N_ESTIMATORS = tuple(int(v) for v in os.environ.get("MUDRA_N_ESTIMATORS", "80,400").split(","))
+if len(N_ESTIMATORS) != 2 or not 20 <= N_ESTIMATORS[0] < N_ESTIMATORS[1]:
+    raise ValueError("MUDRA_N_ESTIMATORS must be lo,hi with 20 <= lo < hi")
 MAX_DEPTH = (3, 10)
-NUM_LEAVES = (8, 127)
+NUM_LEAVES = tuple(int(v) for v in os.environ.get("MUDRA_NUM_LEAVES", "8,127").split(","))
+if len(NUM_LEAVES) != 2 or not 2 <= NUM_LEAVES[0] <= NUM_LEAVES[1] <= 127:
+    raise ValueError("MUDRA_NUM_LEAVES must be 'low,high' with 2 <= low <= high <= 127")
+# Small budgets need small trees (TAP_FOCUS_RESULTS.md, 14 KB: 7 leaves = 172 trees ~ the 32 KB quality, 31 leaves =
+# 38 trees collapses): the final recipe searches 4..15 (the TAP results folder names a non-default range).
 LEARNING_RATE = (0.02, 0.3)
 MIN_CHILD_SAMPLES = (10, 300)
-POSITIVE_WEIGHT = dict(tap=(0.2, 10.0), lp=(0.2, 20.0))
+POSITIVE_WEIGHT = dict(tap=(1.0, 1.0) if TAP_LOGIT_SHIFT else (0.2, 10.0), lp=(0.2, 20.0))
 if LP_RELEASE_THRESHOLD != 0.85:
     # Measured: the LP replay optimum moves from threshold 1.0 (weight 6) to 0.85 (0.2) to 0.7 (0.05);
     # a 0.5 release threshold needs release weights around 0.01, so the LP range must reach that low.
@@ -260,7 +520,7 @@ def study_name(task: str) -> str:
         name += TAP_TAG
     else:
         name += f"_rel{LP_RELEASE_THRESHOLD:.2f}"
-    return name
+    return name + SPLIT_STUDY_TAG
 
 
 class StageClock:
@@ -319,6 +579,16 @@ def notice(*values):
     print(*values, flush=True)
 
 
+_STAGE = {"start": time.monotonic(), "last": time.monotonic()}
+
+
+def stage(name: str):
+    """UNIFIED_STAGE <name> <seconds of this stage> <seconds since the start>: where a run spends its time."""
+    now = time.monotonic()
+    notice("UNIFIED_STAGE", name, round(now - _STAGE["last"], 1), "s", "total", round(now - _STAGE["start"], 1), "s")
+    _STAGE["last"] = now
+
+
 def sha256(path: Path) -> str:
     h = hashlib.sha256()
     with path.open("rb") as fp:
@@ -327,7 +597,24 @@ def sha256(path: Path) -> str:
     return h.hexdigest()
 
 
+def _json_safe(obj, where="", found=None):
+    """NaN / inf (an undefined metric, e.g. a latency without any hit) -> null, with the places reported once."""
+    if isinstance(obj, dict):
+        return {k: _json_safe(v, f"{where}.{k}", found) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_json_safe(v, f"{where}[{i}]", found) for i, v in enumerate(obj)]
+    if isinstance(obj, (float, np.floating)) and not np.isfinite(obj):
+        if found is not None:
+            found.append(where)
+        return None
+    return obj
+
+
 def write_json(path: Path, obj) -> None:
+    found = []
+    obj = _json_safe(obj, "", found)
+    if found:
+        notice("UNIFIED_JSON_UNDEFINED", Path(path).name, len(found), "undefined values written as null, e.g.", found[:6])
     v6.save_json(path, obj)
 
 
@@ -377,6 +664,8 @@ def labels_complete(source: Path, output: Path, files: list[Path]) -> bool:
     if args.get("trust_pointer", False):
         return False
     if list(args.get("tap_win", [0, 80])) != [0, 80]:
+        return False
+    if total.get("teacher") != LABEL_TEACHER:   # labels of the old person-fold tap teacher are rebuilt (file folds only)
         return False
     if not (output / "_events.csv.gz").is_file():
         return False
@@ -580,6 +869,81 @@ def sample_lp(t, y, hold_ms, folder, ev):
 
 
 # ============================================================================ dataset + replay cache
+_CONTENT_SHA = {}
+
+
+def content_sha(path: Path) -> str:
+    """SHA-256 of a file's content. For gzip files the header's modification time and stored file name are ignored,
+    so a label file regenerated with the same content keeps its identity and a renamed copy of a recording is
+    recognised, while any content change (also same-size replacements) changes it. Cached per (path, size,
+    mtime_ns) within the process."""
+    st = Path(path).stat()
+    key = (str(path), st.st_size, st.st_mtime_ns)
+    if key not in _CONTENT_SHA:
+        b = Path(path).read_bytes()
+        if b[:3] == b"\x1f\x8b\x08" and len(b) >= 10:
+            flg, pos = b[3], 10
+            if flg & 0x04:                                   # FEXTRA
+                pos += 2 + (b[10] | (b[11] << 8))
+            if flg & 0x08:                                   # FNAME: zero-terminated original name
+                end = b.index(0, pos)
+                b = b[:pos] + b[end + 1:]
+            b = b[:3] + bytes([flg & ~0x08]) + b"\0\0\0\0" + b[8:]
+        _CONTENT_SHA[key] = hashlib.sha256(b).hexdigest()
+    return _CONTENT_SHA[key]
+
+
+def record_identity(records) -> dict:
+    """Content identity of the training/replay inputs: every recording read (path, content) and its label sidecar,
+    plus the event tables (_events.csv.gz) of the label roots. Paths are relative to the repository."""
+    files = [[p.relative_to(ROOT).as_posix(), content_sha(p), content_sha(sidecar(p, root, labels))]
+             for p, root, labels in records]
+    events = {Path(labels).relative_to(ROOT).as_posix(): content_sha(Path(labels) / "_events.csv.gz")
+              for labels in sorted({str(r[2]) for r in records})}
+    h = hashlib.sha256(json.dumps(dict(files=files, events=events), sort_keys=True).encode()).hexdigest()
+    return dict(sha256=h, recordings=len(files), events=events, files=files)
+
+
+def identity_changes(old: dict | None, new: dict) -> list[str]:
+    """Human-readable differences between two record_identity() results (for refusing a stale reuse)."""
+    if not old:
+        return ["no data identity stored (output from older code)"]
+    if old.get("sha256") == new["sha256"]:
+        return []
+    out = []
+    a = {f[0]: f[1:] for f in old.get("files", [])}; b = {f[0]: f[1:] for f in new["files"]}
+    if set(b) - set(a):
+        out.append(f"{len(set(b) - set(a))} new recordings, e.g. {sorted(set(b) - set(a))[:3]}")
+    if set(a) - set(b):
+        out.append(f"{len(set(a) - set(b))} recordings gone, e.g. {sorted(set(a) - set(b))[:3]}")
+    src = sorted(k for k in set(a) & set(b) if a[k][0] != b[k][0])
+    lab = sorted(k for k in set(a) & set(b) if a[k][1] != b[k][1])
+    if src:
+        out.append(f"{len(src)} recordings changed content, e.g. {src[:3]}")
+    if lab:
+        out.append(f"{len(lab)} label files changed, e.g. {lab[:3]}")
+    for k in sorted(set(old.get("events", {})) | set(new["events"])):
+        if old.get("events", {}).get(k) != new["events"].get(k):
+            out.append(f"event table changed: {k}")
+    return out or ["data identity differs"]
+
+
+def dedupe_records(records):
+    """Byte-identical copies of a recording are one recording (first path kept, by sorted path): duplicates would
+    weigh twice and could otherwise end up on both sides of a split. Logged with their paths."""
+    seen, keep, dup = {}, [], []
+    for r in sorted(records, key=lambda a: a[0].relative_to(ROOT).as_posix()):
+        k = content_sha(r[0])
+        if k in seen:
+            dup.append([r[0].relative_to(ROOT).as_posix(), seen[k]])
+            continue
+        seen[k] = r[0].relative_to(ROOT).as_posix(); keep.append(r)
+    if dup:
+        notice("UNIFIED_DUPLICATE_RECORDINGS", len(dup), "byte-identical copies left out, e.g.", json.dumps(dup[:3]))
+    order = {id(r): i for i, r in enumerate(records)}
+    return sorted(keep, key=lambda r: order[id(r)]), dup
+
+
 def _fingerprint(task, records, columns):
     h = hashlib.sha256()
     h.update(json.dumps(dict(task=task, columns=columns, version=5, lean8=LEAN8_TAG,
@@ -596,14 +960,156 @@ def _fingerprint(task, records, columns):
         h.update((sha256(fw) if fw else "no-firmware-header").encode())
     if USE_LITE:                                 # Lean-lite inputs (and their frame counter) come from here
         h.update(lite.GENERATOR_SHA.encode())
-    for p, root, labels in records:
-        st = p.stat(); lab = sidecar(p, root, labels).stat()
-        h.update(f"{p.relative_to(ROOT)}|{st.st_size}|{lab.st_size}|{int(lab.st_mtime)}".encode())
+    h.update(("identity=" + record_identity(records)["sha256"]).encode())   # contents, not sizes/mtimes
     return h.hexdigest()
+
+
+def press2_recording(source: Path) -> bool:
+    """TAP recordings whose every real pointer press is a tap (MUDRA_TAP_LABELS=press2): double taps and 240 bpm."""
+    return source.parent.name == "TAP" and any(k in source.name for k in PRESS2_NAME_KEYS)
+
+
+def press2_labels(t, y, y_train, ev):
+    """'Trust the press' training labels of one press2 recording (TAP_FOCUS_RESULTS.md). y: the labeller's tap_label,
+    y_train: the current training target. Every real pointer press (tap_press, tier PRESS, labeled 1 or -1):
+      * confirmed (labeled 1): unchanged;
+      * unknown with a tap teacher peak (score >= PRESS2_SOFT_SCORE): its UNKNOWN rows in the labeller's 0-80 ms
+        onset window become positives;
+      * other unknown presses without a labelled onset within PRESS2_MATCH_MS: rows t_on - 5 .. t_on + 90 become
+        positives (t_on = the labeller's onset estimate, else the pointer time);
+      * negatives t_on - 30 .. t_on + 120 of any real press are left out (-1).
+    Returns (target, added-positive mask, counts). Replay references and every score stay on the original labels."""
+    y2 = np.array(y_train, np.int8, copy=True); added = np.zeros(len(y2), bool); info = Counter()
+    if ev is None or not len(ev):
+        return y2, added, info
+    pr = ev[(ev.type == "tap_press") & (ev.tier == "PRESS") & (ev.labeled != 0)]
+    if not len(pr):
+        return y2, added, info
+    t_on = pd.to_numeric(pr.t_on, errors="coerce").to_numpy(float)
+    t_ptr = pd.to_numeric(pr.t_ptr, errors="coerce").to_numpy(float)
+    a = np.where(np.isfinite(t_on), t_on, t_ptr)
+    lab = pr.labeled.to_numpy(int)
+    score = pd.to_numeric(pr.score, errors="coerce").to_numpy(float) if "score" in pr else np.full(len(pr), np.nan)
+    disc = ((pr.rule_disconnect.astype(str).str.lower() == "true").to_numpy() if "rule_disconnect" in pr
+            else np.zeros(len(pr), bool))
+    ok = np.isfinite(a); a, lab, score, disc = a[ok], lab[ok], score[ok], disc[ok]
+    soft = (lab == -1) & (score >= PRESS2_SOFT_SCORE) & ~disc
+    for o in a[soft]:
+        m = (t >= o + TAP_ONSET_WINDOW_MS[0]) & (t <= o + TAP_ONSET_WINDOW_MS[1]) & (y == -1)
+        added |= m & (y2 != 1); y2[m] = 1
+    labelled = np.r_[a[lab == 1], a[soft]]
+    for o in a[(lab == -1) & ~soft]:
+        if len(labelled) and np.min(np.abs(labelled - o)) < PRESS2_MATCH_MS:
+            continue
+        m = (t >= o + PRESS2_ANCHOR_MS[0]) & (t <= o + PRESS2_ANCHOR_MS[1])
+        added |= m & (y2 != 1); y2[m] = 1; info["press2_anchored_presses"] += 1
+    near_press = np.zeros(len(y2), bool)
+    for o in a:
+        near_press |= (t >= o + PRESS2_NEGATIVE_GAP_MS[0]) & (t <= o + PRESS2_NEGATIVE_GAP_MS[1])
+    drop = near_press & (y2 == 0)
+    y2[drop] = -1
+    info["press2_recordings"] += 1; info["press2_presses"] += int(len(a))
+    info["press2_soft_presses"] += int(soft.sum()); info["press2_positive_rows_added"] += int(added.sum())
+    info["press2_negative_rows_left_out"] += int(drop.sum())
+    return y2, added, info
+
+
+def top_anchors(ev, press2_rec: bool):
+    """The onsets the TAP training windows of a recording were written from (claude_labeling/tap_top.py anchors):
+    confirmed taps (t_on), and in a press2 recording every real pointer press press2_labels turned into a tap (t_on,
+    else the pointer time). Presses that wrote no window are not anchors."""
+    if ev is None or not len(ev):
+        return []
+    tp = ev[ev.type == "tap_press"]
+    keep = np.array((tp.labeled == 1).to_numpy(), bool)
+    if press2_rec:
+        keep = keep | np.asarray(((tp.tier == "PRESS") & (tp.labeled != 0)).to_numpy(), bool)
+    on = pd.to_numeric(tp.t_on, errors="coerce").to_numpy(float); ptr = pd.to_numeric(tp.t_ptr, errors="coerce").to_numpy(float)
+    a = np.where(np.isfinite(on), on, ptr)[keep]
+    return a[np.isfinite(a)].tolist()
+
+
+CERTAIN_SECOND_TAP_MS = (150, 450)    # sensor-only event after a tap in double / 240 bpm recordings = its second tap
+CERTAIN_ONSET_MATCH_MS = 100           # a positive run starting this close to a confirmed onset is that onset
+
+
+def certain_labels(t, y_train, ev, folder, source):
+    """No unknown rows (MUDRA_TAP_CERTAIN). y_train: the training target after soft / press2 labels. Returns
+    (labels without -1, [(onset ms, kind)] of the taps decided here, counts). Decisions, in order:
+      * TAP / SWIPE: a real pointer press (tier PRESS or EDGE) with no tap within PRESS2_MATCH_MS -> tap rows
+        t_on - 5 .. t_on + 90 (t_on = the labeller's onset estimate, else the pointer time), as press2;
+      * double / 240 bpm: a sensor-only event 150-450 ms after a tap -> tap rows t_on .. t_on + 80;
+      * long press / drag (hold folders): each press start -> tap rows t_on .. t_on + 80;
+      * every row still unknown -> 0 (not a tap): lead-in, contraction, release, rest, other sensor-only events.
+    Only unknown rows become taps: rows the labeller set to 0 (a disconnected channel) stay 0, and presses the
+    labeller flagged as disconnected are skipped."""
+    y2 = np.array(y_train, np.int8, copy=True); new_on = []; info = Counter()
+    info["certain_unknown_rows"] += int((y2 == -1).sum())
+
+    def tap_at(o, lo, hi, kind):
+        m = (t >= o + lo) & (t <= o + hi) & (y2 == -1)
+        if m.any():
+            y2[m] = 1; new_on.append((float(o), kind)); info[f"certain_{kind}"] += 1
+        else:
+            info[f"certain_{kind}_no_unknown_rows"] += 1
+
+    def has_tap_near(o, ms):
+        return bool(((y2 == 1) & (np.abs(t - o) <= ms)).any())
+
+    def disconnected(x):
+        return str(getattr(x, "rule_disconnect", "")).lower() == "true"
+
+    if ev is not None and len(ev):
+        if folder in TAP_FOLDERS:
+            pr = ev[(ev.type == "tap_press") & ev.tier.isin(["PRESS", "EDGE"]) & (ev.labeled == -1)]
+            for x in pr.itertuples():
+                o = x.t_on if x.t_on == x.t_on else x.t_ptr
+                if o == o and not disconnected(x) and not has_tap_near(o, PRESS2_MATCH_MS):
+                    tap_at(o, PRESS2_ANCHOR_MS[0], PRESS2_ANCHOR_MS[1], "pointer_press")
+            if press2_recording(source):
+                so = ev[(ev.type == "tap_sensor_only") & (ev.labeled == -1)].sort_values("t_on")
+                for x in so.itertuples():
+                    o = x.t_on
+                    if o != o or disconnected(x) or has_tap_near(o, PRESS2_MATCH_MS):
+                        continue
+                    on1 = t[np.flatnonzero(np.diff(np.r_[0, (y2 == 1).astype(np.int8)]) > 0)]
+                    d = o - on1[on1 < o]
+                    if len(d) and CERTAIN_SECOND_TAP_MS[0] <= d.min() <= CERTAIN_SECOND_TAP_MS[1]:
+                        tap_at(o, TAP_ONSET_WINDOW_MS[0], TAP_ONSET_WINDOW_MS[1], "second_tap")
+        elif folder in HOLD_FOLDERS:
+            for x in ev[ev.type == "hold_press"].itertuples():
+                o = x.t_on if x.t_on == x.t_on else x.t_ptr
+                if o == o and not disconnected(x):
+                    tap_at(o, TAP_ONSET_WINDOW_MS[0], TAP_ONSET_WINDOW_MS[1], "long_press_start")
+    info["certain_negative_rows"] += int((y2 == -1).sum())
+    y2[y2 == -1] = 0
+    return y2, new_on, info
+
+
+def certain_onsets(t, y, known, decided):
+    """Evaluation onsets of a recording with certain labels: every positive run whose start is not within
+    CERTAIN_ONSET_MATCH_MS of a known onset (confirmed / soft) or of an onset already listed is a tap to find.
+    Returns [(onset ms, kind)]: the onset decided by certain_labels that owns the run (decided 10 ms after the
+    run start at most, or up to CERTAIN_ONSET_MATCH_MS before it: a run split by labeller-0 rows), else the run
+    start + 5 ms (the press2 anchor) as "press2"."""
+    starts = t[np.flatnonzero(np.diff(np.r_[0, (np.asarray(y) == 1).astype(np.int8)]) > 0)]
+    known = list(np.asarray(known, float)); dec_t = np.asarray([o for o, _ in decided], float)
+    out = []
+    for s0 in starts:
+        if known and np.abs(np.asarray(known) - s0).min() <= CERTAIN_ONSET_MATCH_MS:
+            continue
+        own = np.flatnonzero((s0 - dec_t >= -10) & (s0 - dec_t <= CERTAIN_ONSET_MATCH_MS)) if len(dec_t) else []
+        o, kind = (decided[int(own[np.argmin(np.abs(dec_t[own] - s0))])] if len(own)
+                   else (float(s0) - PRESS2_ANCHOR_MS[0], "press2"))
+        if known and np.abs(np.asarray(known) - o).min() <= CERTAIN_ONSET_MATCH_MS:
+            continue
+        out.append((float(o), kind)); known.append(float(o))
+    return out
 
 
 def build_task_data(task: str, records, out: Path):
     """Training sample in memory, full replay rows in an on-disk float32 matrix (cached)."""
+    records, _ = dedupe_records(records)          # idempotent (train_task already passes deduplicated records)
     raw_columns = common_p_core(records)
     derived = list(TF.DERIVED) if (task == "tap" and TAP_FEATURES == "diff") else []
     if derived:
@@ -611,11 +1117,38 @@ def build_task_data(task: str, records, out: Path):
         if not args <= set(raw_columns):
             raise ValueError(f"Derived TAP inputs need raw fields that are missing: {sorted(args - set(raw_columns))[:5]}")
         export_plus.validate_feature_schema_accessors(derived)
-    columns = raw_columns + derived              # derived TAP inputs are stored like any other column
+    lite_cols = list(TF.LITE_COLUMNS) if (task == "tap" and TAP_LITE == "diff") else []
+    if lite_cols:
+        if not set(TF.WL_COLUMNS + TF.PLACEMENT_COLUMNS) <= set(raw_columns):
+            raise ValueError("Lean-lite diff inputs need the raw WL and EMG PSD fields")
+        export_plus.validate_feature_schema_accessors(lite_cols)
+    press2 = task == "tap" and TAP_LABELS == "press2"
+    columns = raw_columns + derived + lite_cols  # derived TAP inputs are stored like any other column
     cache = out / "cache"
     fp = _fingerprint(task, records, columns)
     if derived:                                  # the derived values depend on tap_features.py
         fp = hashlib.sha256((fp + "|tap_features=" + TF.VERSION).encode()).hexdigest()
+    if lite_cols:                                # ... and the Lean-lite diff emulator
+        fp = hashlib.sha256((fp + "|tap_lite=" + TF.LITE_VERSION).encode()).hexdigest()
+    if press2:                                   # the training-label policy
+        import inspect
+        policy = json.dumps(dict(keys=PRESS2_NAME_KEYS, soft=PRESS2_SOFT_SCORE, anchor=PRESS2_ANCHOR_MS,
+                                 gap=PRESS2_NEGATIVE_GAP_MS, match=PRESS2_MATCH_MS,
+                                 code=hashlib.sha256((inspect.getsource(press2_labels) +
+                                                      inspect.getsource(press2_recording)).encode()).hexdigest()))
+        fp = hashlib.sha256((fp + "|tap_labels=press2|" + policy).encode()).hexdigest()
+    if task == "tap" and TAP_SIGNAL:              # the signal labeller (code and constants)
+        fp = hashlib.sha256((fp + "|tap_window=signal|" + TSIG.VERSION + "|" + TAP_SIGNAL_PRESET + "|"
+                             + sha256(Path(TSIG.__file__))).encode()).hexdigest()
+    if task == "tap" and TAP_WINDOW in ("top", "mid"):  # the top-label policy (claude_labeling/tap_top.py, code and constants)
+        import inspect
+        fp = hashlib.sha256((fp + f"|tap_window={TAP_WINDOW}|" + TT.VERSION + "|" + sha256(Path(TT.__file__)) + "|"
+                             + hashlib.sha256(inspect.getsource(top_anchors).encode()).hexdigest()).encode()).hexdigest()
+    if task == "tap" and TAP_CERTAIN:            # the no-unknown policy
+        import inspect
+        fp = hashlib.sha256((fp + "|tap_certain|" + json.dumps(dict(second=CERTAIN_SECOND_TAP_MS,
+                             match=CERTAIN_ONSET_MATCH_MS, code=hashlib.sha256((inspect.getsource(certain_labels)
+                             + inspect.getsource(certain_onsets)).encode()).hexdigest()))).encode()).hexdigest()
     stamp = cache / "fingerprint.json"
     if stamp.is_file() and json.loads(stamp.read_text()).get("fingerprint") == fp:
         notice("UNIFIED_CACHE_REUSED", task, cache)
@@ -634,11 +1167,12 @@ def build_task_data(task: str, records, out: Path):
     events = {"tap": load_events(LABEL_TAP) if task == "tap" else None, "lp": load_events(LABEL_LP)}
     ncol = len(columns)
     raw = open(cache / "replay_X.f32", "wb"); nrep = 0
-    T = dict(X=[], y=[], kind=[], rec=[], t=[], frames=[], w=[])
+    T = dict(X=[], y=[], kind=[], rec=[], t=[], frames=[], w=[], row=[])
     recs = []          # per recording metadata
     rp_t, rp_lab, rp_frames = [], [], []
     windows = []       # LP press windows
     onsets = []        # TAP confirmed onsets: (rec index, t_on)
+    top_windows = []   # TAP top labels: one row per tap (MUDRA_TAP_WINDOW=top/mid), for inspection
     info = Counter()
     for i, (source, root, labels_root) in enumerate(records, 1):
         label_file = sidecar(source, root, labels_root)
@@ -673,10 +1207,14 @@ def build_task_data(task: str, records, out: Path):
                 m = (t >= x.t_on + TAP_ONSET_WINDOW_MS[0]) & (t <= x.t_on + TAP_ONSET_WINDOW_MS[1]) & (y == -1)
                 y_train[m] = 1; wrow[m] = float(x.score); soft_rows[m] = True
             info["soft_label_presses"] += len(soft_ev)
-        if task == "tap":
-            rows, kinds = sample_tap(t, y_train, lab["any_active"].to_numpy(np.int8), ev, soft_rows)
-        else:
-            rows, kinds = sample_lp(t, y, lab["hold_ms"].to_numpy(np.int32), folder, ev)
+        if press2 and press2_recording(source):
+            y_train, added, p2 = press2_labels(t, y, y_train, ev)
+            soft_rows = added if soft_rows is None else (soft_rows | added)
+            info.update(p2)
+        certain_on = []
+        if task == "tap" and TAP_CERTAIN:        # no unknown: training AND evaluation use these labels
+            y_train, certain_on, c_info = certain_labels(t, y_train, ev, folder, source)
+            info.update(c_info); y = y_train
         source_cols = set(raw_columns) | {"Timestamp", "User", lean8.FRAMES_COLUMN}
         df = pd.read_csv(source, compression="gzip", low_memory=False,
                          usecols=lambda c: c in source_cols)
@@ -690,6 +1228,35 @@ def build_task_data(task: str, records, out: Path):
             raise ValueError(f"Nonfinite firmware input in {source}")
         if derived:
             X = np.hstack([X, TF.derived(X, raw_columns)])
+        if lite_cols:                            # from the recording's first row, as the firmware state after a reset
+            X = np.hstack([X, TF.lite_rows(X, raw_columns + derived, frames)])
+        sig_ev = None
+        if task == "tap" and TAP_SIGNAL:               # signal labels: the whole TAP target of this recording
+            raw_src = (RAW_SOURCE_TAP if root in (SOURCE_TAP, RAW_SOURCE_TAP) else RAW_SOURCE_LP) / source.relative_to(root)
+            s_sig, _ = TSIG.read(raw_src)
+            if len(s_sig["t"]) != len(t) or not np.array_equal(s_sig["ts"], ts):
+                raise ValueError(f"Signal labels: rows of {raw_src} differ from {source}")
+            y_sig, j_sig, q_sig = TSIG.label(s_sig, folder, source.name, TAP_SIGNAL_PRESET)
+            y_train, soft_rows = y_sig.astype(np.int8), None    # -1 everywhere: the recording is left out of training
+            info["signal_" + str(q_sig.get("tier"))] += 1
+            info["signal_taps"] += int(q_sig.get("taps", 0))
+            for r_ in ("second", "recovered", "release", "weak"):
+                info[f"signal_{r_}"] += int(q_sig.get(f"n_{r_}", 0))
+            sig_ev = pd.DataFrame(dict(t_on=j_sig.t[j_sig.role.isin(TSIG_ROLES)].to_numpy(float)))
+            if ev is not None and len(ev):
+                sig_ev = pd.concat([sig_ev, ev[[c for c in ("t_ptr", "t_rel") if c in ev]]], ignore_index=True)
+        if task == "tap" and TAP_WINDOW in ("top", "mid") and (y_train == 1).any():
+            # top labels: every tap moves to the top of its contact jolt (training target only; replay keeps y)
+            anchors = top_anchors(ev, press2 and press2_recording(source))
+            acc_idx = [raw_columns.index(c) for c in TT.ACC_NOW]
+            y_train, soft_rows, wins, top_info = TT.relabel(t, X[:, acc_idx], y_train, TAP_WINDOW,
+                                                            anchors=anchors, soft=soft_rows)
+            info.update({f"top_{k}": v for k, v in top_info.items()})
+            top_windows.extend(dict(rec=len(recs), **w) for w in wins)
+        if task == "tap":
+            rows, kinds = sample_tap(t, y_train, lab["any_active"].to_numpy(np.int8), sig_ev if TAP_SIGNAL else ev, soft_rows)
+        else:
+            rows, kinds = sample_lp(t, y, lab["hold_ms"].to_numpy(np.int32), folder, ev)
         user = str(df["User"].iloc[0]) if "User" in df.columns else ""
         who = v6.person_group(user, source.name[:-7])
         ri = len(recs)
@@ -704,6 +1271,12 @@ def build_task_data(task: str, records, out: Path):
                 if soft_ev is not None:
                     for o in soft_ev.t_on.dropna():
                         onsets.append((ri, float(o), "soft", float(o) - lo_on, float(o) + hi_on))
+                if TAP_CERTAIN:                     # every tap row has an onset to find (no unknown rows)
+                    known = list(ev[(ev.type == "tap_press") & (ev.labeled == 1)].t_on.dropna())
+                    known += list(soft_ev.t_on.dropna()) if soft_ev is not None else []
+                    for o, kind in certain_onsets(t, y, known, certain_on):
+                        onsets.append((ri, float(o), "strong", float(o) - lo_on, float(o) + hi_on))
+                        onsets.append((ri, float(o), f"certain_{kind}", float(o) - lo_on, float(o) + hi_on))
                 if folder in TAP_FOLDERS:          # every real pointer press of a TAP/SWIPE recording (folder truth)
                     pr = ev[(ev.type == "tap_press") & (ev.tier == "PRESS") & (ev.labeled != 0)]
                     for x in pr.itertuples():
@@ -738,7 +1311,7 @@ def build_task_data(task: str, records, out: Path):
             T["X"].append(X[rows]); T["y"].append(y_train[rows]); T["kind"].append(kinds)
             T["w"].append(wrow[rows] if wrow is not None else np.ones(len(rows), np.float32))
             T["rec"].append(np.full(len(rows), ri, np.int32)); T["t"].append(t[rows].astype(np.float32))
-            T["frames"].append(frames[rows])
+            T["frames"].append(frames[rows]); T["row"].append(rows.astype(np.int32))
         info["read_sources"] += 1; info[folder + "_files"] += 1
         if i % 300 == 0:
             notice("UNIFIED_DATASET_EXTRACT", task, i, len(records), sum(len(a) for a in T["y"]), "replay_rows", nrep)
@@ -747,9 +1320,12 @@ def build_task_data(task: str, records, out: Path):
         raise ValueError(f"No supervised {task} recordings")
     rec_df = pd.DataFrame(recs)
     np.save(cache / "train_X.npy", np.concatenate(T["X"]).astype(np.float32))
-    np.savez(cache / "train_meta.npz", y=np.concatenate(T["y"]), kind=np.concatenate(T["kind"]),
-             rec=np.concatenate(T["rec"]), t=np.concatenate(T["t"]), frames=np.concatenate(T["frames"]),
-             w=np.concatenate(T["w"]).astype(np.float32))
+    meta = dict(y=np.concatenate(T["y"]), kind=np.concatenate(T["kind"]),
+                rec=np.concatenate(T["rec"]), t=np.concatenate(T["t"]), frames=np.concatenate(T["frames"]),
+                w=np.concatenate(T["w"]).astype(np.float32))
+    if lite_cols:                                # row of the recording: the Lean-lite augmentation recomputes per recording
+        meta["row"] = np.concatenate(T["row"])
+    np.savez(cache / "train_meta.npz", **meta)
     np.savez(cache / "replay_meta.npz", t=np.concatenate(rp_t) if rp_t else np.zeros(0, np.float32),
              label=np.concatenate(rp_lab) if rp_lab else np.zeros(0, np.int8),
              frames=np.concatenate(rp_frames) if rp_frames else np.zeros(0, np.int32), n=nrep, ncol=ncol)
@@ -757,6 +1333,10 @@ def build_task_data(task: str, records, out: Path):
     pd.DataFrame(windows, columns=["rec", "kind", "start", "end", "start_ms", "release_ms"]).to_csv(
         cache / "lp_windows.csv", index=False)
     pd.DataFrame(onsets, columns=["rec", "t_on", "kind", "lo", "hi"]).to_csv(cache / "tap_onsets.csv", index=False)
+    if top_windows:                              # where every tap is taught (relative times: ms from recording start)
+        tw = pd.DataFrame(top_windows)
+        tw.insert(1, "file", rec_df.file.to_numpy(object)[tw.rec.to_numpy(int)])
+        tw.round(2).to_csv(cache / "top_windows.csv.gz", index=False)
     write_json(cache / "info.json", dict(counts=dict(info), previous_content_sha256=previous_sha))
     write_json(stamp, dict(fingerprint=fp))
     return load_cache(cache, columns)
@@ -842,10 +1422,14 @@ def load_cache(cache: Path, columns):
                 category=recs.folder.to_numpy(object)[rec], rec=rec,
                 w=(m["w"][gate].astype(np.float32) if "w" in m.files else np.ones(len(rec), np.float32)),
                 columns=list(columns), feature_sets=feature_sets(list(columns)))
+    if "row" in m.files:
+        data["row"] = m["row"][gate]
     fr = rp["frames"]
     rpl = dict(X=replay_X, t=rp["t"], label=rp["label"], frames=fr,
                ready=fr >= EVAL_MIN_FRAMES, steady=fr >= LEAN8_STEADY_FRAMES, recs=recs, windows=windows,
-               onsets=_objective_onsets(onsets), extra=_reference_windows(onsets))
+               onsets=_objective_onsets(onsets), extra=_reference_windows(onsets),
+               anchors={int(r): np.unique(np.round(g_.t_on.to_numpy(float))) for r, g_ in
+                        onsets[onsets.kind.isin(["strong", "soft", "press"])].groupby("rec")} if len(onsets) else {})
     info_all = json.loads((cache / "info.json").read_text())
     if "content_sha256" not in info_all:            # first use of this cache (or a cache from older code)
         t0 = time.perf_counter()
@@ -869,10 +1453,160 @@ def load_cache(cache: Path, columns):
 
 
 # ============================================================================ split, weights, params
+def group_by_file(data, rpl):
+    """MUDRA_SPLIT=file: every recording file becomes its own group (person|file) in the training rows and in the
+    replay table, so the held-out split, the CV folds, the feature-ranking folds, the observable-label teachers and
+    every replay selection group by file. In memory only (the cache keeps the person groups)."""
+    recs = rpl["recs"]
+    recs["person"] = recs.group.to_numpy(object)
+    recs["group"] = (recs.group.astype(str) + "|" + recs.file.astype(str)).to_numpy(object)
+    data["person"] = data["group"]
+    data["group"] = recs.group.to_numpy(object)[data["rec"]]
+    if "folder" in recs:                         # gesture-aware: the stratum of every recording and training row
+        strata = np.array([recording_stratum(f, fo) for f, fo in zip(recs.file, recs.folder)], object)
+        recs["stratum"] = strata
+        data["stratum"] = strata[data["rec"]]
+    data["content_sha256"] = hashlib.sha256((data["content_sha256"] + "|split=file-gesture1").encode()).hexdigest()
+
+
+STRATUM_MIN_FILES = 5
+GESTURE_ALIASES = {"stretch": "fiststretch", "fist": "fiststretch"}   # Fist_&_Stretch and Fist&Stretch
+_GESTURE_KEYS = []
+
+
+def recording_gesture(name: str) -> str:
+    """Gesture of a recording from its file name, found with org.py's routing keywords (longest first, as org.py
+    routes files): the underscore-separated part that holds the keyword, letters and digits only.
+    SwipeMID -> swipemid, Ring_Finger -> ringfinger, TapOnArm -> taponarm, Fist_&_Stretch -> stretch."""
+    if not _GESTURE_KEYS:
+        if str(ROOT) not in sys.path:
+            sys.path.insert(0, str(ROOT))
+        import org
+        _GESTURE_KEYS.extend(sorted(org.GESTURE_MAP, key=lambda k: (-len(k), k)))
+    s = Path(str(name)).name.lower()
+    for k in _GESTURE_KEYS:
+        i = s.find(k)
+        if i >= 0:
+            a = s.rfind("_", 0, i) + 1
+            b = s.find("_", i + len(k))
+            g_ = re.sub(r"[^a-z0-9]", "", s[a:len(s) if b < 0 else b])
+            return GESTURE_ALIASES.get(g_, g_)
+    squashed = s.replace("_", "")                # Tap_on_Hand, Soft_Tap: as org.find_mapping, only if nothing matched
+    for k in _GESTURE_KEYS:
+        k2 = k.replace("_", "")
+        if k2 in squashed:
+            return GESTURE_ALIASES.get(k2, k2)
+    return "unknown"
+
+
+def tap_kind(name: str, folder: str):
+    """Kind of a recording for the balanced TAP objective (replay.TapCounts.balanced), or None.
+    TAP: double (DoubleTaps), fast (240 bpm), soft / mid / strong (SoftTap, MidTap, StrongTap), other (any other
+    tap recording: hand, slow pinch, tap on motion). SWIPE: swipe. FINGER: fist (Fist & Stretch) or finger.
+    WRIST (wrist moves, twist, tap on hand), ARM, BAND: their folder. Other folders (long press, nothing): None."""
+    g_ = recording_gesture(name); fname = Path(str(name)).name.lower()
+    if folder == "TAP":
+        if "double" in g_:
+            return "tap:double"
+        if re.search(r"_240bpm", fname):
+            return "tap:fast"
+        for k in ("soft", "mid", "strong"):
+            if g_.startswith(k) or f"{k}tap" in g_:
+                return f"tap:{k}"
+        return "tap:other"
+    if folder == "SWIPE":
+        return "tap:swipe"
+    if folder == "FINGER":
+        return "move:fist" if "fist" in g_ else "move:finger"
+    if folder in ("WRIST", "ARM", "BAND"):
+        return "move:" + folder.lower()
+    return None
+
+
+def recording_stratum(name: str, folder: str) -> str:
+    """folder|gesture, plus |<bpm> for TAP and SWIPE recordings (60 / 120 / 240 bpm taps are different tasks)."""
+    st = f"{folder}|{recording_gesture(name)}"
+    m = re.search(r"_(\d+)bpm", Path(str(name)).name.lower())
+    return st + (f"|{m.group(1)}" if m and folder in TAP_FOLDERS else "")
+
+
+def merge_rare(labels, min_count: int):
+    """Pool strata with fewer than min_count members one level up (folder|gesture|bpm -> folder|gesture -> folder
+    -> other); a stratum still below 2 members joins the largest one."""
+    lab = np.asarray(labels, object).copy()
+    for level in (2, 1, 0):
+        counts = Counter(lab.tolist())
+        rare = np.array([counts[x] < min_count for x in lab], bool)
+        if not rare.any():
+            break
+        lab[rare] = ["|".join(str(x).split("|")[:level]) or "other" for x in lab[rare]]
+    counts = Counter(lab.tolist())
+    if counts and min(counts.values()) < 2:
+        big = counts.most_common(1)[0][0]
+        lab = np.array([big if counts[x] < 2 else x for x in lab], object)
+    return lab
+
+
+def file_strata(data, rows):
+    """For training rows `rows`: (group code per row, groups, merged stratum per group)."""
+    codes, groups = pd.factorize(pd.Series(data["group"][rows], dtype=object))
+    _, first = np.unique(codes, return_index=True)
+    return codes, np.asarray(groups, object), merge_rare(data["stratum"][rows][first], STRATUM_MIN_FILES)
+
+
+def cv_splits(data, train_ids):
+    """CV folds over train_ids (positions into train_ids). Gesture-aware file split: StratifiedKFold over the files
+    by stratum (data["group"] = one group per file, group_by_file). The observable-label and distillation teachers
+    and the feature-ranking inner folds fold over the same file groups."""
+    if "stratum" not in data:                   # file split only
+        raise ValueError("cv_splits needs the file groups (group_by_file); a person split is not allowed")
+    codes, groups, strata = file_strata(data, train_ids)
+    out = []
+    for _, b_g in StratifiedKFold(n_splits=CV_FOLDS, shuffle=True, random_state=SEED).split(groups, strata):
+        val = np.zeros(len(groups), bool); val[b_g] = True
+        out.append((np.flatnonzero(~val[codes]), np.flatnonzero(val[codes])))
+    return out
+
+
+def teacher_folds(data, rows, n_splits=3):
+    """Cross-fit folds of the observable-label and distillation teachers over the training rows `rows`: by recording
+    file, gesture-aware (StratifiedKFold over the files by recording type, as cv_splits). Yields (fit, score) boolean
+    masks over rows; every row is scored once, by a teacher that never saw its file."""
+    if "stratum" not in data:                   # file split only
+        raise ValueError("teacher_folds needs the file groups (group_by_file); a person split is not allowed")
+    codes, groups, strata = file_strata(data, rows)
+    for _, b_g in StratifiedKFold(n_splits=min(n_splits, len(groups)), shuffle=True,
+                                  random_state=SEED).split(groups, strata):
+        val = np.zeros(len(groups), bool); val[b_g] = True
+        yield ~val[codes], val[codes]
+
+
+def strata_balance(data, tr, te):
+    """Files per stratum on each side of the held-out split (stratum -> [train files, held-out files])."""
+    out = {}
+    for side, rows in ((0, tr), (1, te)):
+        g_, first = np.unique(data["group"][rows], return_index=True)
+        for st in data["stratum"][rows][first]:
+            out.setdefault(str(st), [0, 0])[side] += 1
+    return dict(sorted(out.items()))
+
+
+def _stratified_heldout(data, task):
+    """Gesture-aware file split: TEST_FRACTION of the files of every stratum held out (StratifiedShuffleSplit)."""
+    codes, groups, strata = file_strata(data, np.arange(len(data["y"])))
+    for k in range(200):
+        _, b_g = next(StratifiedShuffleSplit(n_splits=1, test_size=TEST_FRACTION,
+                                             random_state=SEED + int(task == "lp") + k).split(groups, strata))
+        held = np.zeros(len(groups), bool); held[b_g] = True
+        yield np.flatnonzero(~held[codes]), np.flatnonzero(held[codes])
+
+
 def split_heldout(data, task):
     g = data["group"]; y = data["y"]; c = data["category"]
-    splitter = GroupShuffleSplit(n_splits=200, test_size=TEST_FRACTION, random_state=SEED + int(task == "lp"))
-    for tr, te in splitter.split(data["X"], y, g):
+    if "stratum" not in data:                   # file split only: group_by_file() sets the file groups and strata
+        raise ValueError("split_heldout needs the file groups (group_by_file); a person split is not allowed")
+    splitter = _stratified_heldout(data, task)
+    for tr, te in splitter:
         if set(y[tr]) != {0, 1} or set(y[te]) != {0, 1}:
             continue
         if len(set(g[tr])) < CV_FOLDS + 1:
@@ -886,13 +1620,27 @@ def split_heldout(data, task):
         if set(g[tr]) & set(g[te]):
             raise AssertionError("Subject overlap in holdout")
         return tr, te
-    raise RuntimeError(f"No usable person-disjoint {task} split, inspect category coverage")
+    raise RuntimeError(f"No usable {SPLIT_BY}-grouped {task} split, inspect category coverage")
 
 
-def weights_for_task(data, indices, task, positive_weight):
-    """File-normalized class balancing, then the tunable positive-class weight (see v1 notes)."""
+def fist_rows(data):
+    """Training rows from fist recordings: FINGER folder, "fist" in the file name (Fist & Stretch)."""
+    files = pd.Series(data["file"], dtype=object)
+    fist_file = {f: "fist" in str(f).lower() for f in files.unique()}
+    return (np.asarray(data["category"]) == "FINGER") & files.map(fist_file).to_numpy(bool)
+
+
+def weights_for_task(data, indices, task, positive_weight, finger=True):
+    """File-normalized class balancing, then the tunable positive-class weight (see v1 notes). TAP: FINGER-folder
+    negatives first weighted x MUDRA_TAP_FINGER_WEIGHT (finger=False: plain, for the teachers)."""
     y = data["y"][indices]
     w = data["w"][indices].astype(np.float32).copy()
+    if task == "tap" and finger and TAP_FINGER_WEIGHT != 1.0:
+        w[(y == 0) & (data["category"][indices] == "FINGER")] *= np.float32(TAP_FINGER_WEIGHT)
+    if task == "tap" and finger and TAP_FIST_WEIGHT != 1.0:
+        if "is_fist" not in data:
+            data["is_fist"] = fist_rows(data)
+        w[(y == 0) & data["is_fist"][indices]] *= np.float32(TAP_FIST_WEIGHT)
     file_counts = Counter(data["file"][indices])
     w /= np.asarray([math.sqrt(file_counts[f]) for f in data["file"][indices]], dtype=np.float32)
     for cls in (0, 1):
@@ -935,11 +1683,65 @@ def fit_cap(params, budget):
     return int(max(20, min(params["n_estimators"], math.ceil(3 * budget / full_tree))))
 
 
-def fit_model(X, y, w, params, budget):
+def soft_rows(X, target, w):
+    """Soft targets as plain binary rows: each frame becomes (label 1, weight w*t) and (label 0, weight w*(1-t)).
+    Their weighted binary log loss is exactly w*[t*log p + (1-t)*log(1-p)], the cross-entropy with target t."""
+    t = np.clip(np.asarray(target, np.float64), 0.0, 1.0); w = np.asarray(w, np.float64)
+    one, zero = t > 0, t < 1
+    X2 = np.concatenate([X[one], X[zero]])
+    y2 = np.r_[np.ones(int(one.sum()), np.int8), np.zeros(int(zero.sum()), np.int8)]
+    return X2, y2, np.r_[w[one] * t[one], w[zero] * (1.0 - t[zero])].astype(np.float32)
+
+
+def fit_model(X, y, w, params, budget, target=None, shift=0.0):
+    """target (distillation): soft targets per row; fitted as two weighted binary rows per frame, with
+    min_child_samples doubled (it counts rows). shift: TAP logit shift (see TAP_LOGIT_SHIFT)."""
     p = dict(params); p["n_estimators"] = fit_cap(params, budget)
+    if target is not None:
+        X, y, w = soft_rows(X, target, w)
+        p["min_child_samples"] = 2 * int(p.get("min_child_samples", 20))
     model = lgb.LGBMClassifier(**p)
     model.fit(X, y, sample_weight=w)
+    return shift_raw_score(model, shift)
+
+
+def shift_raw_score(model, shift):
+    """Subtract `shift` from the raw score: every leaf of the first tree. Exact for predict, truncation
+    (model_to_string) and the C export (dump_model leaves); the firmware's 0.85 then means probability
+    sigmoid(logit(0.85) + shift) of the fitted model."""
+    if not shift:
+        return model
+    b = model.booster_
+    for leaf in range(int(b.dump_model(num_iteration=1)["tree_info"][0]["num_leaves"])):
+        b.set_leaf_output(0, leaf, b.get_leaf_output(0, leaf) - float(shift))
     return model
+
+
+# Anchor trials' logit shift for a target (false taps/min at 0.85): the researched weight-1 curves (14 and 32 KB,
+# file split) reach 4/min at ~0.92, 2 at ~0.982, 1.5 at ~0.991, 1 at ~0.9965 (shift = logit(threshold) - logit(0.85)).
+ANCHOR_SHIFT_BY_TARGET = ((0.5, 5.0), (1.0, 3.9), (1.2, 3.6), (1.5, 3.0), (2.0, 2.3), (3.0, 1.3), (4.0, 0.7))
+
+
+def anchor_shift(target):
+    t, sh = zip(*ANCHOR_SHIFT_BY_TARGET)
+    v = float(np.interp(math.log(max(float(target), 1e-6)), np.log(t), sh))
+    return float(min(max(v, TAP_LOGIT_SHIFT[0]), TAP_LOGIT_SHIFT[1]))
+
+
+# Anchor logit shift for a movement limit (balanced objective): the researched 32 KB curve reaches fist 19/min at
+# ~0.815 (no shift), 12 at ~0.905, 7 at ~0.959, 4 at ~0.984, 2.6 at ~0.991 (TAP_FILESPLIT_RESULTS.md).
+ANCHOR_SHIFT_BY_MOVEMENT = ((2.6, 3.0), (4.0, 2.4), (7.0, 1.4), (12.0, 0.5), (19.0, 0.0))
+
+
+def anchor_shift_movement(limit):
+    lim, sh = zip(*ANCHOR_SHIFT_BY_MOVEMENT)
+    v = float(np.interp(math.log(max(float(limit), 1e-6)), np.log(lim), sh))
+    return float(min(max(v, TAP_LOGIT_SHIFT[0]), TAP_LOGIT_SHIFT[1]))
+
+
+def tap_shift(trial):
+    """The trial's TAP logit shift (0 when the study has none)."""
+    return float(trial.params.get("tap_logit_shift", 0.0))
 
 
 # ============================================================================ exact budget trimming
@@ -1182,7 +1984,7 @@ def prepare_tap_replay(rpl, groups):
             lo, hi = per_rec.get(int(i), (np.zeros(0), np.zeros(0)))
             keep = lo >= t_a
             extra[name] = (lo[keep], hi[keep])
-        items.append((a, b, r.folder, ons, extra))
+        items.append((a, b, r.folder, ons, extra, tap_kind(r.file, r.folder)))
     return items
 
 
@@ -1204,12 +2006,12 @@ def replay_tap_items(prob_fn, rpl, items, selected):
     """prob_fn(X) -> dict name -> probability (or decision) arrays. Returns name -> TapCounts."""
     counts = {}
     preds = _ranges_predict([prob_fn], rpl["X"], [(it[0], it[1]) for it in items], selected)
-    for (a, b, folder, ons, extra), ((a_, b_), (outs,)) in zip(items, preds):
+    for (a, b, folder, ons, extra, kind), ((a_, b_), (outs,)) in zip(items, preds):
         with CLOCK("replay_score"):
             for name, p in outs.items():
                 d = p if p.dtype == bool else (p >= FIXED_THRESHOLD)
                 R.tap_replay_recording(d, rpl["t"][a:b], rpl["label"][a:b], ons,
-                                       folder, counts.setdefault(name, R.TapCounts()), extra=extra)
+                                       folder, counts.setdefault(name, R.TapCounts()), extra=extra, kind=kind)
     return counts
 
 
@@ -1240,6 +2042,132 @@ def replay_lp(q_fn, rpl, groups, selected, threshold=None):
 _PREPARED = {}
 
 
+def obs_select(tap, offset, score, dur_ms, stride_ms=None):
+    """Observable-pattern window per tap. tap: owner id of each positive row (-1 = none), offset: ms after its
+    onset, score: teacher score. For every tap the window of dur_ms (starting at one of its rows, holding at least
+    dur_ms / stride rows when the tap has that many) with the highest mean score is kept; the tap's other rows are
+    not. Rows without an owner and taps with one row are kept. Returns a keep mask over the rows."""
+    stride_ms = TAP_POSITIVE_STRIDE_MS if stride_ms is None else stride_ms
+    tap = np.asarray(tap); offset = np.asarray(offset, np.float64); score = np.nan_to_num(np.asarray(score, np.float64))
+    keep = np.ones(len(tap), bool)
+    order = np.lexsort((offset, tap))
+    ts = tap[order]
+    bounds = np.flatnonzero(np.r_[True, ts[1:] != ts[:-1], True])
+    need_full = max(1, int(round(dur_ms / stride_ms)))
+    for a, b in zip(bounds[:-1], bounds[1:]):
+        idx = order[a:b]
+        if tap[idx[0]] < 0 or len(idx) < 2:
+            continue
+        ot, sc = offset[idx], score[idx]
+        inside = (ot[None, :] >= ot[:, None]) & (ot[None, :] < ot[:, None] + dur_ms)      # [start, row]
+        cnt = inside.sum(1)
+        mean = (inside * sc[None, :]).sum(1) / np.maximum(cnt, 1)
+        mean[cnt < min(need_full, int(cnt.max()))] = -1.0
+        j = int(np.argmax(mean))
+        keep[idx[~inside[j]]] = False
+    return keep
+
+
+def _obs_owner(data, rpl, rows):
+    """(tap owner id, ms after its onset) of each row: the latest onset / press of the recording at most 5 ms after
+    the row and at most 95 ms before it."""
+    anchors = rpl.get("anchors") or {}
+    rec = data["rec"][rows]; t = data["t"][rows].astype(np.float64)
+    owner = np.full(len(rows), -1, np.int64); off = np.full(len(rows), np.nan)
+    ids = {}
+    for r in np.unique(rec):
+        an = anchors.get(int(r))
+        if an is None or not len(an):
+            continue
+        m = np.flatnonzero(rec == r)
+        k = np.searchsorted(an, t[m] - OBS_ANCHOR_MS[0], side="right") - 1
+        ok = (k >= 0) & (t[m] - an[np.clip(k, 0, None)] <= OBS_ANCHOR_MS[1])
+        for i, kk in zip(m[ok], k[ok]):
+            owner[i] = ids.setdefault((int(r), float(an[kk])), len(ids)); off[i] = t[i] - an[kk]
+    return owner, off
+
+
+def obs_rows(data, rpl, rows, name, cache_dir=None):
+    """The training rows `rows` with observable-pattern positives (MUDRA_TAP_OBS_MS): negatives and unowned rows
+    unchanged, every tap reduced to its most distinguishable window. Teacher scores are cross-fitted inside `rows`
+    on 3 gesture-aware file folds (teacher_folds): no row is scored by a teacher that saw its file. Cached by content."""
+    if TAP_OBS_MS is None:
+        return rows
+    rows = np.asarray(rows)
+    key = hashlib.sha256((hashlib.sha256(np.ascontiguousarray(rows).tobytes()).hexdigest() + "|" +
+                          str(data.get("obs_content_sha256")) + "|" + json.dumps(OBS_TEACHER, sort_keys=True) +
+                          f"|{TAP_OBS_MS}|{OBS_ANCHOR_MS}|{SEED}|v2-file-gesture").encode()).hexdigest()[:20]
+    path = (cache_dir / f"obs_{name}_{key}.npz") if cache_dir is not None else None
+    if path is not None and path.is_file():
+        with np.load(path) as z:
+            return z["rows"]
+    t0 = time.perf_counter()
+    X = data.get("X_nominal", data["X"])
+    y = data["y"][rows]
+    pos = np.flatnonzero(y == 1)
+    score = np.full(len(rows), np.nan)
+    w = weights_for_task(data, rows, "tap", 1.0, finger=False)
+    for k, (fit, val) in enumerate(teacher_folds(data, rows)):        # gesture-aware file folds
+        lab = val & (y == 1)
+        if not lab.any():                        # no tap in this fold's files (tiny data): nothing to score here
+            continue
+        m = lgb.LGBMClassifier(**OBS_TEACHER, n_jobs=CPU_THREADS, random_state=SEED + 11 + k).fit(
+            X[rows[fit]], y[fit], sample_weight=w[fit])
+        score[lab] = m.predict_proba(X[rows[lab]])[:, 1]
+    owner, off = _obs_owner(data, rpl, rows[pos])
+    keep = np.ones(len(rows), bool)
+    keep[pos] = obs_select(owner, off, score[pos], TAP_OBS_MS)
+    out = rows[keep]
+    notice("UNIFIED_TAP_OBS", name, json.dumps(dict(rows=int(len(rows)), positives=int(len(pos)),
+           taps=int(len(np.unique(owner[owner >= 0]))), positive_rows_left_out=int((~keep).sum()),
+           seconds=round(time.perf_counter() - t0, 1))))
+    if path is not None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        np.savez_compressed(path, rows=out)
+    return out
+
+
+OBS_CACHE_DIR = None                # set per task (TAP with MUDRA_TAP_OBS_MS)
+DISTILL_CACHE_DIR = None            # set per task (TAP with MUDRA_TAP_DISTILL)
+
+
+def distill_targets(data, rows, name, cache_dir=None):
+    """Soft targets of the training rows `rows` (MUDRA_TAP_DISTILL = a): a*label + (1-a)*teacher. The teacher is a
+    full-size model (OBS_TEACHER, no budget) on all inputs of the real (nominal) rows, cross-fitted inside `rows` on
+    3 gesture-aware file folds (teacher_folds): no row is scored by a teacher trained on its own
+    group. None when distillation is off. Cached by content."""
+    if TAP_DISTILL is None:
+        return None
+    rows = np.asarray(rows)
+    key = hashlib.sha256((hashlib.sha256(np.ascontiguousarray(rows).tobytes()).hexdigest() + "|" +
+                          str(data.get("distill_content_sha256")) + "|" + json.dumps(OBS_TEACHER, sort_keys=True) +
+                          f"|{TAP_DISTILL}|{SEED}|v2-file-gesture").encode()).hexdigest()[:20]
+    path = (cache_dir / f"distill_{name}_{key}.npz") if cache_dir is not None else None
+    if path is not None and path.is_file():
+        with np.load(path) as z:
+            return z["target"]
+    t0 = time.perf_counter()
+    X = data.get("X_nominal", data["X"])
+    y = data["y"][rows].astype(np.float64)
+    w = weights_for_task(data, rows, "tap", 1.0, finger=False)
+    score = np.full(len(rows), np.nan)
+    for k, (fit, sc) in enumerate(teacher_folds(data, rows)):         # gesture-aware file folds
+        m = lgb.LGBMClassifier(**OBS_TEACHER, n_jobs=CPU_THREADS, random_state=SEED + 21 + k).fit(
+            X[rows[fit]], y[fit].astype(np.int8), sample_weight=w[fit])
+        score[sc] = m.predict_proba(X[rows[sc]])[:, 1]
+    if not np.isfinite(score).all():
+        raise AssertionError("distillation teacher left rows unscored")
+    target = (TAP_DISTILL * y + (1.0 - TAP_DISTILL) * score).astype(np.float32)
+    notice("UNIFIED_TAP_DISTILL", name, json.dumps(dict(rows=int(len(rows)), label_weight=TAP_DISTILL,
+           teacher_mean_positive=round(float(score[y == 1].mean()), 4) if (y == 1).any() else None,
+           teacher_mean_negative=round(float(score[y == 0].mean()), 4) if (y == 0).any() else None,
+           seconds=round(time.perf_counter() - t0, 1))))
+    if path is not None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        np.savez_compressed(path, target=target)
+    return target
+
+
 def prepared_folds(data, rpl, train_ids, task):
     """The CV folds, their base sample weights and replay plans, computed once per dataset/split.
 
@@ -1250,12 +2178,14 @@ def prepared_folds(data, rpl, train_ids, task):
         return _PREPARED[key]
     folds = []
     t0 = time.perf_counter()
-    for fold, (a, b) in enumerate(GroupKFold(n_splits=CV_FOLDS).split(
-            train_ids, data["y"][train_ids], data["group"][train_ids])):
+    for fold, (a, b) in enumerate(cv_splits(data, train_ids)):
         tr = train_ids[a]
         val_groups = set(data["group"][train_ids[b]])
+        if task == "tap" and TAP_OBS_MS is not None:          # observable labels, inside this fold's training people
+            tr = obs_rows(data, rpl, tr, f"cv{fold}", OBS_CACHE_DIR)
+        target = distill_targets(data, tr, f"cv{fold}", DISTILL_CACHE_DIR) if task == "tap" else None
         y = data["y"][tr]
-        folds.append(dict(tr=tr, y=y, val_groups=val_groups, classes=set(np.unique(y).tolist()),
+        folds.append(dict(tr=tr, y=y, val_groups=val_groups, classes=set(np.unique(y).tolist()), target=target,
                           base_w=weights_for_task(data, tr, task, 1.0), positive=(y == 1),
                           replay=(prepare_tap_replay if task == "tap" else prepare_lp_replay)(rpl, val_groups)))
     _PREPARED.clear()
@@ -1315,6 +2245,7 @@ def objective(trial, data, rpl, train_ids, task, budgets):
     selected = list(range(n_all))
     lo, hi = POSITIVE_WEIGHT[task]
     positive_weight = trial.suggest_float("positive_weight", lo, hi, log=True)
+    shift = trial.suggest_float("tap_logit_shift", *TAP_LOGIT_SHIFT) if task == "tap" and TAP_LOGIT_SHIFT else 0.0
     params = suggest_params(trial, task)
     primary = budgets[0]
     totals = {b: (R.TapCounts() if task == "tap" else R.LpCounts()) for b in budgets}
@@ -1343,7 +2274,8 @@ def objective(trial, data, rpl, train_ids, task, budgets):
             X = data["X"][np.ix_(pf["tr"], np.asarray(sel, dtype=np.intp))]   # == data["X"][tr][:, sel], one copy
             w = fold_weights(pf, positive_weight)
         with CLOCK("fit"):
-            model = fit_model(X, pf["y"], w, fold_params, primary)
+            soft = {} if pf.get("target") is None else dict(target=pf["target"])
+            model = fit_model(X, pf["y"], w, fold_params, primary, shift=shift, **soft)
         del X
         with CLOCK("size"):
             ks = {bud: trees_within(model, bud) for bud in budgets}
@@ -1369,9 +2301,8 @@ def objective(trial, data, rpl, train_ids, task, budgets):
                                           **{kk: vv for kk, vv in rep_.items() if kk != "per_folder"})
             folds.append(dict(fold=fold, people=len(pf["val_groups"]), fitted_trees=fitted, budgets=fold_rep))
             fold_timing.append({k: round(v, 3) for k, v in timing.items()})
-            running = [f["budgets"][str(primary)]["objective_score"] for f in folds if f["budgets"][str(primary)]["usable"]]
             with CLOCK("study_io"):
-                trial.report(float(np.mean(running)) if running else 0.0, fold)
+                trial.report(running_value(folds, budgets, primary), fold)
                 prune = trial.should_prune()
             if prune:
                 _log_timing(trial, task, t_start, fold_timing, pruned=True)
@@ -1400,7 +2331,33 @@ def objective(trial, data, rpl, train_ids, task, budgets):
         trial.set_user_attr(f"score_{bud}", reports[str(bud)]["objective_score"])
         trial.set_user_attr(f"max_bytes_{bud}", max(f["budgets"][str(bud)]["bytes"] for f in folds))
     _log_timing(trial, task, t_start, fold_timing, pruned=False)
-    return float(reports[str(primary)]["objective_score"])
+    if not (task == "tap" and SIZE_LADDER_KB):
+        return float(reports[str(primary)]["objective_score"])
+    best_b, value = ladder_choice(trial.user_attrs, budgets)
+    trial.set_user_attr("ladder_budget", best_b); trial.set_user_attr("ladder_value", value)
+    return value
+
+
+def size_value(score, nbytes):
+    """Size-aware TAP value: score - SIZE_PENALTY_PER_KB per KB of the exported model."""
+    return float(score) - SIZE_PENALTY_PER_KB * float(nbytes) / 1024.0
+
+
+def ladder_choice(attrs, budgets):
+    """(budget, value) of a trial's best size: max over the ladder of size_value(CV score, largest fold model)."""
+    vals = {b: size_value(attrs[f"score_{b}"], attrs[f"max_bytes_{b}"]) for b in budgets}
+    b = max(vals, key=lambda b_: (vals[b_], -b_))
+    return int(b), float(vals[b])
+
+
+def running_value(folds, budgets, primary):
+    """Pruning value after each fold: the mean fold score so far (TAP with a ladder: at its best size)."""
+    def mean_at(b):
+        v = [f["budgets"][str(b)]["objective_score"] for f in folds if f["budgets"][str(b)]["usable"]]
+        return float(np.mean(v)) if v else 0.0
+    if not (SIZE_LADDER_KB and len(budgets) > 2):
+        return mean_at(primary)
+    return max(size_value(mean_at(b), max(f["budgets"][str(b)]["bytes"] for f in folds)) for b in budgets)
 
 
 def _log_timing(trial, task, t_start, fold_timing, pruned):
@@ -1498,6 +2455,9 @@ def write_header(model, subset, stem, folder: Path, task, outdir: Path):
     size = int(saved["total_static_data_bytes"])
     if size != static_bytes(model):
         raise ValueError(f"Exported size differs from estimate: {size} != {static_bytes(model)}")
+    if size > MAX_MODEL_SIZE_BYTES:
+        header.unlink(missing_ok=True)
+        raise ValueError(f"{header.name}: {size} bytes exceeds MAX_MODEL_SIZE_BYTES = {MAX_MODEL_SIZE_BYTES}")
     return header, size, checked
 
 
@@ -1539,13 +2499,21 @@ def parity(hm: R.HeaderModel, model, rpl, groups, selected, task, k, header_cols
 
 
 # ============================================================================ selection, export, baselines
-def pick_trials(study, budgets):
+def pick_trials(study, budgets, task="tap"):
     """Performance first: candidates ordered by grouped-CV replay score inside the primary budget
-    (rank_01 = best), plus the best inside the smaller budget."""
+    (rank_01 = best), plus the best inside the smaller budget. TAP with a size ladder: rank_xx = the best trials by
+    their size-aware value, each at its own best size; budget_<kb>kb = the best raw CV score at any size."""
     done = [t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE and t.value is not None]
     if not done:
         raise RuntimeError("No completed trials")
     ranked = sorted(done, key=lambda t: t.value, reverse=True)
+    if task == "tap" and SIZE_LADDER_KB and len(budgets) > 2:
+        out = [(f"rank_{i + 1:02d}", ladder_choice(t.user_attrs, budgets)[0], t)
+               for i, t in enumerate(ranked[:max(1, TOP_K_PER_MODEL - 1)])]
+        raw = max(((t, b) for t in done for b in budgets), key=lambda tb: (tb[0].user_attrs[f"score_{tb[1]}"], -tb[1]))
+        if (raw[0].number, raw[1]) != (out[0][2].number, out[0][1]):
+            out.insert(1, (f"budget_{int(round(raw[1] / 1024))}kb", raw[1], raw[0]))
+        return out
     out = [("rank_01", budgets[0], ranked[0])]
     if len(budgets) > 1:
         alt = max(done, key=lambda t: t.user_attrs.get(f"score_{budgets[1]}", -1.0))
@@ -1595,6 +2563,13 @@ def export_candidates(data, rpl, task, stem, tr, te, picks, out: Path):
     y = data["y"]; cols = data["columns"]
     held = set(data["group"][te])
     every = np.arange(len(y))
+    if task == "tap" and TAP_OBS_MS is not None:              # observable labels inside the people each model trains on
+        tr = obs_rows(data, rpl, tr, "development", OBS_CACHE_DIR)
+        every = obs_rows(data, rpl, every, "everyone", OBS_CACHE_DIR)
+    soft_dev = soft_all = {}
+    if task == "tap" and TAP_DISTILL is not None:            # teachers inside the rows each model trains on
+        soft_dev = dict(target=distill_targets(data, tr, "development", DISTILL_CACHE_DIR))
+        soft_all = dict(target=distill_targets(data, every, "everyone", DISTILL_CACHE_DIR))
     me = sys.modules[__name__]
     ranking_dev = ranking_all = None
     if any(t.params["n_features"] < len(cols) for _, _, t in picks):
@@ -1611,7 +2586,7 @@ def export_candidates(data, rpl, task, stem, tr, te, picks, out: Path):
         params = trial.user_attrs["training_params"]; pw = float(trial.params["positive_weight"])
         subset = subset_for(trial, ranking_dev); ix = [cols.index(x) for x in subset]
         pre = fit_model(data["X"][np.ix_(tr, np.asarray(ix, np.intp))], y[tr], weights_for_task(data, tr, task, pw),
-                        params, budget)
+                        params, budget, shift=tap_shift(trial), **soft_dev)
         k_pre, _ = trees_within(pre, budget); pre = truncated(pre, k_pre)
         h_pre, b_pre, _ = write_header(pre, subset, stem, out / "_holdout_headers" / role, task, out)
         hm_cols = R.input_columns(subset); hm_ix = [cols.index(x) for x in hm_cols]   # + raw fields of helper calls
@@ -1634,7 +2609,8 @@ def export_candidates(data, rpl, task, stem, tr, te, picks, out: Path):
         params = trial.user_attrs["training_params"]; pw = float(trial.params["positive_weight"])
         subset = subset_for(trial, ranking_all); ix = [cols.index(x) for x in subset]
         folder = model_dir / "candidates" / role
-        final = fit_model(data["X"][:, ix], y, weights_for_task(data, every, task, pw), params, budget)
+        final = fit_model(data["X"][np.ix_(every, np.asarray(ix, np.intp))], y[every],
+                          weights_for_task(data, every, task, pw), params, budget, shift=tap_shift(trial), **soft_all)
         k_fin, _ = trees_within(final, budget); final = truncated(final, k_fin)
         header, size, checked = write_header(final, subset, stem, folder, task, out)
         if size > budget:
@@ -1644,6 +2620,8 @@ def export_candidates(data, rpl, task, stem, tr, te, picks, out: Path):
                     model_dir / (tag + ".pkl"), compress=3)
         report = dict(role=role, trial=trial.number, budget_bytes=budget, static_bytes=size, trees=k_fin,
                       params=params, positive_weight=pw, features=subset, n_features=len(subset),
+                      tap_logit_shift=tap_shift(trial),
+                      fitted_probability_at_085=float(1.0 / (1.0 + math.exp(-(math.log(0.85 / 0.15) + tap_shift(trial))))),
                       header=str(header.relative_to(out)), cv=trial.user_attrs["cv"].get(str(budget)),
                       holdout_c_header=pre_rep["holdout_c_header"],
                       holdout_c_header_steady_state=pre_rep["holdout_c_header_steady_state"],
@@ -1666,6 +2644,39 @@ def export_candidates(data, rpl, task, stem, tr, te, picks, out: Path):
     return rows
 
 
+def _lite_by_recording(data):
+    """(recording, positions of its training rows) for every recording with training rows."""
+    rec = data["rec"]; order = np.argsort(rec, kind="stable")
+    u, first = np.unique(rec[order], return_index=True); last = np.r_[first[1:], len(order)]
+    return [(int(r), order[a:b]) for r, a, b in zip(u, first, last)]
+
+
+def augment_lite(data, rpl, nominal_check=None):
+    """Lean-lite diff inputs of the augmented TAP training rows: per recording, the same placement draw as
+    TF.augment applied to the recording's whole WL history from its first row, then the Lean-lite emulator
+    (as researched; the inputs depend on ~10 s of history, so a per-row transform would be wrong)."""
+    t0 = time.perf_counter()
+    cols = data["columns"]; li = np.array([cols.index(c) for c in TF.LITE_COLUMNS])
+    if "row" not in data:
+        raise ValueError("Lean-lite augmentation needs the row index of each training row (rebuild the cache)")
+    d = TF.draws(len(rpl["recs"]), SEED)
+    starts = rpl["recs"].start.to_numpy(np.int64); ends = rpl["recs"].end.to_numpy(np.int64)
+    check = nominal_check is not None
+    for r, pos in _lite_by_recording(data):
+        a, b = int(starts[r]), int(ends[r])
+        Xr = np.asarray(rpl["X"][a:b]); fr = np.asarray(rpl["frames"][a:b]); rows = data["row"][pos]
+        if check:                                # the cache's nominal values are the emulator's (row mapping right)
+            first = pos[pos < len(nominal_check)]
+            if len(first):
+                want = TF.lite_rows(Xr, cols, fr)[data["row"][first]]
+                if not np.array_equal(want, nominal_check[first]):
+                    raise AssertionError(f"Lean-lite rows of recording {r} do not match the cache")
+                check = False
+        L = TF.lite_rows_placement(Xr, cols, fr, d["gain"][r], d["tilt"][r], d["noise"][r])
+        data["X"][np.ix_(pos, li)] = L[rows]
+    notice("UNIFIED_TAP_LITE_AUGMENTED", len(data["X"]), "rows", round(time.perf_counter() - t0, 1), "s")
+
+
 def stress_enabled(task) -> bool:
     """The placement stress transforms raw EMG fields (and derived TAP inputs); Lean fields would not follow."""
     return task == "tap" and LEAN8_MODE == "off"
@@ -1684,12 +2695,30 @@ def _replay_rec_of_row(rpl):
 
 class _StressView:
     """Replay rows after a simulated band move / contact change (TAP_GENERALIZATION_RESULTS.md 'placement': EMG gain
-    +-1 octave, tilt +-0.5 octave, contact noise 0.1..1.0; ACC unchanged), restricted to `sel` columns."""
-    def __init__(self, X, sel, columns, rec_of_row, draws):
+    +-1 octave, tilt +-0.5 octave, contact noise 0.1..1.0; ACC unchanged), restricted to `sel` columns.
+    Lean-lite diff columns are recomputed from the changed WL history of the whole recording (slices are inside
+    one recording: the replay reads per recording)."""
+    def __init__(self, X, sel, columns, rec_of_row, draws, recs=None, frames=None):
         self.X, self.sel, self.columns, self.rec, self.d = X, sel, columns, rec_of_row, draws
+        self.lite = ([columns.index(c) for c in TF.LITE_COLUMNS] if set(TF.LITE_COLUMNS) <= set(columns) else None)
+        if self.lite is not None and (recs is None or frames is None):
+            raise ValueError("Stressed Lean-lite inputs need the recordings table and frame counters")
+        self.recs, self.frames, self._last = recs, frames, (None, None)
+    def _lite(self, r):
+        if self._last[0] != r:
+            a, b = int(self.recs.start.iloc[r]), int(self.recs.end.iloc[r])
+            self._last = (r, TF.lite_rows_placement(np.asarray(self.X[a:b]), self.columns, np.asarray(self.frames[a:b]),
+                                                    self.d["gain"][r], self.d["tilt"][r], self.d["noise"][r]))
+        return self._last[1]
     def __getitem__(self, s):
         rows = np.asarray(self.X[s]); r = self.rec[s]
         Y = TF.apply_placement(rows, self.columns, self.d["gain"][r], self.d["tilt"][r], self.d["noise"][r])
+        if self.lite is not None and len(rows):
+            rr = int(r[0])
+            if not isinstance(s, slice) or (r != rr).any():
+                raise ValueError("Stressed Lean-lite rows must be read one recording slice at a time")
+            st = int(self.recs.start.iloc[rr]); a = s.start or 0
+            Y[:, self.lite] = self._lite(rr)[a - st:a - st + len(rows)]
         return Y[:, self.sel]
     def __len__(self):
         return len(self.X)
@@ -1698,7 +2727,8 @@ class _StressView:
 def stress_replay(hm, rpl, cols, sel, groups, task):
     if not stress_enabled(task):
         return None
-    view = _StressView(rpl["X"], sel, list(cols), _replay_rec_of_row(rpl), TF.stress_draws(len(rpl["recs"])))
+    view = _StressView(rpl["X"], sel, list(cols), _replay_rec_of_row(rpl), TF.stress_draws(len(rpl["recs"])),
+                       recs=rpl["recs"], frames=rpl["frames"])
     return header_replay(hm, dict(rpl, X=view), groups, task)
 
 
@@ -1977,7 +3007,7 @@ def write_run_manifest(out: Path, task, data, budgets, study):
         lscpu = subprocess.run(["lscpu"], text=True, capture_output=True, timeout=10).stdout
     except Exception:
         pass
-    fw = lean8.firmware_header() if USE_LEAN8 else (lite.HEADER if USE_LITE else None)
+    fw = lean8.firmware_header() if USE_LEAN8 else (lite.HEADER if (USE_LITE or TAP_LITE == "diff") else None)
     fp_file = out / "cache" / "fingerprint.json"
     write_json(out / "run_manifest.json", dict(
         written=time.strftime("%Y-%m-%dT%H:%M:%S%z"), task=task, commit=_git("rev-parse", "HEAD"),
@@ -1989,6 +3019,7 @@ def write_run_manifest(out: Path, task, data, budgets, study):
         memory_total=read("/proc/meminfo", "MemTotal"),
         disk_free_gb=round(shutil.disk_usage(out).free / 1e9, 1),
         hashes=dict(lean8_algorithm=lean8.GENERATOR_SHA if USE_LEAN8 else (lite.GENERATOR_SHA if USE_LITE else None),
+                    lean_lite_diff=dict(emulator=lite.DIFF_SHA, inputs=TF.LITE_VERSION) if TAP_LITE == "diff" else None,
                     firmware_header=sha256(fw) if fw else None, labeler=sha256(CLAUDE_LABELER),
                     cache_fingerprint=json.loads(fp_file.read_text()).get("fingerprint") if fp_file.is_file() else None,
                     data_content=data.get("content_sha256")),
@@ -2018,9 +3049,12 @@ def same_lean8_setting(saved) -> bool:
 
 
 def lean8_setting():
-    return dict(enabled=LEAN8_TAG, train_min_frames=TRAIN_MIN_FRAMES, eval_min_frames=EVAL_MIN_FRAMES,
-                steady_frames=LEAN8_STEADY_FRAMES,
-                generator_sha256=lite.GENERATOR_SHA if USE_LITE else lean8.GENERATOR_SHA)
+    out = dict(enabled=LEAN8_TAG, train_min_frames=TRAIN_MIN_FRAMES, eval_min_frames=EVAL_MIN_FRAMES,
+               steady_frames=LEAN8_STEADY_FRAMES,
+               generator_sha256=lite.GENERATOR_SHA if USE_LITE else lean8.GENERATOR_SHA)
+    if TAP_LITE == "diff":                       # the TAP model reads Lean-lite diff fields (firmware/lean_lite.h)
+        out["lean_lite_diff"] = dict(emulator_sha256=lite.DIFF_SHA, header_sha256=sha256(lite.HEADER))
+    return out
 
 
 def train_task(task: str, tap_files, lp_files):
@@ -2031,8 +3065,21 @@ def train_task(task: str, tap_files, lp_files):
     budgets = [b for b in (budget_bytes(MODEL_BUDGET_KB), budget_bytes(ALT_BUDGET_KB)) if b]
     if len(budgets) == 2 and budgets[1] >= budgets[0]:
         budgets = budgets[:1]
+    if task == "tap" and SIZE_LADDER_KB:          # largest first: every trial is fitted at it (fit_cap)
+        budgets = [budget_bytes(kb) for kb in sorted(SIZE_LADDER_KB, reverse=True)]
+    records, duplicates = dedupe_records(selected_sources(task, tap_files, lp_files))
+    identity = record_identity(records)
+    notice("UNIFIED_DATA_IDENTITY", task, identity["sha256"][:16], identity["recordings"], "recordings",
+           len(duplicates), "duplicates left out")
     if summary_file.is_file():
         saved = json.loads(summary_file.read_text())
+        stored = saved.get("data_identity")
+        if stored and (out / "data_identity.json").is_file():
+            stored = json.loads((out / "data_identity.json").read_text())   # with the file list (names the changes)
+        changed = identity_changes(stored, identity)
+        if saved.get("status") == "success" and changed:
+            raise ValueError("Existing output was trained on other data: " + "; ".join(changed) +
+                             ". Move it away to train on the current recordings/labels: " + str(out))
         if (saved.get("status") == "success" and saved.get("fixed_threshold") == task_threshold(task)
                 and saved.get("budgets") == budgets and same_lean8_setting(saved.get("lean8"))
                 and saved.get("experiment") == EXPERIMENT
@@ -2044,28 +3091,72 @@ def train_task(task: str, tap_files, lp_files):
         raise ValueError("Existing output does not match this configuration (threshold, budgets, frame gates, "
                          "TAP target or soft labels changed); move it away to start a new experiment: " + str(out))
     out.mkdir(parents=True, exist_ok=True)
-    data, rpl, info = build_task_data(task, selected_sources(task, tap_files, lp_files), out)
+    data, rpl, info = build_task_data(task, records, out)
+    stage(f"{task}_data")
+    info["duplicate_recordings_left_out"] = len(duplicates)
+    if SPLIT_BY == "file":
+        group_by_file(data, rpl)
+        notice("UNIFIED_SPLIT_BY_FILE", task, len(set(data["group"])), "files as groups,",
+               len(set(data["person"])), "people (the same person can be on both sides)")
     if task == "tap" and TAP_AUG == "mild":
         # Training rows only (CV, rankings and final models train on them); every replay / held-out score uses
         # the real recordings. Deterministic: the same draw per recording on every run and resume.
         t_aug = time.perf_counter()
+        if TAP_OBS_MS is not None or TAP_DISTILL is not None:   # their teachers read the real (nominal) rows
+            data["X_nominal"] = data["X"].copy()
+        nominal_lite = None
+        if TAP_LITE == "diff":                  # kept for the check below
+            nominal_lite = data["X"][:2000, [data["columns"].index(c) for c in TF.LITE_COLUMNS]].copy()
         data["X"] = TF.augment(data["X"], data["columns"], data["rec"], len(rpl["recs"]), SEED)
+        if TAP_LITE == "diff":
+            augment_lite(data, rpl, nominal_lite)
         # The training data differs from the cache files: the study guard and the ranking cache must see that.
         data["content_sha256"] = hashlib.sha256((data["content_sha256"] + "|tap_aug=mild|" + TF.VERSION).encode()).hexdigest()
         notice("UNIFIED_TAP_AUGMENTED", "mild placement", len(data["X"]), "rows", round(time.perf_counter() - t_aug, 1), "s")
+    if task == "tap" and TAP_OBS_MS is not None:
+        import inspect
+        data["obs_content_sha256"] = data["content_sha256"]
+        obs_ver = hashlib.sha256((inspect.getsource(obs_select) + inspect.getsource(_obs_owner) +
+                                  inspect.getsource(obs_rows) + json.dumps(OBS_TEACHER, sort_keys=True)).encode()).hexdigest()
+        data["content_sha256"] = hashlib.sha256((data["content_sha256"] + f"|tap_obs={TAP_OBS_MS}|" + obs_ver).encode()).hexdigest()
+        global OBS_CACHE_DIR
+        OBS_CACHE_DIR = out / "cache" / "obs"
+    if task == "tap" and TAP_FINGER_WEIGHT != 1.0:           # rankings and studies are fitted with these weights
+        data["content_sha256"] = hashlib.sha256((data["content_sha256"] + f"|tap_finger_weight={TAP_FINGER_WEIGHT}").encode()).hexdigest()
+    if task == "tap" and TAP_FIST_WEIGHT != 1.0:
+        data["is_fist"] = fist_rows(data)
+        data["content_sha256"] = hashlib.sha256((data["content_sha256"] + f"|tap_fist_weight={TAP_FIST_WEIGHT}").encode()).hexdigest()
+    if task == "tap" and TAP_DISTILL is not None:
+        import inspect
+        data["distill_content_sha256"] = data["content_sha256"]
+        d_ver = hashlib.sha256((inspect.getsource(distill_targets) + inspect.getsource(soft_rows) +
+                                json.dumps(OBS_TEACHER, sort_keys=True)).encode()).hexdigest()
+        data["content_sha256"] = hashlib.sha256((data["content_sha256"] + f"|tap_distill={TAP_DISTILL}|" + d_ver).encode()).hexdigest()
+        global DISTILL_CACHE_DIR
+        DISTILL_CACHE_DIR = out / "cache" / "distill"
     tr, te = split_heldout(data, task)
     notice("UNIFIED_TRAIN_BEGIN", json.dumps({
-        "task": task, "subjects": len(set(data["group"])), "train_rows": len(tr), "holdout_rows": len(te),
+        "task": task, "split_by": SPLIT_BY, "subjects": len(set(data["group"])), "train_rows": len(tr), "holdout_rows": len(te),
         "holdout_people": sorted(set(data["group"][te])), "budgets_bytes": budgets,
         "class_one": definition["class_one"], "fixed_threshold": task_threshold(task)}))
-    write_json(out / "split.json", dict(train_groups=sorted(set(data["group"][tr])),
-                                         heldout_groups=sorted(set(data["group"][te])), seed=SEED + int(task == "lp")))
+    split_info = dict(train_groups=sorted(set(data["group"][tr])), heldout_groups=sorted(set(data["group"][te])),
+                      seed=SEED + int(task == "lp"))
+    if "stratum" in data:                        # gesture-aware file split: files per type on each side
+        split_info["strata"] = strata_balance(data, tr, te)
+        n_tr, n_te = len(split_info["train_groups"]), len(split_info["heldout_groups"])
+        notice("UNIFIED_SPLIT_GESTURES", task, len(split_info["strata"]), "recording types,", n_tr, "training /",
+               n_te, "held-out files; per folder:",
+               json.dumps({f_: [sum(v[0] for k, v in split_info["strata"].items() if k.split("|")[0] == f_),
+                                sum(v[1] for k, v in split_info["strata"].items() if k.split("|")[0] == f_)]
+                           for f_ in sorted({k.split("|")[0] for k in split_info["strata"]})}))
+    write_json(out / "split.json", split_info)
     global FS_CACHE_DIR
     FS_CACHE_DIR = out / "feature_selection" / "cache"
     target_info = None
     if task == "tap":
         R.TAP_FALSE_PER_MIN_TARGET, target_info = resolve_tap_target(data, rpl, tr, out)
         notice("UNIFIED_TAP_TARGET", json.dumps({k: v for k, v in target_info.items() if k != "per_folder"}))
+        notice("UNIFIED_TAP_LOGIT_SHIFT", json.dumps({"range": list(TAP_LOGIT_SHIFT) if TAP_LOGIT_SHIFT else None}))
     db = out / "optuna_study.sqlite3"
     backup = backup_study_db(db, out)
     global TIMING_LOG
@@ -2084,12 +3175,30 @@ def train_task(task: str, tap_files, lp_files):
         pw0 = LP_ANCHOR_POSITIVE_WEIGHT if task == "lp" else 1.0
         # Both anchors are the all-feature control (K = every available field).
         fsel = dict(n_features=min(len(data["columns"]), EXPORT_MAX_FEATURES))
-        study.enqueue_trial(dict(**fsel, positive_weight=pw0, max_depth=6, num_leaves=15,
-                                 n_estimators=160, learning_rate=0.1, min_child_samples=100, reg_lambda=1.0,
-                                 reg_alpha=1e-3, colsample_bytree=0.8, subsample=0.8))
-        study.enqueue_trial(dict(**fsel, positive_weight=pw0, max_depth=10, num_leaves=63,
-                                 n_estimators=200, learning_rate=0.2, min_child_samples=50, reg_lambda=1.0,
-                                 reg_alpha=1e-3, colsample_bytree=0.7, subsample=0.8))
+        if task == "tap" and TAP_LOGIT_SHIFT:
+            fsel["tap_logit_shift"] = (anchor_shift_movement(TAP_MOVEMENT_LIMIT) if TAP_OBJECTIVE == "balanced"
+                                       else anchor_shift(R.TAP_FALSE_PER_MIN_TARGET))
+        n_anchor = N_ESTIMATORS[1] if task == "tap" and SIZE_LADDER_KB else None   # fill the largest ladder size
+        if NUM_LEAVES == (8, 127):
+            study.enqueue_trial(dict(**fsel, positive_weight=pw0, max_depth=6, num_leaves=15,
+                                     n_estimators=160, learning_rate=0.1, min_child_samples=100, reg_lambda=1.0,
+                                     reg_alpha=1e-3, colsample_bytree=0.8, subsample=0.8))
+            study.enqueue_trial(dict(**fsel, positive_weight=pw0, max_depth=10, num_leaves=63,
+                                     n_estimators=200, learning_rate=0.2, min_child_samples=50, reg_lambda=1.0,
+                                     reg_alpha=1e-3, colsample_bytree=0.7, subsample=0.8))
+        else:                                    # small-tree range: anchors inside it
+            clip = lambda v: int(min(max(v, NUM_LEAVES[0]), NUM_LEAVES[1]))
+            # the researched reference (TAP_FOCUS_RESULTS.md, 14 KB / 7 leaves: 400 trees fitted, trimmed to the budget)
+            study.enqueue_trial(dict(**fsel, positive_weight=pw0, max_depth=8, num_leaves=clip(7),
+                                     n_estimators=n_anchor or 400, learning_rate=0.1, min_child_samples=100,
+                                     reg_lambda=1.0, reg_alpha=1e-3, colsample_bytree=0.7, subsample=0.8))
+            study.enqueue_trial(dict(**fsel, positive_weight=pw0, max_depth=10, num_leaves=clip(15),
+                                     n_estimators=200, learning_rate=0.2, min_child_samples=50, reg_lambda=1.0,
+                                     reg_alpha=1e-3, colsample_bytree=0.7, subsample=0.8))
+            if n_anchor:                         # the researched 32-128 KB setting (TAP_FILESPLIT_RESULTS.md)
+                study.enqueue_trial(dict(**fsel, positive_weight=pw0, max_depth=8, num_leaves=clip(15),
+                                         n_estimators=n_anchor, learning_rate=0.1, min_child_samples=100,
+                                         reg_lambda=1.0, reg_alpha=1e-3, colsample_bytree=0.7, subsample=0.8))
     optuna.logging.set_verbosity(optuna.logging.WARNING)
     for t in study.trials:                      # trials run one at a time: a RUNNING trial here died with a crash
         if t.state == optuna.trial.TrialState.RUNNING:
@@ -2100,23 +3209,36 @@ def train_task(task: str, tap_files, lp_files):
     while finished() < TRIALS_PER_MODEL:
         def fn(trial):
             z = objective(trial, data, rpl, tr, task, budgets)
-            c = trial.user_attrs["cv"][str(budgets[0])]
+            b_ = trial.user_attrs.get("ladder_budget", budgets[0])     # TAP with a ladder: the trial's best size
+            c = trial.user_attrs["cv"][str(b_)]
+            bal = c.get("balanced") if task == "tap" and TAP_OBJECTIVE == "balanced" else None
             notice("UNIFIED_TRIAL", json.dumps({"task": task, "trial": trial.number, "score": round(z, 4),
                    **({"recall": round(c["recall"], 4), "false_per_min": round(c["false_per_min"], 3)} if task == "tap" else
                       {"hold_kept": round(c["hold_kept"], 4), "timely_release": round(c["timely_release"], 4),
                        "tap_released": c["tap_released"]}),
-                   "bytes": trial.user_attrs[f"max_bytes_{budgets[0]}"], "seconds": trial.user_attrs["seconds"],
+                   **({"mean_kind_recall": round(bal["mean_recall"], 4), "worst_movement": bal["worst_movement"],
+                       "worst_false_per_min": round(bal["worst_false_per_min"], 2),
+                       "recall_by_kind": bal["recall_by_kind"], "false_per_min_by_kind": bal["false_per_min_by_kind"]}
+                      if bal else {}),
+                   **({"kb": round(trial.user_attrs[f"max_bytes_{b_}"] / 1024, 1),
+                       "cv_score_at_kb": round(trial.user_attrs[f"score_{b_}"], 4)} if "ladder_budget" in trial.user_attrs else {}),
+                   "bytes": trial.user_attrs[f"max_bytes_{b_}"], "seconds": trial.user_attrs["seconds"],
                    "leaves": trial.user_attrs["training_params"]["num_leaves"],
                    "K": trial.user_attrs["n_features"],
-                   "depth": trial.user_attrs["training_params"]["max_depth"]}))
+                   "depth": trial.user_attrs["training_params"]["max_depth"],
+                   "positive_weight": round(float(trial.params["positive_weight"]), 4),
+                   **({"logit_shift": round(tap_shift(trial), 3)} if task == "tap" and TAP_LOGIT_SHIFT else {})}))
             return z
         study.optimize(fn, n_trials=1, n_jobs=1, show_progress_bar=False, catch=())
-    picks = pick_trials(study, budgets)
+    stage(f"{task}_search")
+    picks = pick_trials(study, budgets, task)
     candidates = export_candidates(data, rpl, task, stem, tr, te, picks, out)
+    stage(f"{task}_heldout_and_final_export")
     default, skipped = promote(out, stem, candidates, budgets)
     for c in candidates:
         c["default"] = c is default
     baselines = replay_baselines(task, data, rpl, te, out)
+    stage(f"{task}_baselines")
     fs_report = write_fs_reports(out, task, data, study, candidates, default)
     table = comparison_table(task, candidates, baselines)
     (out / "COMPARISON.md").write_text(f"# {task}: held-out people, replayed through the C headers\n\n" + table)
@@ -2133,7 +3255,16 @@ def train_task(task: str, tap_files, lp_files):
                    baselines=baselines, experiment=EXPERIMENT, tap_target=target_info, feature_selection=fs_report,
                    tap_soft_labels=TAP_SOFT_MIN_SCORE if task == "tap" else None,
                    tap_generalization=(dict(features=TAP_FEATURES, augmentation=TAP_AUG, derived_inputs=len(TF.DERIVED)
-                                            if TAP_FEATURES == "diff" else 0) if task == "tap" else None),
+                                            if TAP_FEATURES == "diff" else 0, lean_lite_diff=TAP_LITE,
+                                            lean_lite_inputs=len(TF.LITE_COLUMNS) if TAP_LITE == "diff" else 0,
+                                            labels=TAP_LABELS, observable_ms=TAP_OBS_MS, distill_label_weight=TAP_DISTILL,
+                                            tap_window=TAP_WINDOW, tap_top_version=TT.VERSION if TAP_WINDOW in ("top", "mid") else None,
+                                            tap_signal_version=TSIG.VERSION if TAP_SIGNAL else None,
+                                            tap_signal_preset=TAP_SIGNAL_PRESET if TAP_SIGNAL else None,
+                                            label_teacher=LABEL_TEACHER,
+                                            finger_weight=TAP_FINGER_WEIGHT, recipe=TAP_RECIPE or None,
+                                            num_leaves=list(NUM_LEAVES)) if task == "tap" else None),
+                   data_identity={k: identity[k] for k in ("sha256", "recordings", "events")},
                    acceptance=acceptance(task, candidates, baselines),
                    trials=len(done), pruned=len([t for t in study.trials if t.state == optuna.trial.TrialState.PRUNED]),
                    dataset=dict(train_rows=int(len(data["y"])), replay_rows=int(len(rpl["X"])),
@@ -2141,6 +3272,7 @@ def train_task(task: str, tap_files, lp_files):
                    cv_objective=definition["metric"],
                    replay_rules={k: getattr(R, k) for k in dir(R) if k.startswith(("TAP_", "LP_"))},
                    note="No production firmware overwrite; silver labels; LP class 1 is RELEASE.")
+    write_json(out / "data_identity.json", identity)        # every recording and label file by content hash
     write_json(summary_file, summary)
     notice("UNIFIED_TRAIN_END", json.dumps({"task": task, "header": str(out / "models" / (stem + ".h")),
                                             "bytes": default["static_bytes"]}))
@@ -2158,8 +3290,10 @@ def main():
     generator = lite if USE_LITE else lean8      # also when no Lean inputs are used: the frame gates need it
     lean8_manifest = generator.ensure_datasets([(RAW_SOURCE_TAP, SOURCE_TAP), (RAW_SOURCE_LP, SOURCE_LP)],
                                                workers=CPU_THREADS)
+    stage("lean_features")
     files_t = ensure_labels(RAW_SOURCE_TAP, LABEL_TAP)
     files_l = ensure_labels(RAW_SOURCE_LP, LABEL_LP)
+    stage("labels")
     done_ = {task: train_task(task, files_t, files_l) for task in ("tap", "lp") if task in TASKS_TO_RUN}
     a, b = done_.get("tap"), done_.get("lp")
     write_json(OUTPUT / "UNIFIED_SUMMARY.json",

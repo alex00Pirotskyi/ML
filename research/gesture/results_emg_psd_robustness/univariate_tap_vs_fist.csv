@@ -1,0 +1,733 @@
+family,name,auc_fist,eta_fist
+abs,p_core->emg_psd[0][CH1][0],0.52991415375,0.25531060773234027
+abs,p_core->emg_psd[0][CH1][1],0.601428038125,0.1766562489128144
+abs,p_core->emg_psd[0][CH1][2],0.6437904459375,0.17674400137132218
+abs,p_core->emg_psd[0][CH1][3],0.638474919375,0.19538950683156345
+abs,p_core->emg_psd[0][CH1][4],0.609084826875,0.19937668171309564
+abs,p_core->emg_psd[0][CH2][0],0.653277856875,0.3968531265380404
+abs,p_core->emg_psd[0][CH2][1],0.555908855,0.2594131301899914
+abs,p_core->emg_psd[0][CH2][2],0.5140090453125,0.20318569304699294
+abs,p_core->emg_psd[0][CH2][3],0.50596620625,0.2063062440601514
+abs,p_core->emg_psd[0][CH2][4],0.5677044634374999,0.30637935471102645
+abs,p_core->emg_psd[0][CH3][0],0.70373911125,0.43930895330280423
+abs,p_core->emg_psd[0][CH3][1],0.6238599778125,0.35664601274186464
+abs,p_core->emg_psd[0][CH3][2],0.5889533625000001,0.33348155554692005
+abs,p_core->emg_psd[0][CH3][3],0.5915168396875,0.34568886066967447
+abs,p_core->emg_psd[0][CH3][4],0.6470315534375,0.386547554188713
+abs,p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0],0.769722215625,0.248148269174476
+abs,p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][1],0.7429719071875001,0.16603605526534626
+abs,p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][2],0.724685143125,0.16449451051503744
+abs,p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3],0.721165648125,0.1831823192372352
+abs,p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][4],0.7443454790624999,0.1862184282640959
+abs,p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][0],0.830278694375,0.3862195158390298
+abs,p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][1],0.7865075321875,0.2489862342671643
+abs,p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][2],0.7591410084375,0.19279787418633862
+abs,p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][3],0.7581274878125,0.1974344286944608
+abs,p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][4],0.7951633140625,0.294779002967284
+abs,p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][0],0.814281550625,0.429937092676032
+abs,p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][1],0.75828958875,0.35106791787047015
+abs,p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][2],0.7168513412499999,0.32524072278780897
+abs,p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][3],0.7086819693749999,0.34003470861059776
+abs,p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][4],0.767975750625,0.37789003832896034
+abs,p_core->emg_psd_mean[CH1][0],0.72942398875,0.37301219722873613
+abs,p_core->emg_psd_mean[CH1][1],0.6922453328125,0.27291701470505847
+abs,p_core->emg_psd_mean[CH1][2],0.6569940359374999,0.2770006493550596
+abs,p_core->emg_psd_mean[CH1][3],0.646584831875,0.30401354729230284
+abs,p_core->emg_psd_mean[CH1][4],0.6967616140624999,0.2948342303185149
+abs,p_core->emg_psd_mean[CH2][0],0.8124534603125,0.5053145215451165
+abs,p_core->emg_psd_mean[CH2][1],0.7679535615624999,0.3542636070062875
+abs,p_core->emg_psd_mean[CH2][2],0.7317830871875,0.2859013258667881
+abs,p_core->emg_psd_mean[CH2][3],0.7291748071874999,0.29205290979370063
+abs,p_core->emg_psd_mean[CH2][4],0.773970660625,0.3990315238236452
+abs,p_core->emg_psd_mean[CH3][0],0.8326889521875,0.5698050389303693
+abs,p_core->emg_psd_mean[CH3][1],0.786929240625,0.4862800108528266
+abs,p_core->emg_psd_mean[CH3][2],0.7531195446875,0.46049169878958446
+abs,p_core->emg_psd_mean[CH3][3],0.74653610625,0.4765020092123746
+abs,p_core->emg_psd_mean[CH3][4],0.7939577121875,0.5080444815833243
+tdiff,"p_core->diff(p_core->emg_psd[0][CH1][0], p_core->emg_psd_mean[CH1][0])",0.72626201,0.0017481917545912643
+tdiff,"p_core->diff(p_core->emg_psd[0][CH1][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0])",0.6825124025,0.0019419332591828797
+tdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0], p_core->emg_psd_mean[CH1][0])",0.555684996875,0.0015872047634690675
+tdiff,"p_core->diff(p_core->emg_psd[0][CH1][1], p_core->emg_psd_mean[CH1][1])",0.77521637125,0.00149516551701787
+tdiff,"p_core->diff(p_core->emg_psd[0][CH1][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][1])",0.7248190965625,0.0020494035163008324
+tdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][1], p_core->emg_psd_mean[CH1][1])",0.578764364375,0.0023059517514558985
+tdiff,"p_core->diff(p_core->emg_psd[0][CH1][2], p_core->emg_psd_mean[CH1][2])",0.7921354175,0.0016601164210766804
+tdiff,"p_core->diff(p_core->emg_psd[0][CH1][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][2])",0.740259501875,0.0019581931685762563
+tdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][2], p_core->emg_psd_mean[CH1][2])",0.5904522596874999,0.0018678236730883331
+tdiff,"p_core->diff(p_core->emg_psd[0][CH1][3], p_core->emg_psd_mean[CH1][3])",0.78195139,0.001663285250222833
+tdiff,"p_core->diff(p_core->emg_psd[0][CH1][3], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3])",0.7280902871875,0.0019856934676702
+tdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3], p_core->emg_psd_mean[CH1][3])",0.5821785746875,0.0018344823249811777
+tdiff,"p_core->diff(p_core->emg_psd[0][CH1][4], p_core->emg_psd_mean[CH1][4])",0.7927555546875,0.001710242605148426
+tdiff,"p_core->diff(p_core->emg_psd[0][CH1][4], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][4])",0.7397848834375,0.002110148749500623
+tdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][4], p_core->emg_psd_mean[CH1][4])",0.5890865990625,0.0020030881229301874
+tdiff,"p_core->diff(p_core->emg_psd[0][CH2][0], p_core->emg_psd_mean[CH2][0])",0.6565112740625,0.0015018061404675515
+tdiff,"p_core->diff(p_core->emg_psd[0][CH2][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][0])",0.62837177875,0.0017625202758911013
+tdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][0], p_core->emg_psd_mean[CH2][0])",0.554396044375,0.001873426330662909
+tdiff,"p_core->diff(p_core->emg_psd[0][CH2][1], p_core->emg_psd_mean[CH2][1])",0.719000094375,0.0014033238534300746
+tdiff,"p_core->diff(p_core->emg_psd[0][CH2][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][1])",0.6769289975,0.0016117941588775987
+tdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][1], p_core->emg_psd_mean[CH2][1])",0.5819914749999999,0.0015990123787281458
+tdiff,"p_core->diff(p_core->emg_psd[0][CH2][2], p_core->emg_psd_mean[CH2][2])",0.740108505625,0.0014813090253869578
+tdiff,"p_core->diff(p_core->emg_psd[0][CH2][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][2])",0.6933742121875,0.001906476471621403
+tdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][2], p_core->emg_psd_mean[CH2][2])",0.5927253378124999,0.0017542594733601434
+tdiff,"p_core->diff(p_core->emg_psd[0][CH2][3], p_core->emg_psd_mean[CH2][3])",0.7232867234375,0.0014253909051978354
+tdiff,"p_core->diff(p_core->emg_psd[0][CH2][3], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][3])",0.6747863353125,0.0016064177973600029
+tdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][3], p_core->emg_psd_mean[CH2][3])",0.58004616625,0.0014022764880005025
+tdiff,"p_core->diff(p_core->emg_psd[0][CH2][4], p_core->emg_psd_mean[CH2][4])",0.736236974375,0.001593426704947542
+tdiff,"p_core->diff(p_core->emg_psd[0][CH2][4], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][4])",0.6926371878125,0.0018805240401937964
+tdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][4], p_core->emg_psd_mean[CH2][4])",0.596817885,0.0017818983983632864
+tdiff,"p_core->diff(p_core->emg_psd[0][CH3][0], p_core->emg_psd_mean[CH3][0])",0.611241329375,0.0013942554984939402
+tdiff,"p_core->diff(p_core->emg_psd[0][CH3][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][0])",0.5827524809375,0.0015115901548488453
+tdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][0], p_core->emg_psd_mean[CH3][0])",0.5165020690625,0.001743145536982429
+tdiff,"p_core->diff(p_core->emg_psd[0][CH3][1], p_core->emg_psd_mean[CH3][1])",0.64140320125,0.0018375012361492036
+tdiff,"p_core->diff(p_core->emg_psd[0][CH3][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][1])",0.6040626165625,0.0019005776259681908
+tdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][1], p_core->emg_psd_mean[CH3][1])",0.5226719818750001,0.0017597628739784309
+tdiff,"p_core->diff(p_core->emg_psd[0][CH3][2], p_core->emg_psd_mean[CH3][2])",0.6375434915625,0.0019866779100439344
+tdiff,"p_core->diff(p_core->emg_psd[0][CH3][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][2])",0.59866896875,0.00218380309560045
+tdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][2], p_core->emg_psd_mean[CH3][2])",0.518347145,0.0018545982925200566
+tdiff,"p_core->diff(p_core->emg_psd[0][CH3][3], p_core->emg_psd_mean[CH3][3])",0.626759771875,0.0018774304569983847
+tdiff,"p_core->diff(p_core->emg_psd[0][CH3][3], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][3])",0.586337413125,0.002199198769146243
+tdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][3], p_core->emg_psd_mean[CH3][3])",0.5065971756250001,0.0018588074149224814
+tdiff,"p_core->diff(p_core->emg_psd[0][CH3][4], p_core->emg_psd_mean[CH3][4])",0.64399318125,0.0017319045876229126
+tdiff,"p_core->diff(p_core->emg_psd[0][CH3][4], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][4])",0.6079479184375,0.0017525756729917124
+tdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][4], p_core->emg_psd_mean[CH3][4])",0.5329872778125,0.0016977031633524627
+zdiff,"p_core->diff(p_core->emg_psd[0][CH1][0], p_core->emg_psd[0][CH1][1])",0.6657272865625,0.24527254978931534
+zdiff,"p_core->diff(p_core->emg_psd[0][CH1][0], p_core->emg_psd[0][CH1][2])",0.6862609275,0.26909891263890573
+zdiff,"p_core->diff(p_core->emg_psd[0][CH1][0], p_core->emg_psd[0][CH1][3])",0.6225179387499999,0.26938145916892464
+zdiff,"p_core->diff(p_core->emg_psd[0][CH1][0], p_core->emg_psd[0][CH1][4])",0.7199289996875,0.25705824415487155
+zdiff,"p_core->diff(p_core->emg_psd[0][CH1][1], p_core->emg_psd[0][CH1][2])",0.5828557646875,0.08748073347882042
+zdiff,"p_core->diff(p_core->emg_psd[0][CH1][1], p_core->emg_psd[0][CH1][3])",0.5051374153125,0.11541415688403926
+zdiff,"p_core->diff(p_core->emg_psd[0][CH1][1], p_core->emg_psd[0][CH1][4])",0.560516424375,0.1182612124283669
+zdiff,"p_core->diff(p_core->emg_psd[0][CH1][2], p_core->emg_psd[0][CH1][3])",0.5913478440625,0.08495504356153372
+zdiff,"p_core->diff(p_core->emg_psd[0][CH1][2], p_core->emg_psd[0][CH1][4])",0.5227452290625,0.1972550158559982
+zdiff,"p_core->diff(p_core->emg_psd[0][CH1][3], p_core->emg_psd[0][CH1][4])",0.5588459803125,0.17842839379911649
+zdiff,"p_core->diff(p_core->emg_psd[0][CH2][0], p_core->emg_psd[0][CH2][1])",0.771274174375,0.34347857462667
+zdiff,"p_core->diff(p_core->emg_psd[0][CH2][0], p_core->emg_psd[0][CH2][2])",0.792401259375,0.419687080889407
+zdiff,"p_core->diff(p_core->emg_psd[0][CH2][0], p_core->emg_psd[0][CH2][3])",0.751856371875,0.4388042990648648
+zdiff,"p_core->diff(p_core->emg_psd[0][CH2][0], p_core->emg_psd[0][CH2][4])",0.8082176168749999,0.35959424435062637
+zdiff,"p_core->diff(p_core->emg_psd[0][CH2][1], p_core->emg_psd[0][CH2][2])",0.658119498125,0.19947038838011397
+zdiff,"p_core->diff(p_core->emg_psd[0][CH2][1], p_core->emg_psd[0][CH2][3])",0.6048579284375,0.2483708509405538
+zdiff,"p_core->diff(p_core->emg_psd[0][CH2][1], p_core->emg_psd[0][CH2][4])",0.5473878925,0.19842332688862555
+zdiff,"p_core->diff(p_core->emg_psd[0][CH2][2], p_core->emg_psd[0][CH2][3])",0.52246096375,0.09348645221243118
+zdiff,"p_core->diff(p_core->emg_psd[0][CH2][2], p_core->emg_psd[0][CH2][4])",0.6709781128125,0.3770960777061149
+zdiff,"p_core->diff(p_core->emg_psd[0][CH2][3], p_core->emg_psd[0][CH2][4])",0.60646003,0.3591599769015781
+zdiff,"p_core->diff(p_core->emg_psd[0][CH3][0], p_core->emg_psd[0][CH3][1])",0.7185120659374999,0.3059707675279169
+zdiff,"p_core->diff(p_core->emg_psd[0][CH3][0], p_core->emg_psd[0][CH3][2])",0.7175360428124999,0.34399270934734344
+zdiff,"p_core->diff(p_core->emg_psd[0][CH3][0], p_core->emg_psd[0][CH3][3])",0.7174584259375,0.37349638736965074
+zdiff,"p_core->diff(p_core->emg_psd[0][CH3][0], p_core->emg_psd[0][CH3][4])",0.7092799546874999,0.36953534594021564
+zdiff,"p_core->diff(p_core->emg_psd[0][CH3][1], p_core->emg_psd[0][CH3][2])",0.59669732,0.12619032911785322
+zdiff,"p_core->diff(p_core->emg_psd[0][CH3][1], p_core->emg_psd[0][CH3][3])",0.6130067775,0.20169786984395077
+zdiff,"p_core->diff(p_core->emg_psd[0][CH3][1], p_core->emg_psd[0][CH3][4])",0.63304844,0.1820254830589328
+zdiff,"p_core->diff(p_core->emg_psd[0][CH3][2], p_core->emg_psd[0][CH3][3])",0.5589743415624999,0.1375926961961102
+zdiff,"p_core->diff(p_core->emg_psd[0][CH3][2], p_core->emg_psd[0][CH3][4])",0.6809329178125,0.27039199316267537
+zdiff,"p_core->diff(p_core->emg_psd[0][CH3][3], p_core->emg_psd[0][CH3][4])",0.6622005646875,0.30346676724190585
+zdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][1])",0.51939964875,0.2432987076829439
+zdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][2])",0.5761978671875,0.26749996697657624
+zdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3])",0.695012008125,0.26492058798560186
+zdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][4])",0.5341340728125,0.2502753685075381
+zdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][2])",0.5962582187500001,0.08971107972685204
+zdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3])",0.715311910625,0.11196375668803138
+zdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][4])",0.6365746384375,0.11487940233075931
+zdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3])",0.6875242912499999,0.07990340088000435
+zdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][4])",0.7322014878125,0.19426212428029344
+zdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][4])",0.7547027628125,0.16789781827468997
+zdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][1])",0.696186784375,0.3465389937050933
+zdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][2])",0.7361559,0.4184198973245753
+zdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][3])",0.7977144475,0.43434306320348515
+zdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][4])",0.6589425531249999,0.36095677323501596
+zdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][2])",0.6742583334375001,0.1984790138668771
+zdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][3])",0.765918896875,0.24508970470911826
+zdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][4])",0.7116796871875,0.1989590729668176
+zdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][3])",0.7140003253125,0.08439624019891609
+zdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][4])",0.797256196875,0.3729166773483324
+zdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][3], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][4])",0.8072425940625,0.3520986799173918
+zdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][1])",0.68451096625,0.2950726213134118
+zdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][2])",0.7188757334375,0.34026091237211753
+zdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][3])",0.778014989375,0.36914251764350453
+zdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][4])",0.6477707609375001,0.3588942869590636
+zdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][2])",0.6534359196874999,0.13255678662206347
+zdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][3])",0.74108854125,0.2048845472407624
+zdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][4])",0.67954979875,0.17252267810729505
+zdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][3])",0.6790981775,0.13298277864305127
+zdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][4])",0.7810328075,0.27211507697042614
+zdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][3], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][4])",0.7893256878125,0.3012648686917411
+zdiff,"p_core->diff(p_core->emg_psd_mean[CH1][0], p_core->emg_psd_mean[CH1][1])",0.5784841003125001,0.4152929974153943
+zdiff,"p_core->diff(p_core->emg_psd_mean[CH1][0], p_core->emg_psd_mean[CH1][2])",0.6343745765625,0.4380756572819834
+zdiff,"p_core->diff(p_core->emg_psd_mean[CH1][0], p_core->emg_psd_mean[CH1][3])",0.7131945171875,0.4176819811535979
+zdiff,"p_core->diff(p_core->emg_psd_mean[CH1][0], p_core->emg_psd_mean[CH1][4])",0.5462123465625,0.4176013372898998
+zdiff,"p_core->diff(p_core->emg_psd_mean[CH1][1], p_core->emg_psd_mean[CH1][2])",0.6268778903125001,0.17645729059571524
+zdiff,"p_core->diff(p_core->emg_psd_mean[CH1][1], p_core->emg_psd_mean[CH1][3])",0.696111685625,0.20694482312556992
+zdiff,"p_core->diff(p_core->emg_psd_mean[CH1][1], p_core->emg_psd_mean[CH1][4])",0.622746316875,0.21841575564234872
+zdiff,"p_core->diff(p_core->emg_psd_mean[CH1][2], p_core->emg_psd_mean[CH1][3])",0.6428335334374999,0.16365857123593605
+zdiff,"p_core->diff(p_core->emg_psd_mean[CH1][2], p_core->emg_psd_mean[CH1][4])",0.7277326553125,0.3284156206111322
+zdiff,"p_core->diff(p_core->emg_psd_mean[CH1][3], p_core->emg_psd_mean[CH1][4])",0.7238153290625,0.2769993046741196
+zdiff,"p_core->diff(p_core->emg_psd_mean[CH2][0], p_core->emg_psd_mean[CH2][1])",0.765027041875,0.5238838503727885
+zdiff,"p_core->diff(p_core->emg_psd_mean[CH2][0], p_core->emg_psd_mean[CH2][2])",0.791992700625,0.5854464295757745
+zdiff,"p_core->diff(p_core->emg_psd_mean[CH2][0], p_core->emg_psd_mean[CH2][3])",0.8243166818750001,0.5854102026129345
+zdiff,"p_core->diff(p_core->emg_psd_mean[CH2][0], p_core->emg_psd_mean[CH2][4])",0.7366243646874999,0.5246779663574472
+zdiff,"p_core->diff(p_core->emg_psd_mean[CH2][1], p_core->emg_psd_mean[CH2][2])",0.7286933471875,0.360550899601718
+zdiff,"p_core->diff(p_core->emg_psd_mean[CH2][1], p_core->emg_psd_mean[CH2][3])",0.7768964396875,0.3935902552725814
+zdiff,"p_core->diff(p_core->emg_psd_mean[CH2][1], p_core->emg_psd_mean[CH2][4])",0.7254523528125,0.34625026948381177
+zdiff,"p_core->diff(p_core->emg_psd_mean[CH2][2], p_core->emg_psd_mean[CH2][3])",0.6985761565624999,0.17015252542521087
+zdiff,"p_core->diff(p_core->emg_psd_mean[CH2][2], p_core->emg_psd_mean[CH2][4])",0.8093547534375,0.5374955030465431
+zdiff,"p_core->diff(p_core->emg_psd_mean[CH2][3], p_core->emg_psd_mean[CH2][4])",0.79582433625,0.4890451914079969
+zdiff,"p_core->diff(p_core->emg_psd_mean[CH3][0], p_core->emg_psd_mean[CH3][1])",0.7344660421875,0.48024452192302386
+zdiff,"p_core->diff(p_core->emg_psd_mean[CH3][0], p_core->emg_psd_mean[CH3][2])",0.75720641625,0.5284015764954902
+zdiff,"p_core->diff(p_core->emg_psd_mean[CH3][0], p_core->emg_psd_mean[CH3][3])",0.804988085,0.5455742629022763
+zdiff,"p_core->diff(p_core->emg_psd_mean[CH3][0], p_core->emg_psd_mean[CH3][4])",0.6848045696875,0.552731908957117
+zdiff,"p_core->diff(p_core->emg_psd_mean[CH3][1], p_core->emg_psd_mean[CH3][2])",0.7003615978125,0.267051231912868
+zdiff,"p_core->diff(p_core->emg_psd_mean[CH3][1], p_core->emg_psd_mean[CH3][3])",0.7793571340625001,0.35090657031494904
+zdiff,"p_core->diff(p_core->emg_psd_mean[CH3][1], p_core->emg_psd_mean[CH3][4])",0.7329887303125,0.32056231586882217
+zdiff,"p_core->diff(p_core->emg_psd_mean[CH3][2], p_core->emg_psd_mean[CH3][3])",0.7224396565625,0.2559128865493464
+zdiff,"p_core->diff(p_core->emg_psd_mean[CH3][2], p_core->emg_psd_mean[CH3][4])",0.8155738384375,0.44494117673308375
+zdiff,"p_core->diff(p_core->emg_psd_mean[CH3][3], p_core->emg_psd_mean[CH3][4])",0.8140339990625,0.45604456225065026
+xdiff,"p_core->diff(p_core->emg_psd[0][CH1][0], p_core->emg_psd[0][CH2][0])",0.700363084375,0.5376552463186546
+xdiff,"p_core->diff(p_core->emg_psd[0][CH1][0], p_core->emg_psd[0][CH3][0])",0.72902760875,0.5271732772576814
+xdiff,"p_core->diff(p_core->emg_psd[0][CH2][0], p_core->emg_psd[0][CH3][0])",0.5313238109375,0.48759053555697474
+xdiff,"p_core->diff(p_core->emg_psd[0][CH1][1], p_core->emg_psd[0][CH2][1])",0.6624474359375,0.40534473280314304
+xdiff,"p_core->diff(p_core->emg_psd[0][CH1][1], p_core->emg_psd[0][CH3][1])",0.7327911253125,0.4229524969398754
+xdiff,"p_core->diff(p_core->emg_psd[0][CH2][1], p_core->emg_psd[0][CH3][1])",0.599020045,0.3981335013566996
+xdiff,"p_core->diff(p_core->emg_psd[0][CH1][2], p_core->emg_psd[0][CH2][2])",0.6273269159375,0.3310980479666644
+xdiff,"p_core->diff(p_core->emg_psd[0][CH1][2], p_core->emg_psd[0][CH3][2])",0.7240491021875,0.35885198718596345
+xdiff,"p_core->diff(p_core->emg_psd[0][CH2][2], p_core->emg_psd[0][CH3][2])",0.6419716284375,0.35264721834441876
+xdiff,"p_core->diff(p_core->emg_psd[0][CH1][3], p_core->emg_psd[0][CH2][3])",0.62746369,0.31779764250701825
+xdiff,"p_core->diff(p_core->emg_psd[0][CH1][3], p_core->emg_psd[0][CH3][3])",0.7097753328125,0.3671352739781734
+xdiff,"p_core->diff(p_core->emg_psd[0][CH2][3], p_core->emg_psd[0][CH3][3])",0.6273807115625,0.3511467491073454
+xdiff,"p_core->diff(p_core->emg_psd[0][CH1][4], p_core->emg_psd[0][CH2][4])",0.67390623875,0.49476113348571765
+xdiff,"p_core->diff(p_core->emg_psd[0][CH1][4], p_core->emg_psd[0][CH3][4])",0.748603709375,0.47605111589692345
+xdiff,"p_core->diff(p_core->emg_psd[0][CH2][4], p_core->emg_psd[0][CH3][4])",0.612016626875,0.4691822888035317
+xdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][0])",0.6844279409375,0.5334252810887442
+xdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][0])",0.609085921875,0.5217886517394433
+xdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][0])",0.5866683618749999,0.48571525917646996
+xdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][1])",0.6345666390625,0.398748194736909
+xdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][1])",0.5502482946875,0.4240481272854382
+xdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][1])",0.5862136743749999,0.39728888003853763
+xdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][2])",0.601603085,0.32335587299697655
+xdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][2])",0.514079519375,0.35567078522265566
+xdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][2])",0.5696647671874999,0.35300438082514735
+xdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][3])",0.60530926,0.3076052931143812
+xdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][3])",0.5163967471875,0.3627018576788408
+xdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][3], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][3])",0.56950162625,0.3512458902883367
+xdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][4], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][4])",0.653558929375,0.48978131363279437
+xdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][4], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][4])",0.5626899134375,0.47319585354223326
+xdiff,"p_core->diff(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][4], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][4])",0.5874903225,0.4665766530739359
+xdiff,"p_core->diff(p_core->emg_psd_mean[CH1][0], p_core->emg_psd_mean[CH2][0])",0.7149435484375,0.6582256879135533
+xdiff,"p_core->diff(p_core->emg_psd_mean[CH1][0], p_core->emg_psd_mean[CH3][0])",0.661113911875,0.6590099224242293
+xdiff,"p_core->diff(p_core->emg_psd_mean[CH2][0], p_core->emg_psd_mean[CH3][0])",0.56252672625,0.6226569970974456
+xdiff,"p_core->diff(p_core->emg_psd_mean[CH1][1], p_core->emg_psd_mean[CH2][1])",0.67159905625,0.5389440549149457
+xdiff,"p_core->diff(p_core->emg_psd_mean[CH1][1], p_core->emg_psd_mean[CH3][1])",0.626482099375,0.567696608940433
+xdiff,"p_core->diff(p_core->emg_psd_mean[CH2][1], p_core->emg_psd_mean[CH3][1])",0.5365504975,0.5369793335321497
+xdiff,"p_core->diff(p_core->emg_psd_mean[CH1][2], p_core->emg_psd_mean[CH2][2])",0.638671636875,0.4645258094173254
+xdiff,"p_core->diff(p_core->emg_psd_mean[CH1][2], p_core->emg_psd_mean[CH3][2])",0.607603259375,0.5031288336723939
+xdiff,"p_core->diff(p_core->emg_psd_mean[CH2][2], p_core->emg_psd_mean[CH3][2])",0.5041546940625,0.4872843176068172
+xdiff,"p_core->diff(p_core->emg_psd_mean[CH1][3], p_core->emg_psd_mean[CH2][3])",0.6441631675,0.44134975955082084
+xdiff,"p_core->diff(p_core->emg_psd_mean[CH1][3], p_core->emg_psd_mean[CH3][3])",0.6027866215625,0.5070338976873012
+xdiff,"p_core->diff(p_core->emg_psd_mean[CH2][3], p_core->emg_psd_mean[CH3][3])",0.506330181875,0.47617614883853293
+xdiff,"p_core->diff(p_core->emg_psd_mean[CH1][4], p_core->emg_psd_mean[CH2][4])",0.6805472559375,0.6102781750253352
+xdiff,"p_core->diff(p_core->emg_psd_mean[CH1][4], p_core->emg_psd_mean[CH3][4])",0.6324489975,0.6034854493601262
+xdiff,"p_core->diff(p_core->emg_psd_mean[CH2][4], p_core->emg_psd_mean[CH3][4])",0.5317282009375,0.5913014775865838
+ratio,"p_core->ratio(p_core->emg_psd[0][CH1][0], p_core->emg_psd_mean[CH1][0])",0.8380192690625,0.005535561956100356
+ratio,"p_core->ratio(p_core->emg_psd[0][CH1][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0])",0.78323654,0.03627667729478568
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0], p_core->emg_psd_mean[CH1][0])",0.6785025325,0.010512371725780886
+ratio,"p_core->ratio(p_core->emg_psd[0][CH1][1], p_core->emg_psd_mean[CH1][1])",0.847313519375,0.00608872364390346
+ratio,"p_core->ratio(p_core->emg_psd[0][CH1][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][1])",0.788583534375,0.06857335793365316
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][1], p_core->emg_psd_mean[CH1][1])",0.6791528528124999,0.012377252622427016
+ratio,"p_core->ratio(p_core->emg_psd[0][CH1][2], p_core->emg_psd_mean[CH1][2])",0.848695164375,0.006206333410231102
+ratio,"p_core->ratio(p_core->emg_psd[0][CH1][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][2])",0.787659673125,0.06026166962812292
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][2], p_core->emg_psd_mean[CH1][2])",0.6739069725,0.010087693131253591
+ratio,"p_core->ratio(p_core->emg_psd[0][CH1][3], p_core->emg_psd_mean[CH1][3])",0.8457535240625,0.005630998632871833
+ratio,"p_core->ratio(p_core->emg_psd[0][CH1][3], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3])",0.78162511875,0.07437151942780607
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3], p_core->emg_psd_mean[CH1][3])",0.6632504778125,0.009754978979695534
+ratio,"p_core->ratio(p_core->emg_psd[0][CH1][4], p_core->emg_psd_mean[CH1][4])",0.859672745,0.006320274462623718
+ratio,"p_core->ratio(p_core->emg_psd[0][CH1][4], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][4])",0.798744095,0.06506468836853416
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][4], p_core->emg_psd_mean[CH1][4])",0.68344251125,0.011369017831163446
+ratio,"p_core->ratio(p_core->emg_psd[0][CH2][0], p_core->emg_psd_mean[CH2][0])",0.8219354509375,0.008307635600700816
+ratio,"p_core->ratio(p_core->emg_psd[0][CH2][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][0])",0.7719907578125,0.02515741850063415
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][0], p_core->emg_psd_mean[CH2][0])",0.679609611875,0.01596644663994499
+ratio,"p_core->ratio(p_core->emg_psd[0][CH2][1], p_core->emg_psd_mean[CH2][1])",0.828166793125,0.008557286437313082
+ratio,"p_core->ratio(p_core->emg_psd[0][CH2][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][1])",0.7678869234375,0.05766463262015364
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][1], p_core->emg_psd_mean[CH2][1])",0.6683528000000001,0.016422951318734662
+ratio,"p_core->ratio(p_core->emg_psd[0][CH2][2], p_core->emg_psd_mean[CH2][2])",0.8288266784375,0.009033777936770498
+ratio,"p_core->ratio(p_core->emg_psd[0][CH2][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][2])",0.7636419190625,0.06468286822387742
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][2], p_core->emg_psd_mean[CH2][2])",0.6653359753125,0.015331822748094125
+ratio,"p_core->ratio(p_core->emg_psd[0][CH2][3], p_core->emg_psd_mean[CH2][3])",0.822948646875,0.00975415687592874
+ratio,"p_core->ratio(p_core->emg_psd[0][CH2][3], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][3])",0.75289873,0.07523526855231635
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][3], p_core->emg_psd_mean[CH2][3])",0.6550125853125,0.01419845858761964
+ratio,"p_core->ratio(p_core->emg_psd[0][CH2][4], p_core->emg_psd_mean[CH2][4])",0.8426702425,0.008517691132292383
+ratio,"p_core->ratio(p_core->emg_psd[0][CH2][4], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][4])",0.782166835625,0.05714229633206748
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][4], p_core->emg_psd_mean[CH2][4])",0.6787299171875,0.015967945367499386
+ratio,"p_core->ratio(p_core->emg_psd[0][CH3][0], p_core->emg_psd_mean[CH3][0])",0.7437126021875,0.007935411805679474
+ratio,"p_core->ratio(p_core->emg_psd[0][CH3][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][0])",0.6891908646875,0.027929915869472573
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][0], p_core->emg_psd_mean[CH3][0])",0.5927952059375,0.01227737219849654
+ratio,"p_core->ratio(p_core->emg_psd[0][CH3][1], p_core->emg_psd_mean[CH3][1])",0.737525218125,0.007028469152537685
+ratio,"p_core->ratio(p_core->emg_psd[0][CH3][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][1])",0.675099250625,0.05277735748269218
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][1], p_core->emg_psd_mean[CH3][1])",0.57701519,0.011751448045403678
+ratio,"p_core->ratio(p_core->emg_psd[0][CH3][2], p_core->emg_psd_mean[CH3][2])",0.7162789465625,0.009525603201103948
+ratio,"p_core->ratio(p_core->emg_psd[0][CH3][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][2])",0.6527213259375,0.037133525081621516
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][2], p_core->emg_psd_mean[CH3][2])",0.5575530399999999,0.013354969710323397
+ratio,"p_core->ratio(p_core->emg_psd[0][CH3][3], p_core->emg_psd_mean[CH3][3])",0.71056733875,0.011080609937337694
+ratio,"p_core->ratio(p_core->emg_psd[0][CH3][3], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][3])",0.6428199215625,0.04345788613559739
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][3], p_core->emg_psd_mean[CH3][3])",0.5436393659375001,0.013164279179346634
+ratio,"p_core->ratio(p_core->emg_psd[0][CH3][4], p_core->emg_psd_mean[CH3][4])",0.7437834159375,0.007917142330871091
+ratio,"p_core->ratio(p_core->emg_psd[0][CH3][4], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][4])",0.68244660375,0.05961713660516112
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][4], p_core->emg_psd_mean[CH3][4])",0.5803722099999999,0.011820246482538791
+ratio,"p_core->ratio(p_core->emg_psd[0][CH1][0], p_core->emg_psd[0][CH1][1])",0.6182022996875001,0.1196703174168464
+ratio,"p_core->ratio(p_core->emg_psd[0][CH1][0], p_core->emg_psd[0][CH1][2])",0.65474324,0.15357946660649918
+ratio,"p_core->ratio(p_core->emg_psd[0][CH1][0], p_core->emg_psd[0][CH1][3])",0.64943227625,0.16593018303768062
+ratio,"p_core->ratio(p_core->emg_psd[0][CH1][0], p_core->emg_psd[0][CH1][4])",0.62567874125,0.30067037012397113
+ratio,"p_core->ratio(p_core->emg_psd[0][CH1][1], p_core->emg_psd[0][CH1][2])",0.5964943628125,0.05337757646888861
+ratio,"p_core->ratio(p_core->emg_psd[0][CH1][1], p_core->emg_psd[0][CH1][3])",0.5856814243749999,0.08436389926549284
+ratio,"p_core->ratio(p_core->emg_psd[0][CH1][1], p_core->emg_psd[0][CH1][4])",0.5194941759375,0.05986219685383437
+ratio,"p_core->ratio(p_core->emg_psd[0][CH1][2], p_core->emg_psd[0][CH1][3])",0.5093267603125,0.05899947834952045
+ratio,"p_core->ratio(p_core->emg_psd[0][CH1][2], p_core->emg_psd[0][CH1][4])",0.6595195984375,0.1410431492796793
+ratio,"p_core->ratio(p_core->emg_psd[0][CH1][3], p_core->emg_psd[0][CH1][4])",0.62238874,0.16076338244166496
+ratio,"p_core->ratio(p_core->emg_psd[0][CH2][0], p_core->emg_psd[0][CH2][1])",0.7358791171875,0.05902988394239365
+ratio,"p_core->ratio(p_core->emg_psd[0][CH2][0], p_core->emg_psd[0][CH2][2])",0.76110201,0.07608155892138348
+ratio,"p_core->ratio(p_core->emg_psd[0][CH2][0], p_core->emg_psd[0][CH2][3])",0.7304014496875,0.08048034585944008
+ratio,"p_core->ratio(p_core->emg_psd[0][CH2][0], p_core->emg_psd[0][CH2][4])",0.7629148103125,0.32688442971221504
+ratio,"p_core->ratio(p_core->emg_psd[0][CH2][1], p_core->emg_psd[0][CH2][2])",0.637404978125,0.056962917972385604
+ratio,"p_core->ratio(p_core->emg_psd[0][CH2][1], p_core->emg_psd[0][CH2][3])",0.58224968625,0.06261098001540466
+ratio,"p_core->ratio(p_core->emg_psd[0][CH2][1], p_core->emg_psd[0][CH2][4])",0.5099453309375,0.048738761880999126
+ratio,"p_core->ratio(p_core->emg_psd[0][CH2][2], p_core->emg_psd[0][CH2][3])",0.5393639440625,0.05757472623333023
+ratio,"p_core->ratio(p_core->emg_psd[0][CH2][2], p_core->emg_psd[0][CH2][4])",0.6871739821875,0.14198352923761545
+ratio,"p_core->ratio(p_core->emg_psd[0][CH2][3], p_core->emg_psd[0][CH2][4])",0.5986921071875,0.12567793137817862
+ratio,"p_core->ratio(p_core->emg_psd[0][CH3][0], p_core->emg_psd[0][CH3][1])",0.7127663443750001,0.08668791331187212
+ratio,"p_core->ratio(p_core->emg_psd[0][CH3][0], p_core->emg_psd[0][CH3][2])",0.7009635184375,0.0641462071363117
+ratio,"p_core->ratio(p_core->emg_psd[0][CH3][0], p_core->emg_psd[0][CH3][3])",0.658464725,0.10031596592405323
+ratio,"p_core->ratio(p_core->emg_psd[0][CH3][0], p_core->emg_psd[0][CH3][4])",0.73490478375,0.41434387880886264
+ratio,"p_core->ratio(p_core->emg_psd[0][CH3][1], p_core->emg_psd[0][CH3][2])",0.5618925071875001,0.0719094824722979
+ratio,"p_core->ratio(p_core->emg_psd[0][CH3][1], p_core->emg_psd[0][CH3][3])",0.5096280334375001,0.09263599960236234
+ratio,"p_core->ratio(p_core->emg_psd[0][CH3][1], p_core->emg_psd[0][CH3][4])",0.5248067696875,0.09368688508345832
+ratio,"p_core->ratio(p_core->emg_psd[0][CH3][2], p_core->emg_psd[0][CH3][3])",0.55135878375,0.10570608749164973
+ratio,"p_core->ratio(p_core->emg_psd[0][CH3][2], p_core->emg_psd[0][CH3][4])",0.582980061875,0.20533676935824685
+ratio,"p_core->ratio(p_core->emg_psd[0][CH3][3], p_core->emg_psd[0][CH3][4])",0.515741695,0.2346159918811867
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][1])",0.6406499990625,0.12697245406407584
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][2])",0.6683851868749999,0.14957536769012403
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3])",0.6737279915625001,0.16648158828312012
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][4])",0.70942467625,0.2901803276567922
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][2])",0.583143938125,0.05405600532705185
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3])",0.587229720625,0.0864872675043927
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][4])",0.6093170318750001,0.059039070327818265
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3])",0.515009183125,0.060316662795657144
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][4])",0.5031933403125,0.14024017713890768
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][4])",0.5237671315625,0.1626254821227039
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][1])",0.7537976425,0.05877475893216399
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][2])",0.7714309565624999,0.07377200822888436
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][3])",0.751854454375,0.07995002303876357
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][4])",0.8085850325,0.3146741405049845
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][2])",0.6228602249999999,0.05438581931625756
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][3])",0.5851548840625,0.0662630768471536
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][4])",0.60564430375,0.04777551543376095
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][3])",0.5344099784375,0.05697495369749573
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][4])",0.5587857353125,0.1381133627284894
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][3], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][4])",0.5156522940625,0.13035431368311137
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][1])",0.7431915071874999,0.11985182357436591
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][2])",0.7574621043750001,0.062353960794694095
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][3])",0.7347840837499999,0.08828784841686721
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][4])",0.790647146875,0.4008436025955884
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][2])",0.6247467287499999,0.06573653951847584
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][3])",0.5918673096875,0.08449645746498045
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][4])",0.586904131875,0.08968841688159142
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][3])",0.5201486959375,0.10494395206023144
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][4])",0.574533449375,0.19955740064160737
+ratio,"p_core->ratio(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][3], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][4])",0.544310165625,0.23371879614162153
+ratio,"p_core->ratio(p_core->emg_psd_mean[CH1][0], p_core->emg_psd_mean[CH1][1])",0.6744674996875,0.27201509744823765
+ratio,"p_core->ratio(p_core->emg_psd_mean[CH1][0], p_core->emg_psd_mean[CH1][2])",0.6948387653125,0.2950678270307997
+ratio,"p_core->ratio(p_core->emg_psd_mean[CH1][0], p_core->emg_psd_mean[CH1][3])",0.6732328275,0.28654088516827775
+ratio,"p_core->ratio(p_core->emg_psd_mean[CH1][0], p_core->emg_psd_mean[CH1][4])",0.7092153378125,0.42955188388587134
+ratio,"p_core->ratio(p_core->emg_psd_mean[CH1][1], p_core->emg_psd_mean[CH1][2])",0.6019570562500001,0.12600997753978643
+ratio,"p_core->ratio(p_core->emg_psd_mean[CH1][1], p_core->emg_psd_mean[CH1][3])",0.5635732596875,0.18961775057872174
+ratio,"p_core->ratio(p_core->emg_psd_mean[CH1][1], p_core->emg_psd_mean[CH1][4])",0.5524541375,0.10212005795838003
+ratio,"p_core->ratio(p_core->emg_psd_mean[CH1][2], p_core->emg_psd_mean[CH1][3])",0.52409037625,0.15833664014529256
+ratio,"p_core->ratio(p_core->emg_psd_mean[CH1][2], p_core->emg_psd_mean[CH1][4])",0.5886435678125,0.27224708856943924
+ratio,"p_core->ratio(p_core->emg_psd_mean[CH1][3], p_core->emg_psd_mean[CH1][4])",0.5385318246875,0.29061234884696563
+ratio,"p_core->ratio(p_core->emg_psd_mean[CH2][0], p_core->emg_psd_mean[CH2][1])",0.79159837,0.09700090691097667
+ratio,"p_core->ratio(p_core->emg_psd_mean[CH2][0], p_core->emg_psd_mean[CH2][2])",0.8037693615625,0.1427080737911402
+ratio,"p_core->ratio(p_core->emg_psd_mean[CH2][0], p_core->emg_psd_mean[CH2][3])",0.7621030799999999,0.1111100331708096
+ratio,"p_core->ratio(p_core->emg_psd_mean[CH2][0], p_core->emg_psd_mean[CH2][4])",0.8262427709375,0.4200112716314557
+ratio,"p_core->ratio(p_core->emg_psd_mean[CH2][1], p_core->emg_psd_mean[CH2][2])",0.6633177865625,0.13030697295882362
+ratio,"p_core->ratio(p_core->emg_psd_mean[CH2][1], p_core->emg_psd_mean[CH2][3])",0.56458773,0.15081726840575363
+ratio,"p_core->ratio(p_core->emg_psd_mean[CH2][1], p_core->emg_psd_mean[CH2][4])",0.573670103125,0.07658286726614995
+ratio,"p_core->ratio(p_core->emg_psd_mean[CH2][2], p_core->emg_psd_mean[CH2][3])",0.5855383815625,0.14937795787605362
+ratio,"p_core->ratio(p_core->emg_psd_mean[CH2][2], p_core->emg_psd_mean[CH2][4])",0.645296521875,0.22951632925454646
+ratio,"p_core->ratio(p_core->emg_psd_mean[CH2][3], p_core->emg_psd_mean[CH2][4])",0.5233309846875,0.2200628903203776
+ratio,"p_core->ratio(p_core->emg_psd_mean[CH3][0], p_core->emg_psd_mean[CH3][1])",0.786423613125,0.14502466501366892
+ratio,"p_core->ratio(p_core->emg_psd_mean[CH3][0], p_core->emg_psd_mean[CH3][2])",0.77486417875,0.15081539573593283
+ratio,"p_core->ratio(p_core->emg_psd_mean[CH3][0], p_core->emg_psd_mean[CH3][3])",0.7235376331250001,0.15809614260570154
+ratio,"p_core->ratio(p_core->emg_psd_mean[CH3][0], p_core->emg_psd_mean[CH3][4])",0.8116083475,0.5291501695029148
+ratio,"p_core->ratio(p_core->emg_psd_mean[CH3][1], p_core->emg_psd_mean[CH3][2])",0.6221770096875,0.18178787268057886
+ratio,"p_core->ratio(p_core->emg_psd_mean[CH3][1], p_core->emg_psd_mean[CH3][3])",0.5329323440625,0.2514668015003381
+ratio,"p_core->ratio(p_core->emg_psd_mean[CH3][1], p_core->emg_psd_mean[CH3][4])",0.576411850625,0.15936776805093877
+ratio,"p_core->ratio(p_core->emg_psd_mean[CH3][2], p_core->emg_psd_mean[CH3][3])",0.5814699878125,0.2332932722507406
+ratio,"p_core->ratio(p_core->emg_psd_mean[CH3][2], p_core->emg_psd_mean[CH3][4])",0.5780315765625,0.33742776272209635
+ratio,"p_core->ratio(p_core->emg_psd_mean[CH3][3], p_core->emg_psd_mean[CH3][4])",0.5083698490624999,0.3976667448883381
+logp,"logp(p_core->emg_psd[0][CH1][0], p_core->emg_psd_mean[CH1][0])",0.77070558875,0.00260273671485853
+logp,"logp(p_core->emg_psd[0][CH1][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0])",0.722083411875,0.001999895026505379
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0], p_core->emg_psd_mean[CH1][0])",0.60156952,0.0020956726372973766
+logp,"logp(p_core->emg_psd[0][CH1][1], p_core->emg_psd_mean[CH1][1])",0.81088026375,0.0026316652465567052
+logp,"logp(p_core->emg_psd[0][CH1][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][1])",0.756705678125,0.00213958362837029
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][1], p_core->emg_psd_mean[CH1][1])",0.6250086359375,0.0025741018002164713
+logp,"logp(p_core->emg_psd[0][CH1][2], p_core->emg_psd_mean[CH1][2])",0.821301683125,0.002652144928433683
+logp,"logp(p_core->emg_psd[0][CH1][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][2])",0.76457645125,0.0019864193806238234
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][2], p_core->emg_psd_mean[CH1][2])",0.6284105484375,0.0026832480361636355
+logp,"logp(p_core->emg_psd[0][CH1][3], p_core->emg_psd_mean[CH1][3])",0.81224693875,0.002831164156290815
+logp,"logp(p_core->emg_psd[0][CH1][3], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3])",0.75146477125,0.0019467298838502243
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3], p_core->emg_psd_mean[CH1][3])",0.6127139759375,0.0035300727051138744
+logp,"logp(p_core->emg_psd[0][CH1][4], p_core->emg_psd_mean[CH1][4])",0.8255221575,0.0029315119802785965
+logp,"logp(p_core->emg_psd[0][CH1][4], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][4])",0.76970823875,0.002155475560262398
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][4], p_core->emg_psd_mean[CH1][4])",0.6341674196875,0.0023979037406338774
+logp,"logp(p_core->emg_psd[0][CH2][0], p_core->emg_psd_mean[CH2][0])",0.716318125625,0.003955319070244293
+logp,"logp(p_core->emg_psd[0][CH2][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][0])",0.680493498125,0.001954386233671863
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][0], p_core->emg_psd_mean[CH2][0])",0.59891351,0.002881027345603543
+logp,"logp(p_core->emg_psd[0][CH2][1], p_core->emg_psd_mean[CH2][1])",0.7646622609375,0.003241533059288751
+logp,"logp(p_core->emg_psd[0][CH2][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][1])",0.7162858959375,0.0018218124783817425
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][1], p_core->emg_psd_mean[CH2][1])",0.6209846990625,0.0029488944250019964
+logp,"logp(p_core->emg_psd[0][CH2][2], p_core->emg_psd_mean[CH2][2])",0.777607410625,0.0030332834711151745
+logp,"logp(p_core->emg_psd[0][CH2][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][2])",0.7244444484375,0.0020392590845759485
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][2], p_core->emg_psd_mean[CH2][2])",0.6255876812500001,0.0035333498521470264
+logp,"logp(p_core->emg_psd[0][CH2][3], p_core->emg_psd_mean[CH2][3])",0.764629815,0.002997249760005681
+logp,"logp(p_core->emg_psd[0][CH2][3], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][3])",0.7069909525,0.0018156734517387626
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][3], p_core->emg_psd_mean[CH2][3])",0.6100609315625001,0.003838267104773335
+logp,"logp(p_core->emg_psd[0][CH2][4], p_core->emg_psd_mean[CH2][4])",0.7781865759375,0.0035086645820832075
+logp,"logp(p_core->emg_psd[0][CH2][4], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][4])",0.7298259359375,0.0020665832767997774
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][4], p_core->emg_psd_mean[CH2][4])",0.6331258715625,0.003111573416901951
+logp,"logp(p_core->emg_psd[0][CH3][0], p_core->emg_psd_mean[CH3][0])",0.655609290625,0.0035026511335587056
+logp,"logp(p_core->emg_psd[0][CH3][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][0])",0.6187050490625,0.0014938654298263883
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][0], p_core->emg_psd_mean[CH3][0])",0.5407130578125,0.0030496424394091007
+logp,"logp(p_core->emg_psd[0][CH3][1], p_core->emg_psd_mean[CH3][1])",0.6777360365625,0.003771709964070277
+logp,"logp(p_core->emg_psd[0][CH3][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][1])",0.6316727871875,0.0019608370292076623
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][1], p_core->emg_psd_mean[CH3][1])",0.54487719,0.0023902944723469413
+logp,"logp(p_core->emg_psd[0][CH3][2], p_core->emg_psd_mean[CH3][2])",0.667526188125,0.004851247753054633
+logp,"logp(p_core->emg_psd[0][CH3][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][2])",0.620110526875,0.002292454390562828
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][2], p_core->emg_psd_mean[CH3][2])",0.5336174746875,0.003346378967669723
+logp,"logp(p_core->emg_psd[0][CH3][3], p_core->emg_psd_mean[CH3][3])",0.656871923125,0.006094597766939508
+logp,"logp(p_core->emg_psd[0][CH3][3], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][3])",0.606805565,0.0022410923577251395
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][3], p_core->emg_psd_mean[CH3][3])",0.517787809375,0.005224793080718815
+logp,"logp(p_core->emg_psd[0][CH3][4], p_core->emg_psd_mean[CH3][4])",0.680417774375,0.003283468511257241
+logp,"logp(p_core->emg_psd[0][CH3][4], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][4])",0.63694623125,0.0018179318673430993
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][4], p_core->emg_psd_mean[CH3][4])",0.5533740153125,0.002587793410581701
+logp,"logp(p_core->emg_psd[0][CH1][0], p_core->emg_psd[0][CH1][1])",0.6595529340624999,0.2673773776610151
+logp,"logp(p_core->emg_psd[0][CH1][0], p_core->emg_psd[0][CH1][2])",0.6861634318750001,0.2945373266534976
+logp,"logp(p_core->emg_psd[0][CH1][0], p_core->emg_psd[0][CH1][3])",0.6387426303125,0.29428748771225255
+logp,"logp(p_core->emg_psd[0][CH1][0], p_core->emg_psd[0][CH1][4])",0.7120521021874999,0.293512797322439
+logp,"logp(p_core->emg_psd[0][CH1][1], p_core->emg_psd[0][CH1][2])",0.59313687375,0.08837029251565177
+logp,"logp(p_core->emg_psd[0][CH1][1], p_core->emg_psd[0][CH1][3])",0.5248852896875,0.11039944550366687
+logp,"logp(p_core->emg_psd[0][CH1][1], p_core->emg_psd[0][CH1][4])",0.542851074375,0.10223182444761858
+logp,"logp(p_core->emg_psd[0][CH1][2], p_core->emg_psd[0][CH1][3])",0.5747653725,0.059932187292802155
+logp,"logp(p_core->emg_psd[0][CH1][2], p_core->emg_psd[0][CH1][4])",0.57986928875,0.20201264697370366
+logp,"logp(p_core->emg_psd[0][CH1][3], p_core->emg_psd[0][CH1][4])",0.503241289375,0.17450046841239397
+logp,"logp(p_core->emg_psd[0][CH2][0], p_core->emg_psd[0][CH2][1])",0.771474718125,0.3364695158004658
+logp,"logp(p_core->emg_psd[0][CH2][0], p_core->emg_psd[0][CH2][2])",0.7935515353125,0.4126933770814822
+logp,"logp(p_core->emg_psd[0][CH2][0], p_core->emg_psd[0][CH2][3])",0.76315652375,0.4327294045194572
+logp,"logp(p_core->emg_psd[0][CH2][0], p_core->emg_psd[0][CH2][4])",0.8097258290625,0.38449073147402024
+logp,"logp(p_core->emg_psd[0][CH2][1], p_core->emg_psd[0][CH2][2])",0.659990679375,0.18664863106773089
+logp,"logp(p_core->emg_psd[0][CH2][1], p_core->emg_psd[0][CH2][3])",0.6100930312499999,0.2211016470667247
+logp,"logp(p_core->emg_psd[0][CH2][1], p_core->emg_psd[0][CH2][4])",0.540837619375,0.15240736880582323
+logp,"logp(p_core->emg_psd[0][CH2][2], p_core->emg_psd[0][CH2][3])",0.5419176371875,0.0659800860980169
+logp,"logp(p_core->emg_psd[0][CH2][2], p_core->emg_psd[0][CH2][4])",0.70770002875,0.3541717875998042
+logp,"logp(p_core->emg_psd[0][CH2][3], p_core->emg_psd[0][CH2][4])",0.6363944021875,0.3498422925836082
+logp,"logp(p_core->emg_psd[0][CH3][0], p_core->emg_psd[0][CH3][1])",0.7257803546875,0.3495662562795919
+logp,"logp(p_core->emg_psd[0][CH3][0], p_core->emg_psd[0][CH3][2])",0.72070569625,0.4037221487137851
+logp,"logp(p_core->emg_psd[0][CH3][0], p_core->emg_psd[0][CH3][3])",0.7164431078125,0.41459784535393795
+logp,"logp(p_core->emg_psd[0][CH3][0], p_core->emg_psd[0][CH3][4])",0.728418069375,0.4636646793034195
+logp,"logp(p_core->emg_psd[0][CH3][1], p_core->emg_psd[0][CH3][2])",0.5903051021875,0.15412646314021597
+logp,"logp(p_core->emg_psd[0][CH3][1], p_core->emg_psd[0][CH3][3])",0.59128826375,0.1922227676136226
+logp,"logp(p_core->emg_psd[0][CH3][1], p_core->emg_psd[0][CH3][4])",0.607388465625,0.1378491112516268
+logp,"logp(p_core->emg_psd[0][CH3][2], p_core->emg_psd[0][CH3][3])",0.5214508596875,0.08064073534271643
+logp,"logp(p_core->emg_psd[0][CH3][2], p_core->emg_psd[0][CH3][4])",0.676940656875,0.27062546953455113
+logp,"logp(p_core->emg_psd[0][CH3][3], p_core->emg_psd[0][CH3][4])",0.6609186834375,0.2741873009907797
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][1])",0.5493567040625,0.26310728399617933
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][2])",0.5986501325,0.2927196839388084
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3])",0.6938597843750001,0.2883041215573402
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][4])",0.5333708887499999,0.28839150304472994
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][2])",0.5951652056250001,0.09308369430997619
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3])",0.6962896456250001,0.10913193614733877
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][4])",0.566954269375,0.10259721217769043
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3])",0.6620747437500001,0.0555711550446072
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][4])",0.6845481575,0.2023828232380617
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][4])",0.7491818371875,0.16517814683416077
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][1])",0.71640111625,0.3368018556310283
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][2])",0.7498638071875,0.40913001990104364
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][3])",0.7965390128125001,0.42730254028236514
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][4])",0.711143911875,0.380681928355436
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][2])",0.6681661946874999,0.18597404076214893
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][3])",0.7427231853125,0.22178404215712155
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][4])",0.640890236875,0.15586936386885045
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][3])",0.6724601346875,0.05923912075045454
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][4])",0.7705313653125,0.3514492485588014
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][3], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][4])",0.8014340978125,0.34524839234284377
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][1])",0.709008989375,0.3368971572973779
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][2])",0.7365747215625,0.39672421867929775
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][3])",0.777806786875,0.4080180454474351
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][4])",0.7047559978125,0.45180822894560635
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][2])",0.65248481625,0.15857270502157578
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][3])",0.72013675875,0.19346849882549977
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][4])",0.608150986875,0.1293863289978508
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][3])",0.640330966875,0.07642701891161975
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][4])",0.7558906134375,0.2699990325569658
+logp,"logp(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][3], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][4])",0.7895281278125,0.2720298185627102
+logp,"logp(p_core->emg_psd_mean[CH1][0], p_core->emg_psd_mean[CH1][1])",0.6224383028125,0.4283438922599814
+logp,"logp(p_core->emg_psd_mean[CH1][0], p_core->emg_psd_mean[CH1][2])",0.6639308771875,0.4537732265589543
+logp,"logp(p_core->emg_psd_mean[CH1][0], p_core->emg_psd_mean[CH1][3])",0.70657773125,0.4350294005156023
+logp,"logp(p_core->emg_psd_mean[CH1][0], p_core->emg_psd_mean[CH1][4])",0.6265088321875,0.4519680608823637
+logp,"logp(p_core->emg_psd_mean[CH1][1], p_core->emg_psd_mean[CH1][2])",0.6212221559375,0.17176735895551792
+logp,"logp(p_core->emg_psd_mean[CH1][1], p_core->emg_psd_mean[CH1][3])",0.6665415909375,0.1871019113401043
+logp,"logp(p_core->emg_psd_mean[CH1][1], p_core->emg_psd_mean[CH1][4])",0.551166739375,0.18476602142736753
+logp,"logp(p_core->emg_psd_mean[CH1][2], p_core->emg_psd_mean[CH1][3])",0.5933908540624999,0.10911041238391471
+logp,"logp(p_core->emg_psd_mean[CH1][2], p_core->emg_psd_mean[CH1][4])",0.6952681871875,0.3353736344951435
+logp,"logp(p_core->emg_psd_mean[CH1][3], p_core->emg_psd_mean[CH1][4])",0.7208954375,0.25799547316355964
+logp,"logp(p_core->emg_psd_mean[CH2][0], p_core->emg_psd_mean[CH2][1])",0.7851781471875,0.49869065611096525
+logp,"logp(p_core->emg_psd_mean[CH2][0], p_core->emg_psd_mean[CH2][2])",0.8057443171875001,0.557155556227207
+logp,"logp(p_core->emg_psd_mean[CH2][0], p_core->emg_psd_mean[CH2][3])",0.8215929046875,0.5592174903182477
+logp,"logp(p_core->emg_psd_mean[CH2][0], p_core->emg_psd_mean[CH2][4])",0.7862172199999999,0.5280675161501651
+logp,"logp(p_core->emg_psd_mean[CH2][1], p_core->emg_psd_mean[CH2][2])",0.7194500575,0.314383182217122
+logp,"logp(p_core->emg_psd_mean[CH2][1], p_core->emg_psd_mean[CH2][3])",0.7464781771875,0.3333076861420216
+logp,"logp(p_core->emg_psd_mean[CH2][1], p_core->emg_psd_mean[CH2][4])",0.65070117125,0.2801735154020433
+logp,"logp(p_core->emg_psd_mean[CH2][2], p_core->emg_psd_mean[CH2][3])",0.6147472359375,0.10161222180298414
+logp,"logp(p_core->emg_psd_mean[CH2][2], p_core->emg_psd_mean[CH2][4])",0.800109934375,0.5098694124285721
+logp,"logp(p_core->emg_psd_mean[CH2][3], p_core->emg_psd_mean[CH2][4])",0.7983216259375,0.4694153091322622
+logp,"logp(p_core->emg_psd_mean[CH3][0], p_core->emg_psd_mean[CH3][1])",0.7615305453125,0.5078052519910857
+logp,"logp(p_core->emg_psd_mean[CH3][0], p_core->emg_psd_mean[CH3][2])",0.7719061631249999,0.5579182828827226
+logp,"logp(p_core->emg_psd_mean[CH3][0], p_core->emg_psd_mean[CH3][3])",0.798180426875,0.5555345275791197
+logp,"logp(p_core->emg_psd_mean[CH3][0], p_core->emg_psd_mean[CH3][4])",0.7457641665625,0.6156609479814534
+logp,"logp(p_core->emg_psd_mean[CH3][1], p_core->emg_psd_mean[CH3][2])",0.6822382375,0.272211589117311
+logp,"logp(p_core->emg_psd_mean[CH3][1], p_core->emg_psd_mean[CH3][3])",0.7355347837499999,0.2951694442992031
+logp,"logp(p_core->emg_psd_mean[CH3][1], p_core->emg_psd_mean[CH3][4])",0.648764260625,0.24062109752674982
+logp,"logp(p_core->emg_psd_mean[CH3][2], p_core->emg_psd_mean[CH3][3])",0.6473329053125,0.14346636043514005
+logp,"logp(p_core->emg_psd_mean[CH3][2], p_core->emg_psd_mean[CH3][4])",0.7879795990625,0.41615126183457885
+logp,"logp(p_core->emg_psd_mean[CH3][3], p_core->emg_psd_mean[CH3][4])",0.8066268625,0.3872804531114433
+logp0,"logp0(p_core->emg_psd[0][CH1][0], p_core->emg_psd_mean[CH1][0])",0.798276753125,0.0058109687985341335
+logp0,"logp0(p_core->emg_psd[0][CH1][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0])",0.759388579375,0.002200045641784117
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0], p_core->emg_psd_mean[CH1][0])",0.6586885103125,0.004077831224643718
+logp0,"logp0(p_core->emg_psd[0][CH1][1], p_core->emg_psd_mean[CH1][1])",0.8262215565625,0.00602871894366978
+logp0,"logp0(p_core->emg_psd[0][CH1][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][1])",0.7760308384375,0.002251292418791732
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][1], p_core->emg_psd_mean[CH1][1])",0.6618873456250001,0.004496165218430667
+logp0,"logp0(p_core->emg_psd[0][CH1][2], p_core->emg_psd_mean[CH1][2])",0.834208260625,0.006004367343006804
+logp0,"logp0(p_core->emg_psd[0][CH1][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][2])",0.7791564215625,0.002087720239928036
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][2], p_core->emg_psd_mean[CH1][2])",0.6588119084374999,0.004983723652252738
+logp0,"logp0(p_core->emg_psd[0][CH1][3], p_core->emg_psd_mean[CH1][3])",0.833498958125,0.006034355337128028
+logp0,"logp0(p_core->emg_psd[0][CH1][3], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3])",0.7738397215625,0.0020311685521043196
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3], p_core->emg_psd_mean[CH1][3])",0.6518891849999999,0.005516806534961871
+logp0,"logp0(p_core->emg_psd[0][CH1][4], p_core->emg_psd_mean[CH1][4])",0.8364686328125,0.0050818197280573935
+logp0,"logp0(p_core->emg_psd[0][CH1][4], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][4])",0.783001118125,0.002247199417780035
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][4], p_core->emg_psd_mean[CH1][4])",0.660089508125,0.00391812373810608
+logp0,"logp0(p_core->emg_psd[0][CH2][0], p_core->emg_psd_mean[CH2][0])",0.751814790625,0.008687048688715482
+logp0,"logp0(p_core->emg_psd[0][CH2][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][0])",0.7258626925,0.002132568385012882
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][0], p_core->emg_psd_mean[CH2][0])",0.6530699556249999,0.005199225205941837
+logp0,"logp0(p_core->emg_psd[0][CH2][1], p_core->emg_psd_mean[CH2][1])",0.784050075,0.007370122057313859
+logp0,"logp0(p_core->emg_psd[0][CH2][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][1])",0.739340346875,0.0019259458760673856
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][1], p_core->emg_psd_mean[CH2][1])",0.6506385878125001,0.00571295568279897
+logp0,"logp0(p_core->emg_psd[0][CH2][2], p_core->emg_psd_mean[CH2][2])",0.793542003125,0.007692636778735918
+logp0,"logp0(p_core->emg_psd[0][CH2][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][2])",0.74229553375,0.0021354630260007577
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][2], p_core->emg_psd_mean[CH2][2])",0.649961095,0.007039736566690575
+logp0,"logp0(p_core->emg_psd[0][CH2][3], p_core->emg_psd_mean[CH2][3])",0.79017273,0.007746681929586724
+logp0,"logp0(p_core->emg_psd[0][CH2][3], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][3])",0.7336143028125,0.0019337874289051525
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][3], p_core->emg_psd_mean[CH2][3])",0.64262803375,0.00798999112769337
+logp0,"logp0(p_core->emg_psd[0][CH2][4], p_core->emg_psd_mean[CH2][4])",0.792069975,0.0063516351978690905
+logp0,"logp0(p_core->emg_psd[0][CH2][4], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][4])",0.746098546875,0.0021756827054241106
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][4], p_core->emg_psd_mean[CH2][4])",0.6536413371875001,0.005050127491548773
+logp0,"logp0(p_core->emg_psd[0][CH3][0], p_core->emg_psd_mean[CH3][0])",0.6851124559375,0.007540211372967601
+logp0,"logp0(p_core->emg_psd[0][CH3][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][0])",0.6531399275,0.0015651141412173887
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][0], p_core->emg_psd_mean[CH3][0])",0.5777013515625,0.006254524734890995
+logp0,"logp0(p_core->emg_psd[0][CH3][1], p_core->emg_psd_mean[CH3][1])",0.6954027565625,0.007076639409871554
+logp0,"logp0(p_core->emg_psd[0][CH3][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][1])",0.65072398375,0.0020313412738008413
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][1], p_core->emg_psd_mean[CH3][1])",0.5673812075,0.004598596129087382
+logp0,"logp0(p_core->emg_psd[0][CH3][2], p_core->emg_psd_mean[CH3][2])",0.682962468125,0.008983856567050752
+logp0,"logp0(p_core->emg_psd[0][CH3][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][2])",0.635065221875,0.0023973280399131407
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][2], p_core->emg_psd_mean[CH3][2])",0.5506745271875,0.005973596896636917
+logp0,"logp0(p_core->emg_psd[0][CH3][3], p_core->emg_psd_mean[CH3][3])",0.682442315625,0.011423172756025385
+logp0,"logp0(p_core->emg_psd[0][CH3][3], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][3])",0.62848896125,0.00231159900455297
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][3], p_core->emg_psd_mean[CH3][3])",0.5384835649999999,0.009172020947083493
+logp0,"logp0(p_core->emg_psd[0][CH3][4], p_core->emg_psd_mean[CH3][4])",0.694438765625,0.0050477096993990405
+logp0,"logp0(p_core->emg_psd[0][CH3][4], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][4])",0.6511636890625,0.0018937561978550903
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][4], p_core->emg_psd_mean[CH3][4])",0.5676299928124999,0.004036425792803233
+logp0,"logp0(p_core->emg_psd[0][CH1][0], p_core->emg_psd[0][CH1][1])",0.6428917584375,0.266091612413246
+logp0,"logp0(p_core->emg_psd[0][CH1][0], p_core->emg_psd[0][CH1][2])",0.6739759484375001,0.2936883119033238
+logp0,"logp0(p_core->emg_psd[0][CH1][0], p_core->emg_psd[0][CH1][3])",0.6495156875,0.2930982163314513
+logp0,"logp0(p_core->emg_psd[0][CH1][0], p_core->emg_psd[0][CH1][4])",0.6774154440625,0.29700681986312966
+logp0,"logp0(p_core->emg_psd[0][CH1][1], p_core->emg_psd[0][CH1][2])",0.5956305071875,0.08091565911832466
+logp0,"logp0(p_core->emg_psd[0][CH1][1], p_core->emg_psd[0][CH1][3])",0.5556733015624999,0.10459160635346448
+logp0,"logp0(p_core->emg_psd[0][CH1][1], p_core->emg_psd[0][CH1][4])",0.5094308599999999,0.08131737410742165
+logp0,"logp0(p_core->emg_psd[0][CH1][2], p_core->emg_psd[0][CH1][3])",0.543567409375,0.047407348940397345
+logp0,"logp0(p_core->emg_psd[0][CH1][2], p_core->emg_psd[0][CH1][4])",0.629932534375,0.19191803677532104
+logp0,"logp0(p_core->emg_psd[0][CH1][3], p_core->emg_psd[0][CH1][4])",0.5646600478125,0.17488026745817084
+logp0,"logp0(p_core->emg_psd[0][CH2][0], p_core->emg_psd[0][CH2][1])",0.7605717271875,0.3218822644042716
+logp0,"logp0(p_core->emg_psd[0][CH2][0], p_core->emg_psd[0][CH2][2])",0.7853771828125,0.39739736502795014
+logp0,"logp0(p_core->emg_psd[0][CH2][0], p_core->emg_psd[0][CH2][3])",0.7696960403124999,0.41747495445290717
+logp0,"logp0(p_core->emg_psd[0][CH2][0], p_core->emg_psd[0][CH2][4])",0.7893210103125,0.38184238577330637
+logp0,"logp0(p_core->emg_psd[0][CH2][1], p_core->emg_psd[0][CH2][2])",0.6587858853124999,0.16780886962602384
+logp0,"logp0(p_core->emg_psd[0][CH2][1], p_core->emg_psd[0][CH2][3])",0.6227111949999999,0.1964145959847646
+logp0,"logp0(p_core->emg_psd[0][CH2][1], p_core->emg_psd[0][CH2][4])",0.5518089465625,0.10070887435983647
+logp0,"logp0(p_core->emg_psd[0][CH2][2], p_core->emg_psd[0][CH2][3])",0.5389704140625,0.051424006765197
+logp0,"logp0(p_core->emg_psd[0][CH2][2], p_core->emg_psd[0][CH2][4])",0.7373499809375,0.32691562839417077
+logp0,"logp0(p_core->emg_psd[0][CH2][3], p_core->emg_psd[0][CH2][4])",0.6795887221875,0.343959933048422
+logp0,"logp0(p_core->emg_psd[0][CH3][0], p_core->emg_psd[0][CH3][1])",0.7263618309375,0.3547442180297776
+logp0,"logp0(p_core->emg_psd[0][CH3][0], p_core->emg_psd[0][CH3][2])",0.720350289375,0.41138063263366104
+logp0,"logp0(p_core->emg_psd[0][CH3][0], p_core->emg_psd[0][CH3][3])",0.7124873378125001,0.42832873398506355
+logp0,"logp0(p_core->emg_psd[0][CH3][0], p_core->emg_psd[0][CH3][4])",0.7311223687499999,0.4470791282784855
+logp0,"logp0(p_core->emg_psd[0][CH3][1], p_core->emg_psd[0][CH3][2])",0.5845211721875,0.15575762100344645
+logp0,"logp0(p_core->emg_psd[0][CH3][1], p_core->emg_psd[0][CH3][3])",0.5731289459375,0.2069860083166743
+logp0,"logp0(p_core->emg_psd[0][CH3][1], p_core->emg_psd[0][CH3][4])",0.593716715625,0.11280511298458075
+logp0,"logp0(p_core->emg_psd[0][CH3][2], p_core->emg_psd[0][CH3][3])",0.5056565809375,0.08104449739113734
+logp0,"logp0(p_core->emg_psd[0][CH3][2], p_core->emg_psd[0][CH3][4])",0.6721010371875,0.27965439750514554
+logp0,"logp0(p_core->emg_psd[0][CH3][3], p_core->emg_psd[0][CH3][4])",0.6488464759375,0.30068790366935766
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][1])",0.6199208596875,0.25719139010690756
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][2])",0.6540532403125,0.28648889178737424
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3])",0.6908769503125001,0.282772946400652
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][4])",0.66573878125,0.28586129095173823
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][2])",0.5925295453125,0.08637639908801269
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3])",0.6404126478125001,0.10752476433064737
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][4])",0.540620254375,0.08403169084132833
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3])",0.5769798912499999,0.047866986334535684
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][4])",0.5920447640625,0.19115040711121614
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][3], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH1][4])",0.6683285053125,0.1697832937877147
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][1])",0.758978769375,0.31794294254724953
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][2])",0.7812111934375,0.38764193464303015
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][3])",0.7967152984375,0.4082195320682908
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][4])",0.7908760862499999,0.36828330005318005
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][2])",0.65915663625,0.1642822755401941
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][3])",0.690883271875,0.1995856817226906
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][4])",0.5272032271875,0.10408750169794671
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][3])",0.5680429315625,0.05017583297373414
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][4])",0.714269740625,0.322489341896916
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][3], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH2][4])",0.7512080703125,0.34452828507083383
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][1])",0.7443179424999999,0.3413447345848645
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][2])",0.7634051093750001,0.4014550802460301
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][3])",0.774136600625,0.4186001962138316
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][0], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][4])",0.770921309375,0.43269124614380283
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][2])",0.64586822,0.15851252653854356
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][3])",0.6704870390625,0.20619166345633916
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][1], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][4])",0.5199870425,0.10556746615340142
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][3])",0.557085568125,0.07966186144173525
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][2], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][4])",0.701582920625,0.27575799313225996
+logp0,"logp0(p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][3], p_core->emg_psd[EMG_PSD_HISTORY_SIZE - 1][CH3][4])",0.730759269375,0.2976901584861405
+logp0,"logp0(p_core->emg_psd_mean[CH1][0], p_core->emg_psd_mean[CH1][1])",0.653234320625,0.41871919176088157
+logp0,"logp0(p_core->emg_psd_mean[CH1][0], p_core->emg_psd_mean[CH1][2])",0.6821946946874999,0.43875632547350835
+logp0,"logp0(p_core->emg_psd_mean[CH1][0], p_core->emg_psd_mean[CH1][3])",0.6951080978124999,0.4189231457688381
+logp0,"logp0(p_core->emg_psd_mean[CH1][0], p_core->emg_psd_mean[CH1][4])",0.6703375971875001,0.43446809358640276
+logp0,"logp0(p_core->emg_psd_mean[CH1][1], p_core->emg_psd_mean[CH1][2])",0.61430473625,0.1607698355959297
+logp0,"logp0(p_core->emg_psd_mean[CH1][1], p_core->emg_psd_mean[CH1][3])",0.62607058875,0.1840316444713101
+logp0,"logp0(p_core->emg_psd_mean[CH1][1], p_core->emg_psd_mean[CH1][4])",0.516948049375,0.16041553388865953
+logp0,"logp0(p_core->emg_psd_mean[CH1][2], p_core->emg_psd_mean[CH1][3])",0.5350078359375,0.10453460865391412
+logp0,"logp0(p_core->emg_psd_mean[CH1][2], p_core->emg_psd_mean[CH1][4])",0.6700035634375,0.33640830181700715
+logp0,"logp0(p_core->emg_psd_mean[CH1][3], p_core->emg_psd_mean[CH1][4])",0.6745582128125,0.26716549937576517
+logp0,"logp0(p_core->emg_psd_mean[CH2][0], p_core->emg_psd_mean[CH2][1])",0.7974358887499999,0.4734175889022159
+logp0,"logp0(p_core->emg_psd_mean[CH2][0], p_core->emg_psd_mean[CH2][2])",0.813397111875,0.5304954226071172
+logp0,"logp0(p_core->emg_psd_mean[CH2][0], p_core->emg_psd_mean[CH2][3])",0.8157365962500001,0.5351467569263396
+logp0,"logp0(p_core->emg_psd_mean[CH2][0], p_core->emg_psd_mean[CH2][4])",0.8102449634375,0.4981675332138897
+logp0,"logp0(p_core->emg_psd_mean[CH2][1], p_core->emg_psd_mean[CH2][2])",0.7095451459375,0.2832208331952179
+logp0,"logp0(p_core->emg_psd_mean[CH2][1], p_core->emg_psd_mean[CH2][3])",0.7059395778124999,0.2993931361363541
+logp0,"logp0(p_core->emg_psd_mean[CH2][1], p_core->emg_psd_mean[CH2][4])",0.5912961978125,0.21710934387280711
+logp0,"logp0(p_core->emg_psd_mean[CH2][2], p_core->emg_psd_mean[CH2][3])",0.5283294431250001,0.08629832653152823
+logp0,"logp0(p_core->emg_psd_mean[CH2][2], p_core->emg_psd_mean[CH2][4])",0.7851856084375,0.4938817784955625
+logp0,"logp0(p_core->emg_psd_mean[CH2][3], p_core->emg_psd_mean[CH2][4])",0.77758910125,0.4786279736433824
+logp0,"logp0(p_core->emg_psd_mean[CH3][0], p_core->emg_psd_mean[CH3][1])",0.7865066671875001,0.4967700096449028
+logp0,"logp0(p_core->emg_psd_mean[CH3][0], p_core->emg_psd_mean[CH3][2])",0.7860922240625,0.5444750954233794
+logp0,"logp0(p_core->emg_psd_mean[CH3][0], p_core->emg_psd_mean[CH3][3])",0.78445094625,0.5506935833268793
+logp0,"logp0(p_core->emg_psd_mean[CH3][0], p_core->emg_psd_mean[CH3][4])",0.7905081878125,0.5734297826583525
+logp0,"logp0(p_core->emg_psd_mean[CH3][1], p_core->emg_psd_mean[CH3][2])",0.6626859934375,0.2597419062857338
+logp0,"logp0(p_core->emg_psd_mean[CH3][1], p_core->emg_psd_mean[CH3][3])",0.6555928021874999,0.30642212418407977
+logp0,"logp0(p_core->emg_psd_mean[CH3][1], p_core->emg_psd_mean[CH3][4])",0.5725760590625,0.19637123488509184
+logp0,"logp0(p_core->emg_psd_mean[CH3][2], p_core->emg_psd_mean[CH3][3])",0.5244708721875,0.15433970275309888
+logp0,"logp0(p_core->emg_psd_mean[CH3][2], p_core->emg_psd_mean[CH3][4])",0.743655359375,0.41970378318446344
+logp0,"logp0(p_core->emg_psd_mean[CH3][3], p_core->emg_psd_mean[CH3][4])",0.7386993571875,0.41134870220709546
+chpool,chpool.max_ch(now-mean code)[0],0.6091310490625,0.028905503516844806
+chpool,chpool.max_ch(now-mean code)[1],0.699950896875,0.021416097182442025
+chpool,chpool.max_ch(now-mean code)[2],0.7371261425,0.02528302508887831
+chpool,chpool.max_ch(now-mean code)[3],0.714234578125,0.03786838749080249
+chpool,chpool.max_ch(now-mean code)[4],0.732922151875,0.01964832017367214
+chpool,chpool.mean_ch(now-mean code)[0],0.671551105,0.0015131740645232886
+chpool,chpool.mean_ch(now-mean code)[1],0.7373441596875,0.001587448370004887
+chpool,chpool.mean_ch(now-mean code)[2],0.7606588375,0.0017838397196313874
+chpool,chpool.mean_ch(now-mean code)[3],0.7429739740625,0.001654504987042183
+chpool,chpool.mean_ch(now-mean code)[4],0.753468871875,0.0016532766177792164
+chpool,chpool.min_ch(now-mean code)[0],0.7368496290625,0.020357252865013435
+chpool,chpool.min_ch(now-mean code)[1],0.7590013640625,0.01761097407990884
+chpool,chpool.min_ch(now-mean code)[2],0.7619945159375,0.025670909882633416
+chpool,chpool.min_ch(now-mean code)[3],0.755005478125,0.04139788358691688
+chpool,chpool.min_ch(now-mean code)[4],0.7577550240625,0.014049834291358379
+chpool,chpool.max_ch(now-old code)[0],0.5682867846875,0.02733182401459678
+chpool,chpool.max_ch(now-old code)[1],0.6416025025,0.02137815851751077
+chpool,chpool.max_ch(now-old code)[2],0.676659408125,0.028780036806451675
+chpool,chpool.max_ch(now-old code)[3],0.65388528875,0.04320363054946686
+chpool,chpool.max_ch(now-old code)[4],0.670997385,0.021144611582746418
+chpool,chpool.mean_ch(now-old code)[0],0.6376356421875,0.0017410909302590408
+chpool,chpool.mean_ch(now-old code)[1],0.6890401496875,0.0018998446682765156
+chpool,chpool.mean_ch(now-old code)[2],0.707337936875,0.002119734505869295
+chpool,chpool.mean_ch(now-old code)[3],0.68837082375,0.0018948064593884762
+chpool,chpool.mean_ch(now-old code)[4],0.7030263840625,0.001927761838280454
+chpool,chpool.min_ch(now-old code)[0],0.7010047396875,0.023717917926724622
+chpool,chpool.min_ch(now-old code)[1],0.7190901046875,0.018104880534742688
+chpool,chpool.min_ch(now-old code)[2],0.71656128,0.026942743561528173
+chpool,chpool.min_ch(now-old code)[3],0.7055333840625,0.04246029945387366
+chpool,chpool.min_ch(now-old code)[4],0.718817095,0.01767763257292337
+chpool,chpool.sum_ch(power) now-mean dB[0],0.72301765125,0.005004380188927656
+chpool,chpool.sum_ch(power) now-mean dB[1],0.77464777,0.00531903495172204
+chpool,chpool.sum_ch(power) now-mean dB[2],0.7932733003125,0.006032321551528643
+chpool,chpool.sum_ch(power) now-mean dB[3],0.784370366875,0.005751483848368384
+chpool,chpool.sum_ch(power) now-mean dB[4],0.78804061625,0.004631927005779565
+chpool,chpool.sum_ch(power) now-old dB[0],0.6952297209375,0.002015034327578843
+chpool,chpool.sum_ch(power) now-old dB[1],0.7279070796875,0.0021301682330820046
+chpool,chpool.sum_ch(power) now-old dB[2],0.7379239809375,0.0023638934440931925
+chpool,chpool.sum_ch(power) now-old dB[3],0.724046200625,0.0022917027838077484
+chpool,chpool.sum_ch(power) now-old dB[4],0.7381663825,0.0021394937109528813
+chpool,chpool.total power now-mean dB,0.7833012703125,0.0060465388448228624
+chpool,chpool.total power now-old dB,0.7395537978125,0.002159805862893578
+ddiff,ddiff(now-mean)[CH1][0]-[1],0.6433124084374999,0.0014833413491270075
+ddiff,ddiff(now-mean)[CH1][0]-[2],0.625856389375,0.001692542060519618
+ddiff,ddiff(now-mean)[CH1][0]-[3],0.5268994603125,0.00170458623796092
+ddiff,ddiff(now-mean)[CH1][0]-[4],0.748216303125,0.001541005781814743
+ddiff,ddiff(now-mean)[CH1][1]-[2],0.51211014,0.0013629847488203994
+ddiff,ddiff(now-mean)[CH1][1]-[3],0.6585521734375,0.001202210778434959
+ddiff,ddiff(now-mean)[CH1][1]-[4],0.6636722340625,0.0015233527580192296
+ddiff,ddiff(now-mean)[CH1][2]-[3],0.7074590640625,0.001460240863847378
+ddiff,ddiff(now-mean)[CH1][2]-[4],0.6539130934374999,0.0017649164748787434
+ddiff,ddiff(now-mean)[CH1][3]-[4],0.7531251725,0.0016338820560090847
+ddiff,ddiff(now-mean)[CH2][0]-[1],0.603413031875,0.0015957208810841819
+ddiff,ddiff(now-mean)[CH2][0]-[2],0.59058957,0.0009737180405954066
+ddiff,ddiff(now-mean)[CH2][0]-[3],0.515422190625,0.0010580122561582666
+ddiff,ddiff(now-mean)[CH2][0]-[4],0.720265309375,0.0011501902503050782
+ddiff,ddiff(now-mean)[CH2][1]-[2],0.5050733924999999,0.0009826945399378374
+ddiff,ddiff(now-mean)[CH2][1]-[3],0.6320309396875,0.0011943640874509413
+ddiff,ddiff(now-mean)[CH2][1]-[4],0.6370266753125,0.0019182444937362098
+ddiff,ddiff(now-mean)[CH2][2]-[3],0.68921376375,0.0014797588377045792
+ddiff,ddiff(now-mean)[CH2][2]-[4],0.6083698315625,0.0010162152104596946
+ddiff,ddiff(now-mean)[CH2][3]-[4],0.7028670053125,0.0012823861148646787
+ddiff,ddiff(now-mean)[CH3][0]-[1],0.5398926740625001,0.0011516088352311806
+ddiff,ddiff(now-mean)[CH3][0]-[2],0.50059193625,0.000864369185054065
+ddiff,ddiff(now-mean)[CH3][0]-[3],0.567986694375,0.0009726902942719023
+ddiff,ddiff(now-mean)[CH3][0]-[4],0.5899177865625,0.0010690651747671997
+ddiff,ddiff(now-mean)[CH3][1]-[2],0.5492048434375,0.0012693379458888706
+ddiff,ddiff(now-mean)[CH3][1]-[3],0.6204311909375,0.0014801060384015104
+ddiff,ddiff(now-mean)[CH3][1]-[4],0.552456764375,0.001392818592007308
+ddiff,ddiff(now-mean)[CH3][2]-[3],0.6168694703125,0.0014425919677149115
+ddiff,ddiff(now-mean)[CH3][2]-[4],0.6000531743749999,0.0009261293266633834
+ddiff,ddiff(now-mean)[CH3][3]-[4],0.6412584578125,0.001254344506186057
+ddiff,ddiff(now-old)[CH1][0]-[1],0.61882784,0.001509589025339586
+ddiff,ddiff(now-old)[CH1][0]-[2],0.6064716425000001,0.001483176789273883
+ddiff,ddiff(now-old)[CH1][0]-[3],0.5219649046875,0.0017829339864304558
+ddiff,ddiff(now-old)[CH1][0]-[4],0.706155921875,0.0017304542465377806
+ddiff,ddiff(now-old)[CH1][1]-[2],0.5127810159374999,0.0012923999508806098
+ddiff,ddiff(now-old)[CH1][1]-[3],0.6320909,0.0015833927956141031
+ddiff,ddiff(now-old)[CH1][1]-[4],0.63776287625,0.0013838971971733293
+ddiff,ddiff(now-old)[CH1][2]-[3],0.6769400215625,0.0018178150754793111
+ddiff,ddiff(now-old)[CH1][2]-[4],0.6232746725,0.0015594566439460476
+ddiff,ddiff(now-old)[CH1][3]-[4],0.7095563096874999,0.0019671878333773316
+ddiff,ddiff(now-old)[CH2][0]-[1],0.5873930984375,0.0018372071878728386
+ddiff,ddiff(now-old)[CH2][0]-[2],0.576836671875,0.0014327105269686888
+ddiff,ddiff(now-old)[CH2][0]-[3],0.51201114875,0.001452881921993437
+ddiff,ddiff(now-old)[CH2][0]-[4],0.6852218371875001,0.0017097068895390068
+ddiff,ddiff(now-old)[CH2][1]-[2],0.5103051037499999,0.0008857339376872386
+ddiff,ddiff(now-old)[CH2][1]-[3],0.608479518125,0.0012540102335961603
+ddiff,ddiff(now-old)[CH2][1]-[4],0.6111821284375001,0.0019049285333383663
+ddiff,ddiff(now-old)[CH2][2]-[3],0.65944872625,0.002210715713722096
+ddiff,ddiff(now-old)[CH2][2]-[4],0.5818423081249999,0.0012982829697185717
+ddiff,ddiff(now-old)[CH2][3]-[4],0.6659067878125,0.0017434687304483931
+ddiff,ddiff(now-old)[CH3][0]-[1],0.5383189374999999,0.0017380958583916003
+ddiff,ddiff(now-old)[CH3][0]-[2],0.5059062775000001,0.0015603512461709228
+ddiff,ddiff(now-old)[CH3][0]-[3],0.54478357875,0.001491078101393203
+ddiff,ddiff(now-old)[CH3][0]-[4],0.5668334312500001,0.0020474417124059733
+ddiff,ddiff(now-old)[CH3][1]-[2],0.5319761053125,0.0013052624224986614
+ddiff,ddiff(now-old)[CH3][1]-[3],0.5880657884375,0.0016219538337346989
+ddiff,ddiff(now-old)[CH3][1]-[4],0.5290421321875001,0.0013263420273229548
+ddiff,ddiff(now-old)[CH3][2]-[3],0.585767086875,0.001373857216595417
+ddiff,ddiff(now-old)[CH3][2]-[4],0.565407705625,0.0012290941691025937
+ddiff,ddiff(now-old)[CH3][3]-[4],0.60542237125,0.0013449665489278578

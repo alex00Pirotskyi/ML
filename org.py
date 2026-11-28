@@ -223,7 +223,9 @@ GESTURE_MAP = {
     # FINGER MOTION
 
     "indexfinger": (FOLDER_TAP, "FINGER", 3),
-    "index": (FOLDER_TAP, "FINGER", 3),
+    # "index_finger", not a bare "index": find_mapping searches the whole file name, so "index" also matched
+    # participant names (e.g. "indexuser_..._Swipe_..." went to FINGER). All current files map as before.
+    "index_finger": (FOLDER_TAP, "FINGER", 3),
 
     "midfinger": (FOLDER_TAP, "FINGER", 3),
     "mid_finger": (FOLDER_TAP, "FINGER", 3),
@@ -526,6 +528,17 @@ def find_mapping(
     for keyword in sorted_keywords:
 
         if keyword in filename_lower:
+
+            return keyword, GESTURE_MAP[keyword]
+
+    # Names with an underscore between the words of the gesture (newer app: Tap_on_Hand, Soft_Tap): only when
+    # nothing matched, retry with the underscores removed, so routing of every other file stays as it was.
+
+    squashed = filename_lower.replace("_", "")
+
+    for keyword in sorted_keywords:
+
+        if keyword.replace("_", "") in squashed:
 
             return keyword, GESTURE_MAP[keyword]
 

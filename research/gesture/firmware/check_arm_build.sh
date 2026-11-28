@@ -78,3 +78,21 @@ check() {  # name dsp_include
 }
 check cmsis5.9.0 "$WORK/cmsis5/CMSIS/DSP"
 check cmsis-dsp1.16.2 "$WORK/cmsisdsp"
+
+# tap_gestures.h: integer only, no calls
+cat > "$WORK/tg.c" <<'EOF'
+#include "tap_gestures.h"
+tg_state_t g;
+int tg_entry(unsigned char q, unsigned long t) { return (int) tg_update(&g, q, (uint32_t) t); }
+EOF
+for mode in "-DTG_REPORT_TAP_IMMEDIATELY=0" "-DTG_REPORT_TAP_IMMEDIATELY=1 -DTG_CHAIN_TAPS=1"; do
+    # shellcheck disable=SC2086
+    "$CC" --target=thumbv7em-none-eabihf -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=hard -O2 -ffreestanding \
+        -std=c99 -Wall -Wextra -Werror $mode -I "$HERE" -c "$WORK/tg.c" -o "$WORK/tg.o"
+    tgdis=$("$OBJDUMP" -dr --no-show-raw-insn "$WORK/tg.o")
+    if grep -qE '\sv(add|sub|mul|div|sqrt|cvt|ldr|str|mov|cmp|abs|neg|fma)' <<<"$tgdis"; then
+        echo "FAIL tap_gestures ($mode): floating-point instruction"; exit 1
+    fi
+    if grep -qE 'R_ARM_THM_(CALL|JUMP24)' <<<"$tgdis"; then echo "FAIL tap_gestures ($mode): unexpected call"; exit 1; fi
+    echo "TAP_GESTURES_ARM_BUILD_OK ($mode) instructions=$(grep -cE '^\s+[0-9a-f]+:' <<<"$tgdis")"
+done

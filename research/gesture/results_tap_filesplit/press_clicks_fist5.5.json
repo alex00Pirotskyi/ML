@@ -1,0 +1,18 @@
+[
+ {
+  "arm": "kb32+leaves15+obs60",
+  "thr": 0.9721,
+  "normal": 94.1,
+  "soft": 90.5,
+  "double_2nd": 87.2,
+  "fast": 90.8,
+  "swipe": 87.0,
+  "finger": 2.91,
+  "fist": 5.5,
+  "wrist": 4.4,
+  "band": 3.07,
+  "release_clicks_per_100_taps": 7.25,
+  "release_clicks_single_tap_recordings": 4.61,
+  "early_clicks_per_100_taps": 1.93
+ }
+]
