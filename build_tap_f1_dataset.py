@@ -8,10 +8,15 @@ Three passes over the recordings the file-level fold roadmap lists as trainable 
               0 = not a tap; the pointer is repaired (per-recording delay, bounces, the 2nd tap of a double inside one
               press, taps the pointer missed found on the rhythm). A recording whose pointer and signal disagree on most
               presses is left out. v10rescue / v10 / hybrid on request.
-  2. inputs   --features rfe (default): select_tap_f1_features.py keeps the useful inputs of ~5,100 candidates (the
-              raw fields without WL, every ACC-ACC and EMG-EMG diff and ratio, Lean-lite) on a row sample of the
-              TRAINING folds only; kept in _build/selected_features.json (+ .md report) while labels, data and settings
-              do not change. Or a fixed pool: leg / newacc / new / lite.
+  2. inputs   --features rfe (default): select_tap_f1_features.py keeps the useful inputs of ~3,200 candidates (the
+              raw ACC fields, every ACC-ACC diff and ratio, EMG PSD only as diffs inside one channel - over time and
+              zone vs zone, --emg within -, Lean-lite; no WL) on a row sample of the TRAINING folds only; kept in
+              _build/selected_features.json (+ .md report) while labels, data and settings do not change. Or a fixed
+              pool: leg / newacc / new / lite.
+              --aug 1 (default): every training-fold recording gets one band placement / skin contact / power-grid
+              hum / rotation change (tap_f1_augment.py, seeded by its file name) before its inputs are computed, for
+              the feature elimination and the CSVs alike; the held-out fold stays as recorded
+              (research/gesture/EMG_PSD_ROBUST_FEATURES.md).
   3. CSVs     per recording: the inputs, state (1 tap / 0 not a tap / -1 not trained), class_id, and timestamp /
               PointerState (not inputs: the trainer only takes p_core-> columns; evaluate_tap_f1.py uses them).
               --tap-row-share 0.5 (default): TAP / SWIPE recordings train on every 2nd row only (the others are
@@ -42,6 +47,7 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parent
 sys.path[:0] = [str(ROOT), str(ROOT / "claude_labeling")]
+import tap_f1_augment as AUG  # noqa: E402
 import tap_f1_features as F  # noqa: E402
 import tap_signal as TS  # noqa: E402
 import tap_v10_rescue as RESCUE  # noqa: E402
@@ -56,6 +62,7 @@ MIN_ROWS = 20                      # a recording with fewer usable rows is not w
 DEFAULT_TAP_ROW_SHARE = 0.5        # share of TAP / SWIPE rows that train (thin_tap_rows): the legacy data mix
 DEFAULT_RFE_ROWS = 400_000         # rows of the training folds the feature elimination looks at
 TEST_FOLD = 0                      # = train_tap_f1.TEST_FOLD_ID: never seen by the feature elimination
+DEFAULT_AUG = True                 # training folds get the placement / contact / hum / rotation augmentation
 POS_FOLDERS = ("TAP", "SWIPE")
 
 
@@ -134,10 +141,14 @@ def thin_tap_rows(y, folder, share):
 
 
 # ================================================================================================ base fields
-def base_fields(df, rel, lite):
-    """(rows x base fields float32, base column names): the raw p_core fields (+ Lean-lite from DATA_TAP_LEAN8)"""
+def base_fields(df, rel, lite, aug=False):
+    """(rows x base fields float32, base column names): the raw p_core fields (+ Lean-lite from DATA_TAP_LEAN8).
+    aug: the recording's training augmentation (tap_f1_augment.draw, seeded by its file name) is applied to the EMG
+    PSD codes and WL first, so Lean-lite is computed from the changed WL, as the firmware would."""
     raw_cols = [c for c in df.columns if c.startswith("p_core->")]
     B = df[raw_cols].to_numpy(np.float32)
+    if aug:
+        B = AUG.apply(B, raw_cols, AUG.draw(Path(rel).name))
     if not lite:
         return B, raw_cols
     lp = _source(rel.replace("DATA_TAP/", "DATA_TAP_LEAN8/", 1))
@@ -152,25 +163,26 @@ def base_fields(df, rel, lite):
 # ================================================================================================ 2. inputs
 def sample_one(job):
     """every `every`-th trainable row of one training-fold recording: base fields (no WL), label, fold"""
-    rel, label_path, fold, every, share, lite, phase = job
+    rel, label_path, fold, every, share, lite, phase, aug = job
     src = _source(rel)
     df = pd.read_csv(src, low_memory=False)
     y = thin_tap_rows(np.load(label_path), src.parent.name, share)
     rows = np.flatnonzero(y >= 0)
     rows = rows[(phase % every)::every]
-    B, cols = base_fields(df, rel, lite)
+    B, cols = base_fields(df, rel, lite, aug=aug)
     keep = [i for i, c in enumerate(cols) if not F.is_wl(c)]
     target = ((y[rows] > 0) & (df["class_id"].to_numpy()[rows] == 1)).astype(np.int8)
     return B[np.ix_(rows, keep)], target, np.full(len(rows), fold, np.int8), [cols[i] for i in keep]
 
 
 def select_inputs(recs, label_dir, meta, share, wl, lite, rfe_rows, workers, raw_cols, lsig, roadmap_fp, log,
-                  emg=F.DEFAULT_EMG):
+                  emg=F.DEFAULT_EMG, aug=DEFAULT_AUG):
     import select_tap_f1_features as SEL
     cands = F.candidates(raw_cols, wl=wl, lite=lite, emg=emg)
     train = [r for r in recs if r.fold_id != TEST_FOLD]
     data_fp = hashlib.sha256("".join(sorted(f"{r.file_id}:{_source(_rel(r)).stat().st_mtime_ns}" for r in train)).encode()).hexdigest()
     sig = dict(labels=lsig["signature"], tap_row_share=share, wl=wl, lite=lite, emg=emg, rfe_rows=rfe_rows,
+               aug=AUG.VERSION if aug else None, aug_code=_sha([ROOT / "tap_f1_augment.py"]) if aug else None,
                candidates=hashlib.sha256("\n".join(cands).encode()).hexdigest(), rfe=SEL.SETTINGS,
                roadmap=roadmap_fp, data=data_fp, selector_code=_sha([ROOT / "select_tap_f1_features.py"]))
     sig_h = hashlib.sha256(json.dumps(sig, sort_keys=True).encode()).hexdigest()
@@ -184,8 +196,8 @@ def select_inputs(recs, label_dir, meta, share, wl, lite, rfe_rows, workers, raw
     every = max(1, int(usable // max(1, rfe_rows)))
     log(f"[build] inputs: feature elimination over {len(cands)} candidates; sample: "
         f"{'every' if every == 1 else f'1 in {every}'} trainable row of {len(train)} training-fold recordings")
-    jobs = [(_rel(r), str(label_dir / r.category / (Path(_rel(r)).name + ".npy")), r.fold_id, every, share, lite, k)
-            for k, r in enumerate(train)]
+    jobs = [(_rel(r), str(label_dir / r.category / (Path(_rel(r)).name + ".npy")), r.fold_id, every, share, lite, k,
+             aug) for k, r in enumerate(train)]
     with ProcessPoolExecutor(workers, mp_context=_ctx()) as ex:
         parts = list(ex.map(sample_one, jobs, chunksize=4))
     sdir = meta / "rfe_sample"
@@ -205,7 +217,7 @@ def select_inputs(recs, label_dir, meta, share, wl, lite, rfe_rows, workers, raw
 
 # ================================================================================================ 3. CSVs
 def write_one(job):
-    rel, label_path, out_path, names, share = job
+    rel, label_path, out_path, names, share, aug = job
     src = _source(rel)
     try:
         df = pd.read_csv(src, low_memory=False)
@@ -214,7 +226,7 @@ def write_one(job):
             raise RuntimeError(f"{len(y)} labels for {len(df)} rows")
         if int((y >= 0).sum()) < MIN_ROWS:
             return dict(rel=rel, status="skipped_left_out")
-        B, cols = base_fields(df, rel, F.needs_lite(names))
+        B, cols = base_fields(df, rel, F.needs_lite(names), aug=aug)
         fm = F.FeatureMaker(cols, names)
         X = fm(B)
         fl = set(fm.float_columns)
@@ -229,7 +241,7 @@ def write_one(job):
         out.to_csv(tmp, index=False, float_format="%.7g")
         os.replace(tmp, out_path)
         return dict(rel=rel, status="written", trained_rows=int((y >= 0).sum()), trained_tap_rows=int((y > 0).sum()),
-                    bytes=out_path.stat().st_size)
+                    bytes=out_path.stat().st_size, aug=AUG.VERSION if aug else "none")
     except Exception as exc:  # reported in the manifest; the build fails at the end
         return dict(rel=rel, status=f"error: {type(exc).__name__}: {exc}")
 
@@ -243,7 +255,7 @@ def one(job):
     if str(info.get("label_status", "")).startswith("error"):
         return dict(info, status=info["label_status"])
     cols = pd.read_csv(src, nrows=0).columns
-    r = write_one((rel, str(tmp), out_path, F.pool(pool_name, cols, wl=wl), share))
+    r = write_one((rel, str(tmp), out_path, F.pool(pool_name, cols, wl=wl), share, False))
     tmp.unlink(missing_ok=True)
     return dict(info, **r)
 
@@ -254,8 +266,10 @@ def _rel(r):
 
 # ================================================================================================ the build
 def build(out=DEFAULT_OUT, preset=DEFAULT_LABELS, pool_name=F.DEFAULT_POOL, roadmap=DATA / "fold_roadmap_files.json",
-          workers=None, limit=None, share=None, wl=None, lite=True, rfe_rows=DEFAULT_RFE_ROWS, log=print, emg=None):
+          workers=None, limit=None, share=None, wl=None, lite=True, rfe_rows=DEFAULT_RFE_ROWS, log=print, emg=None,
+          aug=None):
     share = DEFAULT_TAP_ROW_SHARE if share is None else float(share)
+    aug = DEFAULT_AUG if aug is None else bool(aug)
     wl = F.DEFAULT_WL if wl is None else bool(wl)
     emg = F.DEFAULT_EMG if emg is None else str(emg)
     if emg not in F.EMG_MODES:
@@ -299,16 +313,19 @@ def build(out=DEFAULT_OUT, preset=DEFAULT_LABELS, pool_name=F.DEFAULT_POOL, road
     selected = None
     if pool_name == "rfe":
         selected = select_inputs(recs, label_dir, meta, share, wl, lite, rfe_rows, workers, raw_cols, lsig,
-                                 client.data_fingerprint, log, emg=emg)
+                                 client.data_fingerprint, log, emg=emg, aug=aug)
     names = F.pool(pool_name, raw_cols, wl=wl, selected=selected)
     if F.needs_lite(names) and not lite:
         raise SystemExit("the inputs use Lean-lite but --no-lite was given")
     log(f"[build] 2/3 inputs: {pool_name}, {len(names)} inputs ({sum(n in F.LITE_COLUMNS for n in names)} Lean-lite, "
-        f"WL {'on' if wl else 'off'}, EMG {emg if pool_name == 'rfe' else 'fixed pool'})")
+        f"{'WL on' if wl else 'WL, WL_head, WL_tail removed (9 fields, 9 ratios)'}, "
+        f"EMG {emg if pool_name == 'rfe' else 'fixed pool'}, "
+        f"augmentation {'on (training folds)' if aug else 'off'})")
 
     # 3. CSVs ---------------------------------------------------------------------------------------------------
     bsig = dict(labels=lsig["signature"], pool=pool_name, inputs=hashlib.sha256("\n".join(names).encode()).hexdigest(),
-                tap_row_share=share, wl=wl, writer=_sha([ROOT / "build_tap_f1_dataset.py", ROOT / "tap_f1_features.py"]))
+                tap_row_share=share, wl=wl, aug=AUG.VERSION if aug else None,
+                writer=_sha([ROOT / "build_tap_f1_dataset.py", ROOT / "tap_f1_features.py", ROOT / "tap_f1_augment.py"]))
     bsig["signature"] = hashlib.sha256(json.dumps(bsig, sort_keys=True).encode()).hexdigest()
     old = json.loads((meta / "build.json").read_text()) if (meta / "build.json").exists() else {}
     if old.get("signature") != bsig["signature"]:
@@ -319,8 +336,17 @@ def build(out=DEFAULT_OUT, preset=DEFAULT_LABELS, pool_name=F.DEFAULT_POOL, road
         if n_old:
             log(f"[build] settings or inputs changed: {n_old} old CSVs removed")
     dst = {_rel(r): out / r.category / Path(_rel(r)).name for r in recs}
-    jobs = [(rel, str(lpath[rel]), str(d), names, share) for rel, d in dst.items()
-            if not d.exists() or d.stat().st_mtime < max(_source(rel).stat().st_mtime, lpath[rel].stat().st_mtime)]
+    augmented = {_rel(r): bool(aug and r.fold_id != TEST_FOLD) for r in recs}   # the held-out fold stays as recorded
+    man_path = meta / "manifest.csv"
+    prev_aug = {}
+    if man_path.exists():
+        prev = pd.read_csv(man_path)
+        if "aug" in prev.columns:
+            prev_aug = dict(zip(prev.rel, prev.aug.fillna("none").astype(str)))
+    want_aug = lambda rel: AUG.VERSION if augmented[rel] else "none"
+    jobs = [(rel, str(lpath[rel]), str(d), names, share, augmented[rel]) for rel, d in dst.items()
+            if not d.exists() or d.stat().st_mtime < max(_source(rel).stat().st_mtime, lpath[rel].stat().st_mtime)
+            or prev_aug.get(rel, "none") != want_aug(rel)]
     need = int(sum(r.sample_rows for r in recs) * (len(names) * 5.5 + 30) * len(jobs) / max(len(recs), 1))
     free = shutil.disk_usage(out.parent if out.parent.exists() else DATA).free
     log(f"[build] 3/3 CSVs: {len(jobs)} to write ({len(recs) - len(jobs)} up to date), TAP/SWIPE rows that train: "
@@ -341,7 +367,6 @@ def build(out=DEFAULT_OUT, preset=DEFAULT_LABELS, pool_name=F.DEFAULT_POOL, road
         for p in out.rglob("*.csv"):
             if not any(x.startswith("_") for x in p.relative_to(out).parts[:-1]) and p not in want:
                 p.unlink(); log(f"[build] removed {p} (not a trainable roadmap recording any more)")
-    man_path = meta / "manifest.csv"
     man = pd.DataFrame(res)
     if len(infos):
         lab = pd.DataFrame(infos)
@@ -379,11 +404,15 @@ def main(argv=None):
     ap.add_argument("--rfe-rows", type=int, default=int(os.environ.get("TAP_F1_RFE_ROWS", DEFAULT_RFE_ROWS)),
                     help="rows of the training folds the feature elimination looks at")
     ap.add_argument("--emg", default=os.environ.get("TAP_F1_EMG", F.DEFAULT_EMG), choices=F.EMG_MODES,
-                    help="robust: EMG PSD candidates only as change over time inside one channel and zone "
+                    help="within (default): EMG PSD candidates only as diffs inside one channel (over time, zone vs "
+                         "zone); robust: only change over time; all: every pair and the absolute codes "
                          "(research/gesture/EMG_PSD_ROBUST_FEATURES.md)")
+    ap.add_argument("--aug", type=int, choices=(0, 1), default=int(os.environ.get("TAP_F1_AUG", int(DEFAULT_AUG))),
+                    help="1 (default): every training-fold recording gets one placement / contact / hum / rotation "
+                         "change (tap_f1_augment.py); the held-out fold stays as recorded")
     a = ap.parse_args(argv)
     build(a.out, a.labels, a.features, a.roadmap, a.workers, a.limit, a.tap_row_share, bool(a.wl), not a.no_lite,
-          a.rfe_rows, emg=a.emg)
+          a.rfe_rows, emg=a.emg, aug=bool(a.aug))
     return 0
 
 

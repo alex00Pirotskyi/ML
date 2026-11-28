@@ -158,7 +158,7 @@ def test_feature_pools_and_firmware_helpers():
 
 def test_candidates_are_pairs_inside_one_modality_without_wl():
     raw = _raw_columns()
-    c = F.candidates(raw)
+    c = F.candidates(raw, emg="all")
     assert len(c) == len(set(c)) == 5127
     assert not any(F.is_wl(x) for x in c) and sum(x in F.LITE_COLUMNS for x in c) == 15
     assert set(F.legacy_model_inputs()) <= set(c)                                 # the old pool is inside, same names
@@ -170,7 +170,71 @@ def test_candidates_are_pairs_inside_one_modality_without_wl():
             assert "acc_rate" not in x
     fm = F.FeatureMaker(raw + F.LITE_COLUMNS, c)                                    # every candidate computes
     assert len(fm.names) == 5127
-    assert len(F.candidates(raw, lite=False)) == 5112
+    assert len(F.candidates(raw, lite=False, emg="all")) == 5112
+
+
+def test_wl_wl_head_and_wl_tail_are_all_removed_by_default():
+    raw = _raw_columns()
+    wl = [c for c in raw if re.search(r"->wl(_head|_tail)?\[", c)]
+    assert len(wl) == 9 and all(F.is_wl(c) for c in wl)                  # wl, wl_head, wl_tail x 3 channels
+    assert F.DEFAULT_WL is False
+    for emg in F.EMG_MODES:                                                # no field, no ratio, no diff on any of them
+        assert not any("wl" in x.lower() for x in F.candidates(raw, emg=emg))
+    for name in F.POOLS:
+        sel = F.candidates(raw)[:50] if name == "rfe" else None
+        assert not any("wl" in x.lower() for x in F.pool(name, raw, selected=sel))
+    for c in wl:                                                           # a WL input in the selection is refused
+        with pytest.raises(ValueError):
+            F.pool("rfe", raw, selected=[c])
+    assert any("wl" in x.lower() for x in F.candidates(raw, wl=True))      # WL=1 brings them back
+    import export_tap_bundle as EX
+    assert all(EX.WL_FIELD.search(c) for c in wl) and not EX.WL_FIELD.search("p_core->cload_lite.rise10[CH1]")
+
+
+def test_default_emg_candidates_are_diffs_inside_one_channel():
+    raw = _raw_columns()
+    assert F.DEFAULT_EMG == "within"
+    c = F.candidates(raw)
+    assert len(c) == len(set(c)) == 3237
+    emg = [x for x in c if "emg_psd" in x]
+    assert len(emg) == 135 and all(x.startswith("p_core->diff(") for x in emg)    # no ratio, no absolute code
+    over_time = 0
+    for x in emg:
+        a, b = re.match(r"^p_core->diff\((p_core->.+?), (p_core->.+)\)$", x).groups()
+        assert F.emg_within(a, b)
+        over_time += F.emg_over_time(a, b)
+    assert over_time == 45                                                           # + 90 zone vs zone
+    assert F.emg_within("p_core->emg_psd[0][CH2][3]", "p_core->emg_psd[0][CH2][4]")              # shape
+    assert not F.emg_within("p_core->emg_psd[0][CH2][3]", "p_core->emg_psd_mean[CH2][4]")        # slot and zone
+    assert not F.emg_within("p_core->emg_psd[0][CH2][3]", "p_core->emg_psd[0][CH1][3]")          # channel vs channel
+    assert [x for x in c if "emg_psd" not in x] == [x for x in F.candidates(raw, emg="all") if "emg_psd" not in x]
+    assert len(F.FeatureMaker(raw + F.LITE_COLUMNS, c).names) == 3237
+
+
+def test_augmentation_is_exact_on_codes_and_seeded_by_name():
+    import tap_f1_augment as AUG
+    raw = _raw_columns()
+    rng = np.random.default_rng(0)
+    B = rng.integers(0, 20000, (50, len(raw))).astype(np.float32)
+    emg, wl = AUG.indices(raw)
+    assert AUG.draw("a.csv")["gain"].tolist() == AUG.draw("a.csv")["gain"].tolist()       # same file, same draw
+    assert AUG.draw("a.csv")["gain"].tolist() != AUG.draw("b.csv")["gain"].tolist()
+    ident = dict(gain=np.ones(3), tilt=np.ones((3, 5)), add=np.zeros((3, 5)), mix=0.0)
+    assert np.array_equal(AUG.apply(B, raw, ident), B)                                       # nothing changes
+    g = dict(ident, gain=np.array([2.0, 1.0, 1.0]))                                          # +6 dB on CH1
+    Y = AUG.apply(B, raw, g)
+    p = np.power(10.0, B[:, emg[:, 0].reshape(-1)] / 1e4) - 1
+    want = np.clip(np.round(1e4 * np.log10(1 + 4 * p)), 0, 65535)
+    assert np.array_equal(Y[:, emg[:, 0].reshape(-1)], want)                                 # power x 4, re-encoded
+    assert np.array_equal(Y[:, emg[:, 1:].reshape(-1)], B[:, emg[:, 1:].reshape(-1)])        # other channels kept
+    acc = [i for i, c in enumerate(raw) if c.startswith("p_core->acc_")]
+    for k in AUG.STRESS_KINDS + ("train",):
+        d = AUG.draw("x.csv") if k == "train" else AUG.stress("x.csv", k)
+        Y = AUG.apply(B, raw, d)
+        assert np.array_equal(Y[:, acc], B[:, acc])                                          # ACC untouched
+        assert np.isfinite(Y).all() and (Y[:, emg.reshape(-1)] >= 0).all()
+    h = AUG.stress("x.csv", "hum2")["add"]
+    assert (h[:, 2] > 0).all() and not h[:, [0, 1, 3, 4]].any()                              # one zone only
 
 
 def test_robust_emg_candidates_are_change_over_time_inside_one_channel_and_zone():
@@ -282,3 +346,128 @@ def test_thin_tap_rows_only_thins_tap_recordings():
     assert list(t) == [0, -1, 1, -1, -1, -1, 1, -1]                # every 2nd row trains; -1 stays -1
     assert list(B.thin_tap_rows(y, "FINGER", 0.5)) == list(y)       # movement recordings keep every row
     assert list(B.thin_tap_rows(y, "SWIPE", 1.0)) == list(y)
+
+
+# ------------------------------------------------------------------------------------------------ back test, bundle
+def test_backtest_replay_counts_taps_doubles_and_false_events():
+    import backtest_tap_f1 as BT
+    t = np.arange(0, 6000, 10.0)
+    q = np.zeros(len(t), np.int16)
+    ptr = np.zeros(len(t), bool)
+    for on in (500, 2500):                                   # two single taps, the 2nd one missed by the model
+        ptr[(t >= on) & (t < on + 80)] = True
+    q[(t >= 520) & (t < 560)] = 19                           # tap 1: onset 20 ms after the press
+    r = BT.replay("TAP", "x_MidTap_Vertical_Default_60bpm_x.csv", t, ptr, q, fires=(18,))
+    s = BT.summarize(r[18])
+    assert s["taps"] == 0.5 and s["presses"] == 2 and s["single_as_double"] == 0.0
+    pair = np.zeros(len(t), bool); qd = np.zeros(len(t), np.int16)
+    pair[(t >= 1000) & (t < 1060)] = True; pair[(t >= 1250) & (t < 1310)] = True      # a double tap, 250 ms apart
+    qd[(t >= 1010) & (t < 1050)] = 19; qd[(t >= 1260) & (t < 1290)] = 16             # dip between, 2nd >= SECOND
+    d = BT.summarize(BT.replay("TAP", "x_DoubleTaps_Vertical_Default_40bpm_x.csv", t, pair, qd, fires=(18,))[18])
+    assert d["double_pairs"] == 1.0 and d["taps"] == 1.0
+    qn = np.zeros(len(t), np.int16); qn[(t >= 3000) & (t < 3050)] = 19            # one false tap in a fist recording
+    n = BT.summarize(BT.replay("FINGER", "x_Fist&Stretch_Horizontal_x.csv", t, np.zeros(len(t), bool), qn, fires=(18,))[18])
+    assert n["false_fist_pm"] == pytest.approx(1 / (5990 / 6e4)) and n["false_finger_pm"] == 0.0
+    assert n["false_weighted_pm"] == pytest.approx(n["false_fist_pm"])
+    assert n["U_se"] > 0                       # one event in 0.1 min: the false rate is far from known
+    assert BT.levels([0.0, 0.0499, 0.05, 0.8999, 0.9, 1.0]).tolist() == [0, 0, 1, 17, 18, 20]
+
+
+def test_backtest_fire_is_the_highest_within_one_standard_error_of_the_best():
+    import backtest_tap_f1 as BT
+    curve = {12: dict(U=75.0, U_se=4.0), 13: dict(U=74.0, U_se=4.0), 14: dict(U=71.5, U_se=4.0),
+             15: dict(U=70.0, U_se=4.0), 16: dict(U=60.0, U_se=4.0)}
+    assert BT.pick_fire(curve, 1.0) == (14, 12)       # 71.5 >= 75 - 4; 70.0 is not
+    assert BT.pick_fire(curve, 0.0) == (12, 12)       # BACKTEST_SE=0: the best U as is
+    assert BT.pick_fire(curve, 2.0) == (15, 12)
+
+
+FAKE_MODEL = """#ifndef TAP_MODEL_H
+#define TAP_MODEL_H
+#include <math.h>
+#include <stdint.h>
+#include "core_type_def.h"
+#define TAP_NUM_FEATURES 1u
+#define TAP_NUM_TREES 1u
+static const float tap_q20_raw_thresholds[19] = { %s };
+static inline float tap_predict_raw_score(const t_core* p_core) { return (float) p_core->acc_rate[X][0] / 100.0f; }
+static inline int8_t tap_predict_q20(const t_core* p_core, uint8_t threshold_q20)
+{
+    if (threshold_q20 == 0u) { return 1; }
+    if (threshold_q20 >= 20u) { return 0; }
+    return tap_predict_raw_score(p_core) >= tap_q20_raw_thresholds[threshold_q20 - 1u] ? 1 : 0;
+}
+static inline uint8_t tap_probability_q20(const t_core* p_core)
+{
+    uint8_t k = 0u;
+    while (k < 19u && tap_predict_raw_score(p_core) >= tap_q20_raw_thresholds[k]) { ++k; }
+    return k;
+}
+#endif /* TAP_MODEL_H */
+"""
+
+
+@pytest.mark.parametrize("immediate,chain", [(0, 0), (1, 0), (1, 1)])
+def test_bundle_tap_logic_in_c_matches_the_python_twin(tmp_path, immediate, chain):
+    """the generated tap_gestures.c (state machine, early-exit query while idle, full score while pending) fires
+    exactly like research/gesture/tap_gestures.py on random score streams"""
+    import ctypes
+    import shutil
+    import subprocess
+    sys.path.insert(0, str(ROOT / "research" / "gesture"))
+    import export_tap_bundle as EB
+    import tap_gestures as TG
+    cc = shutil.which("cc") or shutil.which("gcc") or shutil.which("clang")
+    if not cc:
+        pytest.skip("no C compiler")
+    logit = lambda p: np.log(p / (1 - p))
+    thr = np.float32([logit(k / 20) for k in range(1, 20)])
+    code, facts, fields = EB.model_code(FAKE_MODEL % ", ".join(f"{float(v):.9e}f" for v in thr))
+    assert fields == ["p_core->acc_rate[X][0]"]
+    choice = dict(fire_q20=17, second_q20=13, dip_q20=4, min_gap_ms=150, window_ms=400, lockout_ms=300, fold=0,
+                  recordings=0, nominal={k: 0.0 for k in ("taps", "soft", "fast240", "double_pairs", "single_as_double",
+                                                            "false_pm", "false_fist_pm", "false_finger_pm",
+                                                            "false_wrist_pm", "false_arm_pm", "false_band_pm")})
+    fw = tmp_path / "fw"; fw.mkdir()
+    (fw / "core_typedef.h").write_text(EB.core_typedef_h("fake", fields, "now"))
+    (fw / "tap_gestures.h").write_text(EB.tap_gestures_h("fake", choice, facts, None, "now"))
+    (fw / "tap_gestures.c").write_text(EB.tap_gestures_c("fake", code, "now"))
+    (tmp_path / "run.c").write_text("""#include <string.h>
+#include "tap_gestures.h"
+void run(const short* raw100, const unsigned* t, long n, signed char* ev)
+{
+    t_core c; tg_state_t s; memset(&c, 0, sizeof c); tg_init(&s, t[0]);
+    for (long i = 0; i < n; ++i) { c.acc_rate[X][0] = raw100[i]; ev[i] = (signed char) tg_process(&s, &c, t[i]); }
+}
+""")
+    lib = tmp_path / "libtg.so"
+    r = subprocess.run([cc, "-std=c99", "-O2", "-Wall", "-Wextra", "-Werror", "-shared", "-fPIC", "-DTG_HOST_CORE",
+                        f"-DTG_REPORT_TAP_IMMEDIATELY={immediate}", f"-DTG_CHAIN_TAPS={chain}", "-I", str(fw),
+                        str(fw / "tap_gestures.c"), str(tmp_path / "run.c"), "-o", str(lib), "-lm"],
+                       capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr[-3000:]
+    so = ctypes.CDLL(str(lib))
+    so.run.argtypes = [ctypes.POINTER(ctypes.c_short), ctypes.POINTER(ctypes.c_uint), ctypes.c_long, ctypes.POINTER(ctypes.c_byte)]
+    cfg = TG.Config(fire=17, second=13, dip=4, min_gap_ms=150, window_ms=400, lockout_ms=300,
+                    immediate=bool(immediate), chain=bool(chain))
+    rng = np.random.default_rng(immediate * 2 + chain)
+    total = 0
+    for k in range(40):
+        n = 3000
+        t = np.cumsum(rng.integers(4, 9, n)).astype(np.uint32) + np.uint32(4294960000 if k == 0 else 0)  # k=0: clock wraps
+        base = rng.normal(-4.0, 1.0, n)
+        for on in rng.choice(n - 40, 25, replace=False):         # taps and close pairs
+            base[on:on + rng.integers(3, 12)] = rng.uniform(0.5, 4.0)
+        raw100 = np.clip(np.round(base * 100), -32000, 32000).astype(np.int16)
+        q = (raw100.astype(np.float32)[:, None] / np.float32(100) >= thr[None, :]).sum(1)     # the C's level
+        ev = np.zeros(n, np.int8)
+        so.run(raw100.ctypes.data_as(ctypes.POINTER(ctypes.c_short)), t.ctypes.data_as(ctypes.POINTER(ctypes.c_uint)), n,
+               ev.ctypes.data_as(ctypes.POINTER(ctypes.c_byte)))
+        tt = t.astype(np.float64)
+        if k == 0:                                                 # the twin uses floats: unwrap the clock
+            tt = np.cumsum(np.r_[0.0, np.diff(t.astype(np.int64)) % 2 ** 32]) + float(t[0])
+        want = TG.step_all(q, tt, cfg)
+        got = [(int(i), int(e)) for i, e in zip(np.flatnonzero(ev), ev[ev != 0])]
+        assert got == want, (k, got[:5], want[:5])
+        total += len(want)
+    assert total > 200

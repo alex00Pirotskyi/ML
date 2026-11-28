@@ -6,18 +6,25 @@ Two embedded LightGBM models for the Mudra band, exported as C headers with a st
 - **LONG_PRESS**: class 1 = RELEASE. The firmware averages ten `LONG_PRESS_predict_value()` Q20 outputs and
   releases when the mean is ≥ 0.5.
 
-## TAP: `make train` (2026-11-27, TAP_F1_LEGACY.md)
+## TAP: `make train` (2026-11-28; TAP_F1_LEGACY.md, EMG_PSD_ROBUST_FEATURES.md)
 
-`make train` runs the legacy F1 trainer (`train_tap_f1.py`: the old Optuna LightGBM + XGBoost script, F1 at 0.85 +
-size, max 96 KB) on file-level gesture-aware folds (`fold_split.py`), with signal labels, no absolute-WL input, inputs
-kept by a feature elimination over raw fields, diff / ratio pairs and Lean-lite (`select_tap_f1_features.py`) and the
-legacy data mix (TAP / SWIPE recordings train on every 2nd row), built by `build_tap_f1_dataset.py`; every saved
-model is then fired like the firmware on the held-out fold (`evaluate_tap_f1.py`). The trainer is unchanged but for
-its paths and one line that drops `state < 0` rows. Measured against the old pipeline on today's data: fist false
-taps -43 %, finger -18 %, all movement -17 %, taps +0.2 points (2nd of a double +5.2). `EMG=robust` restricts the
-EMG PSD candidates to change over time inside one channel and zone (EMG_PSD_ROBUST_FEATURES.md: flat under simulated
-placement and hum, but +1.9 fist false taps per minute; robustness that keeps fist rejection needs training
-augmentation, the next step there). The pipeline below is `make train-unified`.
+`make train` runs labels -> no WL -> inputs -> feature elimination -> trainer -> back test -> firmware bundle
+(README.md, section "TAP model"). The legacy F1 trainer (`train_tap_f1.py`: the old Optuna LightGBM + XGBoost script,
+F1 at 0.85 + size, max 96 KB) runs on file-level gesture-aware folds (`fold_split.py`), with signal labels, no
+absolute-WL input, inputs kept by a feature elimination (`select_tap_f1_features.py`) over raw ACC fields, ACC diff /
+ratio pairs, EMG diffs inside one channel and Lean-lite, every training-fold recording changed once by the band /
+contact / hum / rotation augmentation (`tap_f1_augment.py`), and the legacy data mix (TAP / SWIPE recordings train on
+every 2nd row), built by `build_tap_f1_dataset.py`. Every saved model is then replayed on the held-out fold through
+the firmware tap logic, clean and with band changes (`backtest_tap_f1.py`), which picks the model and its thresholds
+(best U = taps - 2 x false taps per minute, fist and finger twice; within one standard error: XGBoost, then the
+smallest model, and the highest FIRE);
+`export_tap_bundle.py` writes `core_typedef.h`, `tap_gestures.h`, `tap_gestures.c`, compiles them and replays them in
+C against the back test. The trainer is unchanged but for its paths and one line that drops `state < 0` rows.
+Measured against the old pipeline on today's data (2026-11-27 setup): fist false taps -43 %, finger -18 %, all
+movement -17 %, taps +0.2 points (2nd of a double +5.2). EMG inputs and augmentation (EMG_PSD_ROBUST_FEATURES.md):
+within-channel EMG diffs + Lean-lite trained with the augmentation kept fist rejection and held under simulated band
+placement, contact noise, hum and rotation; `EMG=robust` alone is robust but lets 1.9 more fist false taps per minute
+through; `make train EMG=all AUG=0` is the 2026-11-27 setup. The pipeline below is `make train-unified`.
 
 ## Run (the unified trainer, `make train-unified`)
 

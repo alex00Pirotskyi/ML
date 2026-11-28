@@ -21,9 +21,9 @@ sits elsewhere on the wrist, the skin contact changes, the band rotates, or the 
   rotation augmentation. Against today's make train, at the same 4 false taps per minute: fist false taps 6.1 vs
   6.6 per minute, taps 89.4% vs 90.7%. Under a band change: false taps 3.9 vs 5.0 per minute (placement), fist 7.4
   vs 8.0, taps 89.1% vs 87.3% (hum, worst zone) and 89.4% vs 87.4% (rotation). The firmware already computes all of
-  these inputs (`diff`, Lean-lite); the augmentation is what make train doesn't have yet.
+  these inputs (`diff`, Lean-lite). **Since 2026-11-28 this is make train's default** (`EMG=within`, `AUG=1`).
 - **`make train EMG=robust`** (added here: EMG candidates only as change over time) **keeps the false taps flat under
-  placement and hum, but lets 1.9 more fist false taps per minute through.** It is an option, not the default.
+  placement and hum, but lets 1.9 more fist false taps per minute through.** It stays an option.
 - **Power grid.** Which zone hum lands in depends on the ADC sample rate, which isn't in the repo (the fundamental most
   likely in zone 0 or 1). Today's model loses 3.3 points of taps with hum in zone 0 and fires 29% more with hum in
   zone 4; change-over-time inputs don't react in any zone. Our recordings show no hum at all, so the training data
@@ -31,9 +31,10 @@ sits elsewhere on the wrist, the skin contact changes, the band rotates, or the 
 
 **What to do**
 
-1. Keep make train's default for now: it is still the best model on clean data and on fists.
-2. Next, add the augmentation to make train together with within-channel EMG candidates, then A/B it on the device
-   (recipe in section 6).
+1. Done 2026-11-28: make train builds within-channel EMG candidates with the augmentation (section 6), back-tests
+   the models and exports the firmware bundle. A/B it on the device against the 2026-11-27 model
+   (`make train EMG=all AUG=0`).
+2. Keep the 2026-11-27 model at hand until the device A/B is in.
 3. Ask firmware: the EMG ADC sample rate, and whether the IIR filter bank before the FFT notches 50 or 60 Hz.
 4. Device test for any candidate model: the usual tapping plus 2–3 minutes of movement in 3–4 placements (shifted,
    rotated, loose, tight), after a reconnect, and next to a mains source (a charging laptop, a power strip).
@@ -286,23 +287,23 @@ zone):
 - `research/gesture/emg_psd_robustness.py` (this research), `plot_emg_psd_robustness.py` (figures),
   `results_emg_psd_robustness/` (every number above).
 
-**Next step, not built yet: augmentation in make train.** In `build_tap_f1_dataset.py`, before the inputs are
-computed, every recording of the training folds (not the held-out fold 0) gets one random draw, seeded by its file
-name, exactly as `aug2_draws` / `perturb_rows` do here:
+**Built 2026-11-28 (`tap_f1_augment.py`, make train's default `AUG=1`): augmentation in make train.** In
+`build_tap_f1_dataset.py`, before the inputs are computed, every recording of the training folds (not the held-out
+fold 0) gets one random draw, seeded by its file name, as `aug2_draws` / `perturb_rows` do here:
 
 - contact gain: amplitude × 2^U(−1, 1) per channel;
 - tissue tilt: amplitude × 2^U(−0.25, 0.25) per channel and zone;
 - white contact noise: power 10^U(−1.5, −0.5) per channel, spread over the zones like their bin counts;
 - hum, on half the recordings: one line in a random zone, power 10^U(−2, −0.5) × U(0.5, 1.5) per channel;
-- rotation, on the other random half: each channel takes U(0, 0.4) of its neighbour's power.
+- rotation, on an independent random half: each channel takes U(0, 0.4) of its neighbour's power.
 
 The codes are changed exactly (`p = 10^(E/10000) − 1`, change, re-encode), WL follows (amplitude factor; added power
 in quadrature, WL ≈ 850·√p), Lean-lite is recomputed from the changed WL. The same augmentation applies to the
 feature elimination's sample, so it picks inputs that survive it. EMG candidates: within-channel pairs (over time
 and zone vs zone), no absolute code, no channel-vs-channel pair. One caveat to carry: in the model test the
 augmented models fire a little more at 0.85 on clean data (4.4–4.8 false taps per minute with today's or the
-within-channel inputs, against 3.9), which the trainer's threshold-driven F1 objective should absorb; check it in
-`event_eval.md`.
+within-channel inputs, against 3.9). The back test (`backtest_tap_f1.py`) therefore picks the firing threshold
+per model on the held-out fold instead of fixing 0.85.
 
 **Optional firmware helper**: max / mean / min over the three channels of the change over time, and their summed
 power. It makes the model indifferent to which channel sees the tap (rotation), but on top of augmentation it moved

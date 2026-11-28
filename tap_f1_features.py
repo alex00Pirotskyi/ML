@@ -6,16 +6,21 @@ raw fields, named exactly as the exporter (export_plus.py) writes it into the C 
     p_core->diff(a, b)   = a - b, saturated to int16
     p_core->ratio(a, b)  = (a + 1) / (b + 1), float
 
-Candidates (`candidates`, the input of the feature elimination, select_tap_f1_features.py), like the legacy pool:
-    the raw fields                                   117 (126 minus the 9 WL fields)
+Candidates (`candidates`, the input of the feature elimination, select_tap_f1_features.py), default emg="within":
+    the raw ACC fields                               72 (no WL field, no absolute EMG code)
     ACC PSD with ACC PSD: diff and ratio             every pair of acc_psd[0], acc_psd[last], acc_psd_mean
                                                      (54 fields, 1431 pairs, any axis / zone): 2862
-    EMG PSD with EMG PSD: diff and ratio             every pair of emg_psd[0], emg_psd[last], emg_psd_mean
-                                                     (45 fields, 990 pairs): 1980
+    EMG PSD inside one channel: diff only            over time (now / oldest / mean of one zone): 45, and zone vs
+                                                     zone (one slot): 90 = 135
     ACC rate with ACC rate: diff only                acc_rate can be negative, so no ratio (153)
     Lean-lite                                        15 (p_core->cload_lite.*)
-    = 5127. A pair is used once (diff(b, a) = -diff(a, b), ratio(b, a) = 1 / ratio(a, b): the same split for a tree),
-    in the legacy model's orientation where it had one. Ratios only over PSD codes (never negative, so b + 1 >= 1).
+    = 3237. emg="all" (the 2026-11-27 pool, 5127): the 45 absolute EMG codes and every EMG-EMG diff and ratio
+    (990 pairs). emg="robust" (3192): EMG only over time, diff and ratio. Why: absolute EMG codes and
+    channel-vs-channel pairs move with band placement, contact and power-grid hum; diffs inside one channel, trained
+    with the augmentation (tap_f1_augment.py), keep both the robustness and the fist rejection
+    (research/gesture/EMG_PSD_ROBUST_FEATURES.md).
+    A pair is used once (diff(b, a) = -diff(a, b), ratio(b, a) = 1 / ratio(a, b): the same split for a tree), in the
+    legacy model's orientation where it had one. Ratios only over PSD codes (never negative, so b + 1 >= 1).
 
 Pools (the trainer ranks the pool with f_classif and picks the best n_features of it, as before):
     rfe     the candidates the feature elimination kept (default; DATA_TAP_F1/_build/selected_features.json)
@@ -49,8 +54,8 @@ LEGACY_MODEL = ROOT / "research" / "gesture" / "legacy_tap_f1_features.json"
 POOLS = ("rfe", "leg", "newacc", "new", "lite")
 DEFAULT_POOL = "rfe"
 DEFAULT_WL = False         # no absolute WL input: on the device, models that leaned on WL did worse (2026-11-27)
-EMG_MODES = ("all", "robust")
-DEFAULT_EMG = "all"        # "robust": EMG PSD only as change over time inside one channel and zone (see candidates)
+EMG_MODES = ("within", "all", "robust")
+DEFAULT_EMG = "within"     # EMG PSD only as diffs inside one channel: over time and zone vs zone (see candidates)
 LITE_COLUMNS = list(TF.LITE_COLUMNS)
 _EMG_FIELD = re.compile(r"^p_core->(emg_psd\[0\]|emg_psd\[EMG_PSD_HISTORY_SIZE - 1\]|emg_psd_mean)\[CH(\d)\]\[(\d)\]$")
 
@@ -107,24 +112,40 @@ def emg_over_time(a, b):
     return bool(ma and mb and ma.group(2, 3) == mb.group(2, 3) and ma.group(1) != mb.group(1))
 
 
+def emg_within(a, b):
+    """True for two EMG PSD fields of one channel that differ in exactly one of slot (over time) or zone (shape)"""
+    ma, mb = _EMG_FIELD.match(a), _EMG_FIELD.match(b)
+    if not (ma and mb and ma.group(2) == mb.group(2)):
+        return False
+    return (ma.group(1) == mb.group(1)) != (ma.group(3) == mb.group(3))
+
+
 def candidates(raw_columns, wl=DEFAULT_WL, lite=True, emg=DEFAULT_EMG):
     """every input the feature elimination may choose from (see the module text), in a fixed order.
-    emg="robust" keeps EMG PSD only as change over time inside one channel and zone: diff / ratio of now, oldest
-    history and mean (45 pairs, 90 inputs) - no absolute EMG code, no zone-vs-zone and no channel-vs-channel pair,
-    which carry per-recording offsets that move with band placement, contact and power-grid hum
-    (research/gesture/EMG_PSD_ROBUST_FEATURES.md)."""
+    EMG PSD (research/gesture/EMG_PSD_ROBUST_FEATURES.md; absolute codes and channel-vs-channel pairs carry offsets
+    that move with band placement, contact and power-grid hum):
+      emg="within" (default): EMG only as diffs inside one channel, over time (now / oldest / mean of one zone) and
+                   zone vs zone (one slot): 135 inputs; no absolute EMG code, no channel-vs-channel pair, no EMG ratio.
+                   Meant with the training augmentation (tap_f1_augment.py), which makes the zone-vs-zone diffs safe.
+      emg="robust": EMG only as change over time inside one channel and zone, diff and ratio (90 inputs).
+      emg="all":    every EMG-EMG diff and ratio and the absolute codes (the 2026-11-27 pool)."""
     assert emg in EMG_MODES, emg
     raw = [c for c in raw_columns if c.startswith("p_core->") and (wl or not is_wl(c))
-           and not (emg == "robust" and _EMG_FIELD.match(c))]
+           and not (emg != "all" and _EMG_FIELD.match(c))]
     fam = families(raw_columns)
     legacy = set(legacy_model_inputs())
     out = list(raw)
     for group, ops in _PAIR_GROUPS:
         fields = [c for f in group for c in fam[f]]
         for a, b in combinations(fields, 2):
-            if emg == "robust" and _EMG_FIELD.match(a) and not emg_over_time(a, b):
-                continue
+            if _EMG_FIELD.match(a):
+                if emg == "robust" and not emg_over_time(a, b):
+                    continue
+                if emg == "within" and not emg_within(a, b):
+                    continue
             for op in ops:
+                if emg == "within" and op == "ratio" and _EMG_FIELD.match(a):
+                    continue
                 fwd, rev = f"p_core->{op}({a}, {b})", f"p_core->{op}({b}, {a})"
                 out.append(rev if (rev in legacy and fwd not in legacy) else fwd)
     if lite:
